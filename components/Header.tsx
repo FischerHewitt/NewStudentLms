@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { RoleToggle } from './RoleToggle'
+import { AutorunToggle } from './AutorunToggle'
 
 /**
  * Persistent top header — present on every page.
- * Contains the LMS brand and the role toggle.
+ * Contains the LMS brand, SpeedGrader autorun toggle (teacher only),
+ * and the role toggle.
  */
 export function Header() {
   return (
@@ -22,8 +24,11 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Role toggle */}
-        <RoleToggle />
+        {/* Right: autorun setting (teacher only) + role toggle */}
+        <div className="flex items-center gap-4">
+          <AutorunToggle />
+          <RoleToggle />
+        </div>
       </div>
     </header>
   )
