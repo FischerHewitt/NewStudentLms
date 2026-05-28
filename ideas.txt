@@ -1,0 +1,17 @@
+Future ideas — not in scope for hackathon MVP
+
+## Resubmission policy
+Allow students to edit and resubmit their Submission after the initial submit, up until
+a Pending Grade exists. Would require a teacher preference ("allow resubmissions") since
+this is a real classroom policy question. Edge case to resolve: what happens to a Pending
+Grade if the student resubmits — does it get invalidated and require the teacher to re-run
+SpeedGrader?
+
+
+## B-full course generation persistence
+Instead of streaming AI output into React state and saving on confirm, write normalized
+Module/Assignment/Rubric rows directly to the DB as streaming completes. Persist every
+teacher edit in-place via individual DB UPDATEs. Pre-create the Course row before
+streaming starts. Handle partial stream states and rollback if teacher cancels.
+Estimated ~4-5 hours extra over the B-lite approach. Worth doing for a production app
+where teachers might have long-running editing sessions across multiple tabs/devices.

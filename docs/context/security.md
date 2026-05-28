@@ -1,0 +1,41 @@
+# Security Context
+
+## Hackathon MVP constraints
+
+This is a demo app. The minimum security goals are:
+
+- Keep all AI API keys server-side — never expose them to the client
+- All AI calls go through Next.js API routes or Server Actions
+- Students should only be able to read their own Submissions and Grades
+- Only teachers can approve Final Grades
+- Do not use real student data in the demo
+
+## Role model
+
+Two roles for the MVP:
+
+| Role | Permissions |
+|------|------------|
+| **teacher** | View all Submissions, run AI SpeedGrader, approve/edit Final Grades, manage course structure |
+| **student** | View course, submit work, use AI coach, view their own Grades |
+
+## Role toggle vs real authorization
+
+**For the hackathon demo, a client-side role toggle is acceptable.** It does not need to be backed by real authentication. The toggle exists to demonstrate the two user experiences, not to enforce security.
+
+**This is not real authorization.** If and when Supabase Auth is added, the following rules must be enforced server-side and via Supabase Row Level Security (RLS):
+
+- A student can only `SELECT` their own Submissions and Grades (filter by `student_id = auth.uid()`)
+- A student cannot `UPDATE` or `INSERT` into Grades
+- Only a teacher role can approve (`UPDATE`) Final Grades
+- API routes and Server Actions must verify the caller's role before performing any write operation
+
+Do not rely on client-side role state for access control when real auth is in place.
+
+## Key invariant
+
+**AI suggestions are never auto-applied.** All AI output — generated Course structure, AI Suggested Grades, Feedback drafts, coach responses — requires explicit teacher or student action before it affects stored data.
+
+## What we are NOT building for the hackathon
+
+Two-factor authentication, detailed audit logs, institution-level security controls, emergency read-only mode, AI transparency logs, complex role hierarchies. These belong in the future roadmap.
