@@ -1,17 +1,23 @@
-import { PlaceholderPage } from '@/components/PlaceholderPage'
+import { notFound } from 'next/navigation'
+import { Gradebook } from '@/components/Gradebook'
+import { getGradebookData } from '@/app/actions/gradebook'
+
+export const dynamic = 'force-dynamic'
 
 export default async function GradebookPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { id } = await params
+  const { id: courseId } = await params
+
+  const data = await getGradebookData(courseId)
+
+  if (!data) notFound()
+
   return (
-    <PlaceholderPage
-      title="Gradebook"
-      description="Student × assignment grid with four-state cells."
-      issue={8}
-      detail={`Course ID: ${id}`}
-    />
+    <div className="px-4 py-8">
+      <Gradebook data={data} />
+    </div>
   )
 }
