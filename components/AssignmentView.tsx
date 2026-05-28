@@ -10,6 +10,7 @@ import type {
   StudentSubmissionData,
   SubmissionData,
 } from '@/app/actions/assignment'
+import type { PublishedGrade } from '@/app/actions/speedgrader'
 
 interface Props {
   courseId: string
@@ -18,6 +19,8 @@ interface Props {
   studentSubmission: StudentSubmissionData
   /** All submitted/graded submissions — visible to teacher only */
   allSubmissions: SubmissionData[]
+  /** Published grade for the student (null if not yet approved) */
+  publishedGrade?: PublishedGrade
 }
 
 export function AssignmentView({
@@ -25,6 +28,7 @@ export function AssignmentView({
   assignment,
   studentSubmission,
   allSubmissions,
+  publishedGrade,
 }: Props) {
   const { role } = useRole()
   const router = useRouter()
@@ -150,6 +154,26 @@ export function AssignmentView({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Student: published grade ──────────────────────── */}
+      {role === 'student' && publishedGrade && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-emerald-600">
+            Your Grade
+          </h2>
+          <div className="mb-3 flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-emerald-700">
+              {publishedGrade.final_score}
+            </span>
+            <span className="text-sm text-emerald-500">
+              / {assignment.points_possible} pts
+            </span>
+          </div>
+          <p className="text-sm leading-relaxed text-emerald-800">
+            {publishedGrade.final_feedback}
+          </p>
         </div>
       )}
 

@@ -5,6 +5,7 @@ import {
   getStudentSubmission,
   getAllSubmissionsForAssignment,
 } from '@/app/actions/assignment'
+import { getPublishedGradeForSubmission } from '@/app/actions/speedgrader'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,11 @@ export default async function AssignmentPage({
 
   if (!assignment) notFound()
 
+  // Fetch published grade for the student's submission (null if not yet approved)
+  const publishedGrade = studentSubmission.id
+    ? await getPublishedGradeForSubmission(studentSubmission.id)
+    : null
+
   return (
     <div className="px-4 py-8">
       <AssignmentView
@@ -30,6 +36,7 @@ export default async function AssignmentPage({
         assignment={assignment}
         studentSubmission={studentSubmission}
         allSubmissions={allSubmissions}
+        publishedGrade={publishedGrade}
       />
     </div>
   )
