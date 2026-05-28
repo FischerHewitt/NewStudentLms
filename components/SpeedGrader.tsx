@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { runSpeedGrader, approveGrade } from '@/app/actions/speedgrader'
 import type { SpeedGraderData, GradeData } from '@/app/actions/speedgrader'
@@ -9,6 +9,11 @@ import type { SpeedGraderData, GradeData } from '@/app/actions/speedgrader'
 interface Props {
   courseId: string
   data: SpeedGraderData
+  /**
+   * When true and no Grade exists yet, the SpeedGrader fires automatically
+   * on mount. Controlled by the teacher's `speedgrader_autorun` preference.
+   */
+  autorun: boolean
 }
 
 type PanelState = 'idle' | 'running' | 'pending' | 'approved'
@@ -19,7 +24,7 @@ function getInitialState(grade: GradeData | null): PanelState {
   return 'pending'
 }
 
-export function SpeedGrader({ courseId, data }: Props) {
+export function SpeedGrader({ courseId, data, autorun }: Props) {
   const router = useRouter()
   const { submission, assignment } = data
 
@@ -69,6 +74,15 @@ export function SpeedGrader({ courseId, data }: Props) {
       router.refresh()
     })
   }
+
+  // Autorun: if the teacher has enabled autorun and no grade exists yet,
+  // fire the SpeedGrader automatically on mount. Intentionally mount-only —
+  // panelState and handleRunSpeedGrader must NOT be in the dep array.
+  useEffect(() => {
+    if (autorun && panelState === 'idle') {
+      handleRunSpeedGrader()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="mx-auto max-w-5xl">
