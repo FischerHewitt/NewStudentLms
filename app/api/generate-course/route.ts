@@ -1,5 +1,7 @@
 import { streamObject } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createGroq } from '@ai-sdk/groq'
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY })
 import { coursePreviewSchema } from '@/lib/schemas/course'
 
 export const maxDuration = 60
@@ -20,12 +22,24 @@ Guidelines:
 export async function POST(req: Request) {
   const { syllabus } = (await req.json()) as { syllabus: string }
 
-  const result = streamObject({
-    model: anthropic('claude-3-5-sonnet-20241022'),
-    schema: coursePreviewSchema,
-    system: SYSTEM_PROMPT,
-    prompt: `Here is the course syllabus. Extract the full course structure:\n\n${syllabus}`,
-  })
+  try {
+    const result = streamObject({
+      model: groq('llama-3.3-70b-versatile'),
+      mode: 'tool',
+      schema: coursePreviewSchema,
+      system: SYSTEM_PROMPT,
+      prompt: `Here is the course syllabus. Extract the full course structure:\n\n${syllabus}`,
+      onError: (error) => {
+        console.error('[generate-course] stream error:', error)
+      },
+    })
 
-  return result.toTextStreamResponse()
+    return result.toTextStreamResponse()
+  } catch (error) {
+    console.error('[generate-course] error:', error)
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
 }

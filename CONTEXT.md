@@ -10,6 +10,10 @@ AI-native LMS hackathon MVP — competing with Canvas.
 
 Next.js · Supabase · Vercel AI SDK · deployed on Vercel
 
+## Dev server
+
+`npm run dev` starts on **port 8001** (`http://localhost:8001`). This is set in `package.json` (`next dev -p 8001`).
+
 ## Core demo loop
 
 1. Teacher pastes a syllabus → AI generates course structure (modules, assignments, due dates)

@@ -1,7 +1,9 @@
 'use server'
 
 import { generateObject } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
+import { createGroq } from '@ai-sdk/groq'
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY })
 import { z } from 'zod'
 import { createServerClient } from '@/lib/supabase/server'
 import { TEACHER_ID } from '@/lib/constants'
@@ -187,7 +189,7 @@ export async function runSpeedGrader(
 
   // Call AI
   const { object: aiResult } = await generateObject({
-    model: anthropic('claude-3-5-sonnet-20241022'),
+    model: groq('llama-3.3-70b-versatile'),
     schema: gradeOutputSchema,
     system: `You are an expert, fair-minded teacher grading a student submission.
 Score the submission strictly according to the rubric.
