@@ -6,7 +6,14 @@ import { experimental_useObject as useObject } from 'ai/react'
 import { coursePreviewSchema, type CoursePreview } from '@/lib/schemas/course'
 import { saveCoursePreview, saveCourseToDB } from '@/app/actions/course'
 import { TeacherCoachContextBridge } from '@/components/TeacherCoachContextBridge'
-import type { CourseMetadataInput } from '@/lib/course-metadata'
+import {
+  addCourseDurationToStartDate,
+  courseDurationBetweenDates,
+  rescheduleDateForCourseRange,
+  subtractCourseDurationFromEndDate,
+  type CourseDurationInput,
+  type CourseMetadataInput,
+} from '@/lib/course-metadata'
 import { validateRubricGenerateInput } from '@/lib/rubric-generator'
 import {
   addModule,
@@ -20,7 +27,8 @@ import {
 import { RichTextarea } from '@/components/RichTextarea'
 
 type FlowState = 'idle' | 'generating' | 'review' | 'saving' | 'error'
-type InputMode = 'upload' | 'paste' | 'generate' | 'manual'
+type InputMode = 'upload' | 'paste' | 'manual'
+type DurationPart = 'weeks' | 'days'
 
 interface Props {
   /** Pre-loaded draft from an explicit Resume action on the home page */
@@ -70,6 +78,7 @@ export function GenerateFlow({ draft }: Props) {
   const [metadata, setMetadata] = useState<CourseMetadataInput>(
     draft?.metadata ?? { title: '' },
   )
+  const [courseDuration, setCourseDuration] = useState({ weeks: '', days: '' })
   // syllabus = the text stored as raw_syllabus in DB
   const [syllabus, setSyllabus] = useState(draft?.syllabus ?? '')
   // syllabusRef lets onFinish always see the latest syllabus value
@@ -82,8 +91,7 @@ export function GenerateFlow({ draft }: Props) {
   const [rubricPending, setRubricPending] = useState<string | null>(null)
   const [rubricSuggestions, setRubricSuggestions] = useState<Record<string, { description: string; points: number }[]>>({})
 
-  // generate-syllabus mode
-  const [courseDescription, setCourseDescription] = useState('')
+  const [aiInstructions, setAiInstructions] = useState('')
   const [isGeneratingSyllabus, setIsGeneratingSyllabus] = useState(false)
   const [syllabusGenError, setSyllabusGenError] = useState('')
 
@@ -134,6 +142,13 @@ export function GenerateFlow({ draft }: Props) {
     syllabusRef.current = text
   }
 
+  const appendAiInstruction = (instruction: string) => {
+    setAiInstructions((current) => {
+      const trimmed = current.trim()
+      return trimmed ? `${trimmed}\n${instruction}` : instruction
+    })
+  }
+
   // ── handlers ─────────────────────────────────────────────────────────────
   const handleCancelGeneration = () => {
     generationCancelledRef.current = true
@@ -150,20 +165,20 @@ export function GenerateFlow({ draft }: Props) {
       if (!syllabus.trim()) return
       syllabusRef.current = syllabus
       setFlowState('generating')
-      submit({ syllabus, start_date: startDate })
+      submit({ syllabus, start_date: startDate, instructions: aiInstructions })
       return
     }
 
     // upload mode — parse all files and concatenate
-    if (uploadedFiles.length === 0) return
+    if (uploadedFiles.length === 0 && !aiInstructions.trim()) return
 
     setIsParsing(true)
     try {
-      const texts = await Promise.all(uploadedFiles.map(parseFile))
+      const texts = uploadedFiles.length > 0 ? await Promise.all(uploadedFiles.map(parseFile)) : []
       const combined = texts.join('\n\n---\n\n')
-      setSyllabusAndRef(combined)
+      if (combined) setSyllabusAndRef(combined)
       setFlowState('generating')
-      submit({ syllabus: combined, start_date: startDate })
+      submit({ syllabus: combined, start_date: startDate, instructions: aiInstructions })
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Failed to parse file')
       setIsParsing(false)
@@ -188,38 +203,6 @@ export function GenerateFlow({ draft }: Props) {
     }
   }
 
-  const handleGenerateSyllabus = async () => {
-    if (!courseDescription.trim()) return
-    setSyllabusGenError('')
-    setIsGeneratingSyllabus(true)
-    try {
-      const res = await fetch('/api/generate-syllabus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: courseDescription }),
-      })
-      if (!res.ok || !res.body) throw new Error('Generation failed')
-
-      // Stream the response into the syllabus textarea and switch to paste mode
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let generated = ''
-      setInputMode('paste')
-      setSyllabusAndRef('')
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        generated += decoder.decode(value, { stream: true })
-        setSyllabusAndRef(generated)
-      }
-    } catch {
-      setSyllabusGenError('Failed to generate syllabus. Please try again.')
-    } finally {
-      setIsGeneratingSyllabus(false)
-    }
-  }
-
   const handleClearCourse = () => {
     if (!window.confirm('Clear all modules and assignments? This cannot be undone.')) return
     setEditablePreview((p) => p ? { ...p, modules: [] } : p)
@@ -228,7 +211,7 @@ export function GenerateFlow({ draft }: Props) {
   const handleRegenerateFromSyllabus = () => {
     if (!syllabusRef.current.trim()) return
     setFlowState('generating')
-    submit({ syllabus: syllabusRef.current, start_date: metadata.start_date ?? null })
+    submit({ syllabus: syllabusRef.current, start_date: metadata.start_date ?? null, instructions: aiInstructions })
   }
 
   const handleGenerateSyllabusFromStructure = async () => {
@@ -284,6 +267,122 @@ export function GenerateFlow({ draft }: Props) {
   const updateCourseTitle = (title: string) => {
     setMetadata((m) => ({ ...m, title }))
     setEditablePreview((p) => (p ? { ...p, title } : p))
+  }
+
+  const normalizeDuration = (
+    nextDuration = courseDuration,
+  ): CourseDurationInput => ({
+    weeks: Math.max(0, Number.parseInt(nextDuration.weeks, 10) || 0),
+    days: Math.max(0, Number.parseInt(nextDuration.days, 10) || 0),
+  })
+
+  const hasDuration = (duration: CourseDurationInput) => duration.weeks > 0 || duration.days > 0
+
+  const setCourseDurationFromDates = (startDate: string | undefined, endDate: string | undefined) => {
+    if (!startDate || !endDate) return
+    const duration = courseDurationBetweenDates(startDate, endDate)
+    if (!duration) return
+    setCourseDuration({
+      weeks: String(duration.weeks),
+      days: String(duration.days),
+    })
+  }
+
+  const rescheduleAssignmentDueDates = (
+    previousMetadata: CourseMetadataInput,
+    nextMetadata: CourseMetadataInput,
+  ) => {
+    setEditablePreview((p) => {
+      if (!p) return p
+      return {
+        ...p,
+        modules: p.modules.map((module) => ({
+          ...module,
+          assignments: module.assignments.map((assignment) => ({
+            ...assignment,
+            due_date: rescheduleDateForCourseRange(
+              assignment.due_date,
+              previousMetadata,
+              nextMetadata,
+            ),
+          })),
+        })),
+      }
+    })
+  }
+
+  const updateMetadataAndDueDates = (
+    getNextMetadata: (previousMetadata: CourseMetadataInput) => CourseMetadataInput,
+  ) => {
+    const previousMetadata = metadata
+    const nextMetadata = getNextMetadata(previousMetadata)
+    setMetadata(nextMetadata)
+    rescheduleAssignmentDueDates(previousMetadata, nextMetadata)
+  }
+
+  const handleStartDateChange = (value: string) => {
+    const duration = normalizeDuration()
+    updateMetadataAndDueDates((m) => {
+      const nextStart = value || undefined
+      if (nextStart && m.end_date) {
+        setCourseDurationFromDates(nextStart, m.end_date)
+        return { ...m, start_date: nextStart }
+      }
+      return {
+        ...m,
+        start_date: nextStart,
+        ...(nextStart && hasDuration(duration)
+          ? { end_date: addCourseDurationToStartDate(nextStart, duration) ?? m.end_date }
+          : {}),
+      }
+    })
+  }
+
+  const handleEndDateChange = (value: string) => {
+    const duration = normalizeDuration()
+    updateMetadataAndDueDates((m) => {
+      const nextEnd = value || undefined
+      if (m.start_date && nextEnd) {
+        setCourseDurationFromDates(m.start_date, nextEnd)
+        return { ...m, end_date: nextEnd }
+      }
+      return {
+        ...m,
+        end_date: nextEnd,
+        ...(nextEnd && hasDuration(duration)
+          ? { start_date: subtractCourseDurationFromEndDate(nextEnd, duration) ?? m.start_date }
+          : {}),
+      }
+    })
+  }
+
+  const handleDurationChange = (part: DurationPart, value: string) => {
+    const digitsOnly = value.replace(/\D/g, '')
+    const nextDuration = {
+      ...courseDuration,
+      [part]: part === 'days'
+        ? String(Math.min(Number.parseInt(digitsOnly, 10) || 0, 6))
+        : digitsOnly,
+    }
+    setCourseDuration(nextDuration)
+
+    const duration = normalizeDuration(nextDuration)
+    updateMetadataAndDueDates((m) => {
+      if (!hasDuration(duration)) return m
+      if (m.start_date) {
+        return {
+          ...m,
+          end_date: addCourseDurationToStartDate(m.start_date, duration) ?? m.end_date,
+        }
+      }
+      if (m.end_date) {
+        return {
+          ...m,
+          start_date: subtractCourseDurationFromEndDate(m.end_date, duration) ?? m.start_date,
+        }
+      }
+      return m
+    })
   }
 
   const updateModule = (mi: number, field: 'title' | 'description', value: string) =>
@@ -361,11 +460,17 @@ export function GenerateFlow({ draft }: Props) {
   const canGenerate =
     inputMode === 'manual'
       ? true
-      : inputMode === 'generate'
-        ? courseDescription.trim().length > 0
-        : inputMode === 'paste'
-          ? syllabus.trim().length > 0
-          : uploadedFiles.length > 0
+      : inputMode === 'paste'
+        ? syllabus.trim().length > 0
+        : uploadedFiles.length > 0 || aiInstructions.trim().length > 0
+
+  const aiInstructionShortcuts = [
+    'Generate a complete syllabus before creating modules and assignments.',
+    'Set the course start date to [YYYY-MM-DD].',
+    'My course is [number] weeks and [number] days long.',
+    'Create one module per week and keep module names consistent.',
+    'Keep pages simple: use clear headings, concise text, and 2-3 visuals where helpful.',
+  ]
 
   if (flowState === 'idle') {
     return (
@@ -384,7 +489,7 @@ export function GenerateFlow({ draft }: Props) {
 
         {/* ── Input mode tabs ── */}
         <div className="mb-5 flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
-          {(['upload', 'paste', 'generate', 'manual'] as InputMode[]).map((m) => (
+          {(['upload', 'paste', 'manual'] as InputMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setInputMode(m)}
@@ -394,7 +499,7 @@ export function GenerateFlow({ draft }: Props) {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              {m === 'upload' ? 'Upload' : m === 'paste' ? 'Paste text' : m === 'generate' ? 'Generate syllabus' : 'Manual'}
+              {m === 'upload' ? 'Upload' : m === 'paste' ? 'Paste text' : 'Manual'}
             </button>
           ))}
         </div>
@@ -413,17 +518,30 @@ export function GenerateFlow({ draft }: Props) {
           />
         )}
 
-        {inputMode === 'generate' && (
-          <div className="space-y-3">
+        {inputMode !== 'manual' && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-400">
+              AI instructions
+            </label>
             <textarea
-              value={courseDescription}
-              onChange={(e) => setCourseDescription(e.target.value)}
-              placeholder="Describe your course — subject, level, duration, topics, any specific requirements…&#10;&#10;e.g. Introductory biology for undergraduates, 16 weeks, covering cell biology, genetics, evolution, and ecology."
-              rows={8}
-              className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              value={aiInstructions}
+              onChange={(e) => setAiInstructions(e.target.value)}
+              placeholder="Tell AI what to do with the uploaded or pasted material..."
+              rows={5}
+              className="w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
             />
-            <p className="text-xs text-slate-400">AI will write a full syllabus from your description. You can review and edit it before generating the course structure.</p>
-            {syllabusGenError && <p className="text-sm text-red-600">{syllabusGenError}</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {aiInstructionShortcuts.map((instruction) => (
+                <button
+                  key={instruction}
+                  type="button"
+                  onClick={() => appendAiInstruction(instruction)}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  {instruction.split('.')[0]}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -449,18 +567,14 @@ export function GenerateFlow({ draft }: Props) {
             onClick={
               inputMode === 'manual'
                 ? handleStartManual
-                : inputMode === 'generate'
-                  ? handleGenerateSyllabus
-                  : handleGenerate
+                : handleGenerate
             }
             disabled={!canGenerate || isParsing || isGeneratingSyllabus}
             className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {inputMode === 'manual'
               ? 'Start Building →'
-              : inputMode === 'generate'
-                ? isGeneratingSyllabus ? 'Writing syllabus…' : 'Generate Syllabus →'
-                : isParsing ? 'Reading file…' : 'Generate Course →'}
+              : isParsing ? 'Reading file…' : 'Generate Course →'}
           </button>
         </div>
         </div>
@@ -622,11 +736,35 @@ export function GenerateFlow({ draft }: Props) {
               className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
             />
             <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">Duration</span>
+              <input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                value={courseDuration.weeks}
+                onChange={(e) => handleDurationChange('weeks', e.target.value)}
+                placeholder="Weeks"
+                className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+              />
+              <span className="text-xs text-slate-400">weeks</span>
+              <input
+                type="number"
+                min="0"
+                max="6"
+                inputMode="numeric"
+                value={courseDuration.days}
+                onChange={(e) => handleDurationChange('days', e.target.value)}
+                placeholder="Days"
+                className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+              />
+              <span className="text-xs text-slate-400">days</span>
+            </div>
+            <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-400">Start</span>
               <input
                 type="date"
                 value={metadata.start_date ?? ''}
-                onChange={(e) => setMetadata((m) => ({ ...m, start_date: e.target.value || undefined }))}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
               />
             </div>
@@ -635,7 +773,7 @@ export function GenerateFlow({ draft }: Props) {
               <input
                 type="date"
                 value={metadata.end_date ?? ''}
-                onChange={(e) => setMetadata((m) => ({ ...m, end_date: e.target.value || undefined }))}
+                onChange={(e) => handleEndDateChange(e.target.value)}
                 className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
               />
             </div>

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { validateCourseMetadata, buildGeneratePrompt } from '@/lib/course-metadata'
+import {
+  addCourseDurationToStartDate,
+  buildGeneratePrompt,
+  courseDurationBetweenDates,
+  rescheduleDateForCourseRange,
+  subtractCourseDurationFromEndDate,
+  totalCourseDurationDays,
+  validateCourseMetadata,
+} from '@/lib/course-metadata'
 
 describe('validateCourseMetadata', () => {
   it('passes with title only', () => {
@@ -51,6 +59,77 @@ describe('validateCourseMetadata', () => {
   })
 })
 
+describe('course duration date helpers', () => {
+  it('converts weeks and days to total days', () => {
+    expect(totalCourseDurationDays({ weeks: 10, days: 3 })).toBe(73)
+  })
+
+  it('fills an end date from a start date and duration', () => {
+    expect(
+      addCourseDurationToStartDate('2026-09-08', { weeks: 10, days: 3 }),
+    ).toBe('2026-11-20')
+  })
+
+  it('fills a start date from an end date and duration', () => {
+    expect(
+      subtractCourseDurationFromEndDate('2026-11-20', { weeks: 10, days: 3 }),
+    ).toBe('2026-09-08')
+  })
+
+  it('returns null for malformed dates', () => {
+    expect(addCourseDurationToStartDate('09/08/2026', { weeks: 1, days: 0 })).toBeNull()
+    expect(subtractCourseDurationFromEndDate('bad-date', { weeks: 1, days: 0 })).toBeNull()
+  })
+
+  it('calculates weeks and days between start and end dates', () => {
+    expect(courseDurationBetweenDates('2026-09-08', '2026-11-20')).toEqual({
+      weeks: 10,
+      days: 3,
+    })
+  })
+
+  it('returns null when end date is before start date', () => {
+    expect(courseDurationBetweenDates('2026-11-20', '2026-09-08')).toBeNull()
+  })
+
+  it('shifts a due date when the course start date moves', () => {
+    expect(
+      rescheduleDateForCourseRange(
+        '2026-09-22',
+        { start_date: '2026-09-08' },
+        { start_date: '2026-09-15' },
+      ),
+    ).toBe('2026-09-29')
+  })
+
+  it('scales a due date when the course range changes', () => {
+    expect(
+      rescheduleDateForCourseRange(
+        '2026-09-15',
+        { start_date: '2026-09-01', end_date: '2026-09-29' },
+        { start_date: '2026-09-01', end_date: '2026-10-27' },
+      ),
+    ).toBe('2026-09-29')
+  })
+
+  it('leaves invalid or empty due dates unchanged', () => {
+    expect(
+      rescheduleDateForCourseRange(
+        null,
+        { start_date: '2026-09-01' },
+        { start_date: '2026-09-08' },
+      ),
+    ).toBeNull()
+    expect(
+      rescheduleDateForCourseRange(
+        'not-a-date',
+        { start_date: '2026-09-01' },
+        { start_date: '2026-09-08' },
+      ),
+    ).toBe('not-a-date')
+  })
+})
+
 describe('buildGeneratePrompt', () => {
   it('includes syllabus text', () => {
     const prompt = buildGeneratePrompt('Week 1: intro', null)
@@ -79,5 +158,15 @@ describe('buildGeneratePrompt', () => {
   it('accepts a well-formed ISO date', () => {
     const prompt = buildGeneratePrompt('Week 1: intro', '2026-09-08')
     expect(prompt).toContain('2026-09-08')
+  })
+
+  it('includes teacher instructions when provided', () => {
+    const prompt = buildGeneratePrompt(
+      'Calculus III course',
+      null,
+      'Generate a complete syllabus and make the course 10 weeks long.',
+    )
+    expect(prompt).toContain('Teacher instructions')
+    expect(prompt).toContain('10 weeks')
   })
 })

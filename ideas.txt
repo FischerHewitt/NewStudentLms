@@ -140,3 +140,30 @@ calendar events for office hours or review sessions from the LMS.
 Important boundaries: keep Outlook permissions narrow, make sync status visible, and avoid
 letting private email content leak into student-facing AI responses. This likely belongs
 behind an explicit teacher opt-in and a dashboard settings panel.
+
+
+## AI chat → course settings sync in /generate
+When the teacher types course parameters into the AI chat on the generate page (e.g.
+"start date is September 2nd", "12 weeks", "3 days a week", "5 modules"), the AI should
+parse those values and automatically update the corresponding fields in the course settings
+form — not just acknowledge them in the chat response. Currently the AI responds with
+confirmation text but the form fields stay at their defaults and the teacher has to
+manually re-enter the same information.
+
+Concrete fields to sync:
+  - Start date → course start date picker
+  - Number of weeks / end date → course duration
+  - Days per week / meeting days → schedule fields
+  - Number of modules → module count input
+  - Any other structured parameters the form exposes
+
+Implementation approach: the AI response for parameter-setting messages should include a
+structured JSON block (or a separate tool call) alongside the chat text. The generate page
+reads that structured output and calls the same state setters that the form controls use.
+This way the chat and the form stay in sync — the teacher can use either input method and
+the other reflects the change immediately.
+
+Edge cases to handle: conflicting values (chat says 10 weeks, form already has 8 — ask
+which to keep), partial information (only start date given, leave other fields alone),
+and re-generation after settings change (prompt the teacher to re-run generation if
+parameters change after a course has already been generated).

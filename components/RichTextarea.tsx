@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 interface Props {
   value: string
@@ -91,6 +91,87 @@ const allowedStyles = new Set([
   'line-height',
   'text-align',
 ])
+
+// ---------------------------------------------------------------------------
+// Math function templates — Desmos-style
+// ---------------------------------------------------------------------------
+
+export type MathFnKey =
+  | 'sqrt' | 'nthroot' | 'abs' | 'floor' | 'ceil' | 'round' | 'mod' | 'sign'
+  | 'exp' | 'ln' | 'log' | 'log_a'
+  | 'derivative' | 'integral' | 'sum' | 'product' | 'limit'
+  | 'sin' | 'cos' | 'tan' | 'csc' | 'sec' | 'cot'
+  | 'arcsin' | 'arccos' | 'arctan'
+  | 'sinh' | 'cosh' | 'tanh' | 'csch' | 'sech' | 'coth'
+  | 'mean' | 'median' | 'stdev' | 'variance' | 'nCr' | 'nPr' | 'factorial'
+  | 'distance' | 'midpoint' | 'polygon'
+
+const MATH_TEMPLATES: Record<MathFnKey, string> = {
+  sqrt: '\\sqrt{□}', nthroot: '\\sqrt[□]{□}', abs: '|□|',
+  floor: '\\lfloor □ \\rfloor', ceil: '\\lceil □ \\rceil',
+  round: '\\text{round}(□)', mod: '□ \\mod □', sign: '\\text{sign}(□)',
+  exp: 'e^{□}', ln: '\\ln(□)', log: '\\log(□)', log_a: '\\log_{□}(□)',
+  derivative: '\\frac{d}{dx}(□)', integral: '\\int_{□}^{□} □ \\, d□',
+  sum: '\\sum_{□}^{□} □', product: '\\prod_{□}^{□} □', limit: '\\lim_{□ \\to □} □',
+  sin: '\\sin(□)', cos: '\\cos(□)', tan: '\\tan(□)',
+  csc: '\\csc(□)', sec: '\\sec(□)', cot: '\\cot(□)',
+  arcsin: '\\arcsin(□)', arccos: '\\arccos(□)', arctan: '\\arctan(□)',
+  sinh: '\\sinh(□)', cosh: '\\cosh(□)', tanh: '\\tanh(□)',
+  csch: '\\text{csch}(□)', sech: '\\text{sech}(□)', coth: '\\coth(□)',
+  mean: '\\bar{□}', median: '\\tilde{□}', stdev: '\\sigma(□)',
+  variance: '\\sigma^2(□)', nCr: '\\binom{□}{□}', nPr: 'P(□,□)', factorial: '□!',
+  distance: '\\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}',
+  midpoint: '\\left(\\frac{x_1+x_2}{2},\\frac{y_1+y_2}{2}\\right)',
+  polygon: '\\text{polygon}(□)',
+}
+
+export function buildMathTemplate(key: MathFnKey | string): string {
+  return MATH_TEMPLATES[key as MathFnKey] ?? `\\${key}(□)`
+}
+
+type MathCategory = { label: string; fns: { key: MathFnKey; display: string }[] }
+
+const MATH_CATEGORIES: MathCategory[] = [
+  { label: 'ARITHMETIC', fns: [
+    { key: 'sqrt', display: '√x' }, { key: 'nthroot', display: 'ⁿ√x' },
+    { key: 'abs', display: '|x|' }, { key: 'floor', display: '⌊x⌋' },
+    { key: 'ceil', display: '⌈x⌉' }, { key: 'round', display: 'round' },
+    { key: 'mod', display: 'mod' }, { key: 'sign', display: 'sign' },
+  ]},
+  { label: 'EXPONENTS & LOGS', fns: [
+    { key: 'exp', display: 'eˣ' }, { key: 'ln', display: 'ln' },
+    { key: 'log', display: 'log' }, { key: 'log_a', display: 'logₐ' },
+  ]},
+  { label: 'CALCULUS', fns: [
+    { key: 'derivative', display: 'd/dx' }, { key: 'integral', display: '∫' },
+    { key: 'sum', display: 'Σ' }, { key: 'product', display: 'Π' },
+    { key: 'limit', display: 'lim' },
+  ]},
+  { label: 'TRIG FUNCTIONS', fns: [
+    { key: 'sin', display: 'sin' }, { key: 'cos', display: 'cos' },
+    { key: 'tan', display: 'tan' }, { key: 'csc', display: 'csc' },
+    { key: 'sec', display: 'sec' }, { key: 'cot', display: 'cot' },
+    { key: 'arcsin', display: 'arcsin' }, { key: 'arccos', display: 'arccos' },
+    { key: 'arctan', display: 'arctan' },
+  ]},
+  { label: 'HYPERBOLIC TRIG', fns: [
+    { key: 'sinh', display: 'sinh' }, { key: 'cosh', display: 'cosh' },
+    { key: 'tanh', display: 'tanh' }, { key: 'csch', display: 'csch' },
+    { key: 'sech', display: 'sech' }, { key: 'coth', display: 'coth' },
+  ]},
+  { label: 'STATISTICS', fns: [
+    { key: 'mean', display: 'x̄' }, { key: 'median', display: 'x̃' },
+    { key: 'stdev', display: 'σ' }, { key: 'variance', display: 'σ²' },
+    { key: 'nCr', display: 'nCr' }, { key: 'nPr', display: 'nPr' },
+    { key: 'factorial', display: 'n!' },
+  ]},
+  { label: 'GEOMETRY', fns: [
+    { key: 'distance', display: 'dist' }, { key: 'midpoint', display: 'mid' },
+    { key: 'polygon', display: 'poly' },
+  ]},
+]
+
+// ---------------------------------------------------------------------------
 
 function escapeHtml(value: string) {
   return value
@@ -263,6 +344,9 @@ export function RichTextarea({
   const initialAutoFocusRef = useRef(autoFocus)
   const lastEmittedValueRef = useRef(value)
   const [isEmpty, setIsEmpty] = useState(!value.trim())
+  // Which popover is open
+  const [openPanel, setOpenPanel] = useState<null | 'table' | 'math'>(null)
+  const [tableHover, setTableHover] = useState<{ cols: number; rows: number } | null>(null)
 
   useEffect(() => {
     const editor = ref.current
@@ -389,18 +473,29 @@ export function RichTextarea({
       const url = window.prompt('Link URL', 'https://')
       if (url) runCommand('createLink', url)
     } else if (action === 'math') {
-      const formula = window.prompt('Math expression', 'x^2 + y^2 = z^2')
-      if (!formula) return
-      insertHtml(`<span data-editor-math="true" data-math="${escapeHtml(formula)}" style="font-family: Menlo, Monaco, Consolas, monospace; background-color: #f8fafc;">${escapeHtml(formula)}</span>`)
+      saveSelection()
+      setOpenPanel('math')
     } else if (action === 'table') {
-      const rows = Math.min(Math.max(Number(window.prompt('Rows', '3')) || 3, 1), 8)
-      const cols = Math.min(Math.max(Number(window.prompt('Columns', '3')) || 3, 1), 6)
-      const cells = Array.from({ length: rows }, () =>
-        `<tr>${Array.from({ length: cols }, () => '<td><p><br></p></td>').join('')}</tr>`,
-      ).join('')
-      insertHtml(`<table><tbody>${cells}</tbody></table><p><br></p>`)
+      saveSelection()
+      setOpenPanel('table')
     }
   }
+
+  const insertTable = useCallback((cols: number, rows: number) => {
+    setOpenPanel(null)
+    const cells = Array.from({ length: rows }, () =>
+      `<tr>${Array.from({ length: cols }, () => '<td><p><br></p></td>').join('')}</tr>`,
+    ).join('')
+    insertHtml(`<table><tbody>${cells}</tbody></table><p><br></p>`)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const insertMathFn = useCallback((key: MathFnKey) => {
+    setOpenPanel(null)
+    const template = buildMathTemplate(key)
+    insertHtml(`<span data-editor-math="true" data-math="${escapeHtml(template)}" style="font-family: Menlo, Monaco, Consolas, monospace; background-color: #f8fafc;">${escapeHtml(template)}</span>`)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
@@ -414,7 +509,7 @@ export function RichTextarea({
 
   return (
     <div className={`overflow-hidden rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200 ${className}`}>
-      <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
+      <div className="relative flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
         <SelectControl title="Paragraph style" disabled={disabled} defaultValue="p" onChange={(next) => {
           if (next === 'h1') handleAction('h1')
           else if (next === 'h2') handleAction('h2')
@@ -442,8 +537,8 @@ export function RichTextarea({
         <Btn onActivate={() => handleAction('underline')} title="Underline (Cmd+U)" disabled={disabled}>
           <span className="text-xs underline">U</span>
         </Btn>
-        <ColorControl title="Font color" disabled={disabled} defaultValue="#1e293b" onChange={(next) => applyInlineStyle('color', next)} />
-        <ColorControl title="Highlight color" disabled={disabled} defaultValue="#fef08a" onChange={(next) => applyInlineStyle('background-color', next)} />
+        <ColorControl title="Font color" icon="text" disabled={disabled} defaultValue="#1e293b" onChange={(next) => applyInlineStyle('color', next)} />
+        <ColorControl title="Highlight color" icon="highlight" disabled={disabled} defaultValue="#fef08a" onChange={(next) => applyInlineStyle('background-color', next)} />
         <Btn onActivate={() => handleAction('clear')} title="Clear formatting" disabled={disabled}>
           <span className="text-xs">Tx</span>
         </Btn>
@@ -483,11 +578,31 @@ export function RichTextarea({
           </svg>
         </Btn>
         <Btn onActivate={() => handleAction('math')} title="Insert math" disabled={disabled}>
-          <span className="text-xs font-semibold">fx</span>
+          <svg viewBox="0 0 16 14" width="15" height="13" fill="none" data-icon="math">
+            <text x="0" y="11" fontSize="10" fontFamily="serif" fontStyle="italic" fill="currentColor">f</text>
+            <text x="5.5" y="11" fontSize="8" fontFamily="serif" fill="currentColor">(x)</text>
+          </svg>
         </Btn>
-        <Btn onActivate={() => handleAction('table')} title="Insert table" disabled={disabled}>
-          <TableIcon />
-        </Btn>
+        <div className="relative">
+          <Btn onActivate={() => { saveSelection(); setOpenPanel(p => p === 'table' ? null : 'table') }} title="Insert table" disabled={disabled}>
+            <TableIcon />
+          </Btn>
+          {openPanel === 'table' && (
+            <TablePicker
+              hover={tableHover}
+              onHover={setTableHover}
+              onInsert={insertTable}
+              onClose={() => setOpenPanel(null)}
+            />
+          )}
+        </div>
+        {openPanel === 'math' && (
+          <MathPanel
+            categories={MATH_CATEGORIES}
+            onInsert={insertMathFn}
+            onClose={() => setOpenPanel(null)}
+          />
+        )}
       </div>
 
       <div className="relative">
@@ -551,18 +666,39 @@ function SelectControl({
 
 function ColorControl({
   title,
+  icon = 'text',
   disabled,
   defaultValue,
   onChange,
 }: {
   title: string
+  icon?: 'text' | 'highlight'
   disabled?: boolean
   defaultValue: string
   onChange: (value: string) => void
 }) {
   return (
     <label title={title} className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-200">
-      <span className="h-3.5 w-3.5 rounded-sm border border-slate-300" style={{ backgroundColor: defaultValue }} />
+      <span className="flex flex-col items-center gap-px" data-icon={icon === 'text' ? 'text-color' : 'highlight-color'}>
+        {icon === 'text' ? (
+          /* Bold "A" glyph */
+          <svg viewBox="0 0 12 10" width="12" height="10" fill="currentColor">
+            <text x="1" y="9" fontSize="9" fontFamily="serif" fontWeight="bold">A</text>
+          </svg>
+        ) : (
+          /* Highlighter pen */
+          <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="currentColor" strokeWidth="1">
+            <rect x="2" y="0.5" width="8" height="5" rx="1" fill="currentColor" opacity="0.15" />
+            <path d="M4 5.5 L6 8.5 L8 5.5" fill="currentColor" opacity="0.45" stroke="none" />
+            <line x1="3.5" y1="3" x2="8.5" y2="3" strokeWidth="1.5" opacity="0.7" />
+          </svg>
+        )}
+        {/* Live color swatch underbar */}
+        <span
+          className="block h-1 w-full rounded-sm border border-slate-200"
+          style={{ backgroundColor: defaultValue }}
+        />
+      </span>
       <input
         type="color"
         defaultValue={defaultValue}
@@ -643,5 +779,98 @@ function TableIcon() {
       <rect x="2.5" y="3" width="11" height="10" rx="1" />
       <path d="M2.5 6.3h11M2.5 9.7h11M6.2 3v10M9.8 3v10" />
     </svg>
+  )
+}
+
+// ── Table grid picker ─────────────────────────────────────────────────────
+
+function TablePicker({
+  hover,
+  onHover,
+  onInsert,
+  onClose,
+}: {
+  hover: { cols: number; rows: number } | null
+  onHover: (h: { cols: number; rows: number } | null) => void
+  onInsert: (cols: number, rows: number) => void
+  onClose: () => void
+}) {
+  const COLS = 10
+  const ROWS = 8
+  const hCols = hover?.cols ?? 0
+  const hRows = hover?.rows ?? 0
+
+  return (
+    <div
+      className="absolute right-0 top-full z-50 mt-1 rounded-lg border border-slate-200 bg-white p-3 shadow-xl"
+      onMouseDown={(e) => e.preventDefault()}
+      onMouseLeave={() => onHover(null)}
+    >
+      <div
+        className="grid gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${COLS}, 1.25rem)` }}
+      >
+        {Array.from({ length: ROWS * COLS }, (_, i) => {
+          const c = (i % COLS) + 1
+          const r = Math.floor(i / COLS) + 1
+          const active = c <= hCols && r <= hRows
+          return (
+            <button
+              key={i}
+              type="button"
+              className={`h-5 w-5 rounded-sm border transition-colors ${
+                active
+                  ? 'border-indigo-400 bg-indigo-100'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+              }`}
+              onMouseEnter={() => onHover({ cols: c, rows: r })}
+              onClick={() => onInsert(c, r)}
+            />
+          )
+        })}
+      </div>
+      <p className="mt-2 text-center text-xs font-medium text-slate-500">
+        {hCols > 0 && hRows > 0 ? `${hCols} × ${hRows}` : 'Hover to select'}
+      </p>
+    </div>
+  )
+}
+
+// ── Math / functions panel ────────────────────────────────────────────────
+
+function MathPanel({
+  categories,
+  onInsert,
+  onClose,
+}: {
+  categories: MathCategory[]
+  onInsert: (key: MathFnKey) => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="absolute right-0 top-full z-50 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl"
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      {categories.map((cat) => (
+        <div key={cat.label} className="px-3 py-2">
+          <p className="mb-1.5 text-[10px] font-semibold tracking-widest text-slate-400">
+            {cat.label}
+          </p>
+          <div className="grid grid-cols-3 gap-1">
+            {cat.fns.map(({ key, display }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onInsert(key)}
+                className="rounded border border-slate-200 bg-slate-50 px-1 py-1.5 text-center text-xs font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+              >
+                {display}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

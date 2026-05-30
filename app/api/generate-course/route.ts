@@ -6,11 +6,13 @@ import { buildGeneratePrompt } from '@/lib/course-metadata'
 export const maxDuration = 60
 
 const SYSTEM_PROMPT = `You are an expert university course designer.
-Given a course syllabus, extract and structure the course into a clear, well-organized format.
+Given course source material and optional teacher instructions, create a clear, well-organized Course structure.
 
 Guidelines:
+- Follow explicit teacher instructions unless they conflict with the required JSON schema
 - Create one module per week or major unit in the syllabus
 - Extract real assignment names, instructions, and due dates from the syllabus text
+- If the teacher asks you to generate a syllabus from sparse course details, infer a reasonable university syllabus first, then structure it into modules, assignments, due dates, and rubrics
 - If due dates aren't explicit, space them evenly across the semester (use YYYY-MM-DD format)
 - Generate 2-4 specific, measurable rubric criteria per assignment based on the assignment type
 - Rubric criteria point values must sum to points_possible for that assignment
@@ -24,7 +26,11 @@ Combined document format:
 - If no "## Assignments" section exists, infer all assignments from the syllabus as normal`
 
 export async function POST(req: Request) {
-  const { syllabus, start_date } = (await req.json()) as { syllabus: string; start_date?: string | null }
+  const { syllabus, start_date, instructions } = (await req.json()) as {
+    syllabus: string
+    start_date?: string | null
+    instructions?: string | null
+  }
 
   try {
     const result = streamObject({
@@ -32,7 +38,7 @@ export async function POST(req: Request) {
       mode: LMS_STRUCTURED_OBJECT_MODE,
       schema: coursePreviewSchema,
       system: SYSTEM_PROMPT,
-      prompt: buildGeneratePrompt(syllabus, start_date ?? null),
+      prompt: buildGeneratePrompt(syllabus, start_date ?? null, instructions ?? null),
       onError: (error) => {
         console.error('[generate-course] stream error:', error)
       },
