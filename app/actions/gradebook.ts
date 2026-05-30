@@ -1,8 +1,7 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase/server'
-import { gradebookCellState } from '@/lib/gradebook'
-import type { GradebookCellState } from '@/lib/gradebook'
+import { gradebookCellProjection, type GradebookCellState } from '@/lib/grade-lifecycle'
 
 export type GradebookCell = {
   assignmentId: string
@@ -168,18 +167,10 @@ export async function getGradebookData(
       const sub = subMap.get(`${e.student_id}:${a.id}`)
       const grade = sub ? gradeMap.get(sub.id) : undefined
 
-      const state = gradebookCellState({
+      const { state, score } = gradebookCellProjection({
         hasSubmission: !!sub,
-        hasGrade: !!grade,
-        approvedAt: grade?.approvedAt ?? null,
+        grade,
       })
-
-      const score =
-        grade && state === 'final'
-          ? grade.finalScore
-          : grade && state === 'ai_suggested'
-            ? grade.aiScore
-            : null
 
       return {
         assignmentId: a.id,

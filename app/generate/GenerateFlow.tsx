@@ -7,10 +7,23 @@ import { coursePreviewSchema, type CoursePreview } from '@/lib/schemas/course'
 import { saveCoursePreview, saveCourseToDB } from '@/app/actions/course'
 
 type FlowState = 'idle' | 'generating' | 'review' | 'saving' | 'error'
+type InputMode = 'upload' | 'paste'
 
 interface Props {
   /** Pre-loaded draft from a previous session (tab-close recovery) */
   draft?: { courseId: string; preview: CoursePreview; syllabus: string } | null
+}
+
+async function parseFile(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await fetch('/api/parse-document', { method: 'POST', body: formData })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error ?? 'Failed to parse file')
+  }
+  const { text } = await res.json()
+  return text as string
 }
 
 export function GenerateFlow({ draft }: Props) {
@@ -20,13 +33,23 @@ export function GenerateFlow({ draft }: Props) {
   const [flowState, setFlowState] = useState<FlowState>(
     draft ? 'review' : 'idle',
   )
+  // syllabus = the text stored as raw_syllabus in DB
   const [syllabus, setSyllabus] = useState(draft?.syllabus ?? '')
+  // syllabusRef lets onFinish always see the latest syllabus value
+  const syllabusRef = useRef(draft?.syllabus ?? '')
   const [courseId, setCourseId] = useState<string | null>(draft?.courseId ?? null)
   const [editablePreview, setEditablePreview] = useState<CoursePreview | null>(
     draft?.preview ?? null,
   )
   const [errorMsg, setErrorMsg] = useState('')
-  const syllabusRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // input mode state
+  const [inputMode, setInputMode] = useState<InputMode>('upload')
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [isParsing, setIsParsing] = useState(false)
+  const [parseError, setParseError] = useState('')
+  const [syllabusOpen, setSyllabusOpen] = useState(false)
 
   // ── AI streaming ─────────────────────────────────────────────────────────
   const { object: streamingPreview, submit } = useObject({
@@ -38,9 +61,8 @@ export function GenerateFlow({ draft }: Props) {
         setFlowState('error')
         return
       }
-      // B-lite: write generation_preview to DB for tab-close recovery
       try {
-        const { courseId: id } = await saveCoursePreview(syllabus, object)
+        const { courseId: id } = await saveCoursePreview(syllabusRef.current, object)
         setCourseId(id)
         setEditablePreview(object)
         setFlowState('review')
@@ -55,16 +77,43 @@ export function GenerateFlow({ draft }: Props) {
     },
   })
 
-  // Focus textarea on mount
+  // Focus textarea on mount (paste mode)
   useEffect(() => {
-    if (flowState === 'idle') syllabusRef.current?.focus()
-  }, [flowState])
+    if (flowState === 'idle' && inputMode === 'paste') textareaRef.current?.focus()
+  }, [flowState, inputMode])
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  const setSyllabusAndRef = (text: string) => {
+    setSyllabus(text)
+    syllabusRef.current = text
+  }
 
   // ── handlers ─────────────────────────────────────────────────────────────
-  const handleGenerate = () => {
-    if (!syllabus.trim()) return
-    setFlowState('generating')
-    submit({ syllabus })
+  const handleGenerate = async () => {
+    setParseError('')
+
+    if (inputMode === 'paste') {
+      if (!syllabus.trim()) return
+      syllabusRef.current = syllabus
+      setFlowState('generating')
+      submit({ syllabus })
+      return
+    }
+
+    // upload mode — parse all files and concatenate
+    if (uploadedFiles.length === 0) return
+
+    setIsParsing(true)
+    try {
+      const texts = await Promise.all(uploadedFiles.map(parseFile))
+      const combined = texts.join('\n\n---\n\n')
+      setSyllabusAndRef(combined)
+      setFlowState('generating')
+      submit({ syllabus: combined })
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : 'Failed to parse file')
+      setIsParsing(false)
+    }
   }
 
   const handleSave = async () => {
@@ -115,6 +164,11 @@ export function GenerateFlow({ draft }: Props) {
 
   // ── renders ───────────────────────────────────────────────────────────────
 
+  const canGenerate =
+    inputMode === 'paste'
+      ? syllabus.trim().length > 0
+      : uploadedFiles.length > 0
+
   if (flowState === 'idle') {
     return (
       <div className="mx-auto max-w-2xl">
@@ -123,25 +177,54 @@ export function GenerateFlow({ draft }: Props) {
             Create a course from your syllabus
           </h1>
           <p className="mt-2 text-slate-500">
-            Paste your syllabus below. AI will generate modules, assignments,
-            due dates, and rubrics in seconds.
+            Upload your documents or paste text. AI will generate modules,
+            assignments, due dates, and rubrics in seconds.
           </p>
         </div>
-        <textarea
-          ref={syllabusRef}
-          value={syllabus}
-          onChange={(e) => setSyllabus(e.target.value)}
-          placeholder="Paste your syllabus here…"
-          rows={16}
-          className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        />
+
+        {/* ── Input mode tabs ── */}
+        <div className="mb-5 flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
+          {(['upload', 'paste'] as InputMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setInputMode(m)}
+              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
+                inputMode === m
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {m === 'upload' ? 'Upload files' : 'Paste text'}
+            </button>
+          ))}
+        </div>
+
+        {inputMode === 'upload' && (
+          <MultiDropzone files={uploadedFiles} onFiles={setUploadedFiles} />
+        )}
+
+        {inputMode === 'paste' && (
+          <textarea
+            ref={textareaRef}
+            value={syllabus}
+            onChange={(e) => setSyllabus(e.target.value)}
+            placeholder="Paste your syllabus here…"
+            rows={16}
+            className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          />
+        )}
+
+        {parseError && (
+          <p className="mt-3 text-sm text-red-600">{parseError}</p>
+        )}
+
         <div className="mt-4 flex justify-end">
           <button
             onClick={handleGenerate}
-            disabled={!syllabus.trim()}
+            disabled={!canGenerate || isParsing}
             className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Generate Course →
+            {isParsing ? 'Reading file…' : 'Generate Course →'}
           </button>
         </div>
       </div>
@@ -249,6 +332,31 @@ export function GenerateFlow({ draft }: Props) {
           >
             {flowState === 'saving' ? 'Saving…' : 'Save Course →'}
           </button>
+        </div>
+
+        {/* Collapsible syllabus editor */}
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => setSyllabusOpen((o) => !o)}
+            className="flex w-full items-center justify-between px-5 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <span>Raw Syllabus</span>
+            <span className="text-slate-400">{syllabusOpen ? '▲' : '▼'}</span>
+          </button>
+          {syllabusOpen && (
+            <div className="border-t border-slate-100 px-5 py-4">
+              <textarea
+                value={syllabus}
+                onChange={(e) => setSyllabusAndRef(e.target.value)}
+                rows={14}
+                className="w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Edits here update the stored syllabus text only — regenerate to reflect changes in the course structure.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -373,4 +481,138 @@ export function GenerateFlow({ draft }: Props) {
   }
 
   return null
+}
+
+// ── Folder-aware file reading ────────────────────────────────────────────
+
+async function readFilesFromDrop(items: DataTransferItemList): Promise<File[]> {
+  const files: File[] = []
+
+  async function processEntry(entry: FileSystemEntry): Promise<void> {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) =>
+        (entry as FileSystemFileEntry).file(resolve, reject),
+      )
+      files.push(file)
+    } else if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader()
+      const entries = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+        reader.readEntries(resolve, reject),
+      )
+      await Promise.all(entries.map(processEntry))
+    }
+  }
+
+  const entries = Array.from(items)
+    .map((item) => item.webkitGetAsEntry())
+    .filter((e): e is FileSystemEntry => e !== null)
+
+  await Promise.all(entries.map(processEntry))
+  return files
+}
+
+// ── MultiDropzone ────────────────────────────────────────────────────────
+
+function MultiDropzone({
+  files,
+  onFiles,
+}: {
+  files: File[]
+  onFiles: (files: File[]) => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+
+  useEffect(() => {
+    folderInputRef.current?.setAttribute('webkitdirectory', '')
+  }, [])
+
+  const addFiles = (incoming: File[]) =>
+    onFiles([...files, ...incoming])
+
+  const removeFile = (i: number) =>
+    onFiles(files.filter((_, idx) => idx !== i))
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const incoming = await readFilesFromDrop(e.dataTransfer.items)
+    if (incoming.length) addFiles(incoming)
+  }
+
+  return (
+    <div>
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        className={`rounded-xl border-2 border-dashed p-8 text-center transition ${
+          dragging
+            ? 'border-indigo-500 bg-indigo-50'
+            : 'border-slate-300 bg-slate-50 hover:border-indigo-400'
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const f = Array.from(e.target.files ?? [])
+            if (f.length) addFiles(f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const f = Array.from(e.target.files ?? [])
+            if (f.length) addFiles(f)
+            e.target.value = ''
+          }}
+        />
+        <p className="text-sm text-slate-500">Drag &amp; drop files or folders here</p>
+        <div className="mt-3 flex justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+          >
+            Browse files
+          </button>
+          <button
+            type="button"
+            onClick={() => folderInputRef.current?.click()}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+          >
+            Browse folder
+          </button>
+        </div>
+      </div>
+
+      {files.length > 0 && (
+        <ul className="mt-3 space-y-1">
+          {files.map((f, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2"
+            >
+              <span className="truncate text-sm text-slate-700">{f.name}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                className="ml-3 flex-shrink-0 text-xs text-slate-400 hover:text-red-500"
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }

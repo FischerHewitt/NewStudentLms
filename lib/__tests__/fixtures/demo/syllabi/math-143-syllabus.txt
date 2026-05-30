@@ -1,0 +1,70 @@
+MATH 143 – Calculus III
+Instructor: Prof. Montserrat Dabkowski
+Lectures: Monday, Tuesday, Thursday, Friday 10:10–11:00am
+Textbook: James Stewart, Calculus, 8th Edition
+
+Course Overview:
+This course continues the study of calculus with three major units: infinite sequences and series, vector algebra in two and three dimensions, and parametric and polar curves. Students will develop both computational fluency and the ability to communicate mathematical reasoning in writing. All work must show full steps — answers without supporting work receive no credit.
+
+Grading Breakdown:
+  Homework: 5% (completion-based, submitted on paper, no late work accepted)
+  Quizzes: 10% (weekly, 10 pts each, lowest score dropped, submitted as uploaded file, no calculators)
+  Midterm 1: 25% (Week 5, covers sequences and series)
+  Midterm 2: 25% (Week 8, covers vectors and dot/cross products)
+  Final Exam: 35% (comprehensive, mandatory, Week 11)
+
+Grading Scale: A 90–100, B 80–89.9, C 70–79.9, D 60–69.9, F below 60. No rounding.
+
+Weekly Schedule:
+
+Week 1: Sequences
+  - Defining sequences, limits of sequences, squeeze theorem for sequences
+  - Homework 1 due Friday (Section 11.1: #3, 5, 7, 11, 13, 15, 17, 23, 25)
+
+Week 2: Series and Convergence Tests
+  - Geometric series, telescoping series, divergence test, integral test
+  - Homework 2 due Friday
+  - Quiz 1 Friday (Sequences, 10 pts — upload handwritten work as PDF or photo)
+
+Week 3: More Convergence Tests
+  - Comparison test, limit comparison, ratio test, root test
+  - Homework 3 due Friday
+  - Quiz 2 Friday (Series basics, 10 pts — upload handwritten work as PDF or photo)
+
+Week 4: Power Series and Taylor Series
+  - Radius of convergence, interval of convergence, Taylor and Maclaurin series
+  - Homework 4 due Friday
+  - Quiz 3 Friday (Convergence tests, 10 pts — upload handwritten work as PDF or photo)
+
+Week 5: Review and Midterm 1
+  - Review session Tuesday
+  - Midterm 1 Thursday (Weeks 1–4, sequences and series, in class, no calculator)
+  - Midterm reflection writing assignment due Friday (250+ words)
+
+Week 6: Vectors in 2D and 3D
+  - Vector operations, magnitude, unit vectors, dot product, projections
+  - Homework 5 due Friday
+  - Quiz 4 Friday (Vectors basics, 10 pts — upload handwritten work as PDF or photo)
+
+Week 7: Cross Product and Lines/Planes
+  - Cross product, equations of lines and planes in 3D, distance formulas
+  - Homework 6 due Friday
+  - Quiz 5 Friday (Vectors and dot product, 10 pts — upload handwritten work as PDF or photo)
+
+Week 8: Review and Midterm 2
+  - Review session Tuesday
+  - Midterm 2 Thursday (Weeks 6–7, vectors, in class, no calculator)
+
+Week 9: Parametric Curves and Calculus
+  - Parametric equations, derivatives and tangent lines, arc length
+  - Homework 7 due Friday
+  - Quiz 6 Friday (Parametric curves, 10 pts — upload handwritten work as PDF or photo)
+
+Week 10: Polar Coordinates
+  - Polar coordinate system, converting between polar and Cartesian, area in polar
+  - Homework 8 due Friday
+  - Quiz 7 Friday (Polar coordinates, 10 pts — upload handwritten work as PDF or photo)
+
+Week 11: Review and Final Exam
+  - Review session Monday
+  - Final Exam Thursday (comprehensive, covers all units, in class, no calculator)

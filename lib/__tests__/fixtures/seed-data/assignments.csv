@@ -1,0 +1,46 @@
+id,course,module,title,points,type,ai_gradeable
+00000000-0000-0000-0003-000000000001,MATH 143,Sequences and Series,Homework 1 – Sequences,2,File upload (handwritten),No — completion only
+00000000-0000-0000-0003-000000000002,MATH 143,Sequences and Series,Homework 2 – Series,2,File upload (handwritten),No — completion only
+00000000-0000-0000-0003-000000000003,MATH 143,Sequences and Series,Quiz 1 – Sequences,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000004,MATH 143,Sequences and Series,Quiz 2 – Series Basics,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000005,MATH 143,Sequences and Series,Quiz 3 – Convergence Tests,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000006,MATH 143,Midterm 1,Midterm 1 – Sequences and Series,100,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000007,MATH 143,Midterm 1,Midterm 1 Reflection,10,Written (250+ words),Yes
+00000000-0000-0000-0003-000000000008,MATH 143,Vectors and 3D Geometry,Homework 5 – Vectors,2,File upload (handwritten),No — completion only
+00000000-0000-0000-0003-000000000009,MATH 143,Vectors and 3D Geometry,Quiz 4 – Vector Basics,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000010,MATH 143,Vectors and 3D Geometry,Quiz 5 – Dot Product and Projections,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000011,MATH 143,Vectors and 3D Geometry,Midterm 2 – Vectors and 3D Geometry,100,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000012,MATH 143,Parametric and Polar Curves,Quiz 6 – Parametric Curves,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000013,MATH 143,Parametric and Polar Curves,Quiz 7 – Polar Coordinates,10,File upload (handwritten),Yes — partial credit on method
+00000000-0000-0000-0003-000000000014,MATH 143,Final Exam,Final Exam – Calculus III,100,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000015,BIO 111,Chemistry Cells Energy,Connect Homework 1 – Scientific Method,5,Written (short answer),Yes
+00000000-0000-0000-0003-000000000016,BIO 111,Chemistry Cells Energy,Connect Homework 2 – Macromolecules,5,Written (short answer),Yes
+00000000-0000-0000-0003-000000000017,BIO 111,Chemistry Cells Energy,Lab 1 Notebook – Microscopy,10,Written (2+ paragraphs),Yes
+00000000-0000-0000-0003-000000000018,BIO 111,Chemistry Cells Energy,Lab 2 Notebook – Macromolecule Identification,10,Written (2+ paragraphs),Yes
+00000000-0000-0000-0003-000000000019,BIO 111,Chemistry Cells Energy,Quiz 1 – Cells and Chemistry,25,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000020,BIO 111,Chemistry Cells Energy,Midterm 1 – Chemistry and Cells,100,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000021,BIO 111,Genetics and Heredity,Connect Homework 5 – DNA and Replication,5,Written (short answer),Yes
+00000000-0000-0000-0003-000000000022,BIO 111,Genetics and Heredity,Lab 3 Notebook – Mitosis Observation,10,Written (2+ paragraphs),Yes
+00000000-0000-0000-0003-000000000023,BIO 111,Genetics and Heredity,Quiz 2 – DNA and Cell Division,25,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000024,BIO 111,Genetics and Heredity,Quiz 3 – Mendelian Genetics,25,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000025,BIO 111,Genetics and Heredity,Lab Midterm Exam,50,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000026,BIO 111,Genetics and Heredity,Midterm 2 – Genetics and Heredity,100,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000027,BIO 111,Evolution and Ecology,Connect Homework 8 – Evolution,5,Written (short answer),Yes
+00000000-0000-0000-0003-000000000028,BIO 111,Evolution and Ecology,Lab 5 Notebook – Hardy-Weinberg,10,Written (2+ paragraphs),Yes
+00000000-0000-0000-0003-000000000029,BIO 111,Evolution and Ecology,Quiz 4 – Evolution,25,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000030,BIO 111,Evolution and Ecology,Course Reflection,10,Written (300+ words),Yes
+00000000-0000-0000-0003-000000000031,BIO 111,Evolution and Ecology,Lab Final Exam,60,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000032,BIO 111,Final Exam,Final Exam – General Biology,200,In-class exam,No — manual grade
+00000000-0000-0000-0003-000000000033,COMS 101,Foundations,Creating Classroom Community,15,In-class participation,No — manual grade
+00000000-0000-0000-0003-000000000034,COMS 101,Foundations,Office Visit,10,Completion,No — manual grade
+00000000-0000-0000-0003-000000000035,COMS 101,Foundations,Quiz 1 – Speech Structure,15,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000036,COMS 101,Foundations,Quiz 2 – Delivery,15,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000037,COMS 101,Round 1 – Introductory Speeches,Specific Purpose & Central Idea – Round 1,0,Checkpoint (file or text),No — 0 pts
+00000000-0000-0000-0003-000000000038,COMS 101,Round 1 – Introductory Speeches,Written Evaluation – Round 1,15,Written (400+ words),Yes
+00000000-0000-0000-0003-000000000039,COMS 101,Round 2 – Informative Speeches,Quiz 3 – Research and Visual Aids,15,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000040,COMS 101,Round 2 – Informative Speeches,Analyzing Delivery Style,30,Written (400+ words),Yes
+00000000-0000-0000-0003-000000000041,COMS 101,Round 2 – Informative Speeches,Written Evaluation – Round 2,15,Written (400+ words),Yes
+00000000-0000-0000-0003-000000000042,COMS 101,Round 2 – Informative Speeches,Reflection 2,10,Written (structured),Yes
+00000000-0000-0000-0003-000000000043,COMS 101,Round 3 – Persuasive Speeches,Quiz 4 – Persuasive Speaking,30,Online quiz,No — auto-scored
+00000000-0000-0000-0003-000000000044,COMS 101,Round 3 – Persuasive Speeches,Written Evaluation – Round 3,15,Written (400+ words),Yes
+00000000-0000-0000-0003-000000000045,COMS 101,Finals,Reflection 3 – Final Course Reflection,10,Written (400+ words),Yes

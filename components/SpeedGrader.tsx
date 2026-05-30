@@ -3,8 +3,13 @@
 import Link from 'next/link'
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { runSpeedGrader, approveGrade } from '@/app/actions/speedgrader'
+import { runSpeedGrader, publishManualGrade } from '@/app/actions/speedgrader'
 import type { SpeedGraderData, GradeData } from '@/app/actions/speedgrader'
+import {
+  formatAttachmentBytes,
+  isImageAttachment,
+  submissionAttachmentIcon,
+} from '@/lib/submission-attachment'
 
 interface Props {
   courseId: string
@@ -38,38 +43,49 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
   const [panelState, setPanelState] = useState<PanelState>(
     getInitialState(data.grade),
   )
+  // Snapshot of score/feedback before AI populated the fields — enables revert
+  const [preAiSnapshot, setPreAiSnapshot] = useState<{ score: number; feedback: string } | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [isRunning, startRunTransition] = useTransition()
-  const [isApproving, startApproveTransition] = useTransition()
+  const [isPublishing, startPublishTransition] = useTransition()
 
   const handleRunSpeedGrader = () => {
     setErrorMsg('')
+    // Save what the teacher typed before AI overwrites the fields
+    setPreAiSnapshot({ score: finalScore, feedback: finalFeedback })
     startRunTransition(async () => {
       setPanelState('running')
       const result = await runSpeedGrader(submission.id)
       if (result.error) {
         setErrorMsg(result.error)
-        setPanelState('idle')
+        setPanelState(grade ? 'pending' : 'idle')
         return
       }
       if (result.grade) {
         setGrade(result.grade)
         setFinalScore(result.grade.ai_suggested_score)
-        setFinalFeedback(result.grade.ai_suggested_feedback)
+        setFinalFeedback(result.grade.final_feedback ?? result.grade.ai_suggested_feedback)
         setPanelState('pending')
       }
     })
   }
 
-  const handleApprove = () => {
-    if (!grade) return
+  const handleRevertToPreAi = () => {
+    if (!preAiSnapshot) return
+    setFinalScore(preAiSnapshot.score)
+    setFinalFeedback(preAiSnapshot.feedback)
+    setPreAiSnapshot(null)
+  }
+
+  const handlePublish = () => {
     setErrorMsg('')
-    startApproveTransition(async () => {
-      const result = await approveGrade(grade.id, finalScore, finalFeedback)
+    startPublishTransition(async () => {
+      const result = await publishManualGrade(submission.id, finalScore, finalFeedback)
       if (result.error) {
         setErrorMsg(result.error)
         return
       }
+      if (result.grade) setGrade(result.grade)
       setPanelState('approved')
       router.refresh()
     })
@@ -119,12 +135,18 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
               {submission.studentName}
             </p>
           </div>
-          <div className="px-5 py-4">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-              {submission.body || (
-                <span className="italic text-slate-400">No content submitted.</span>
-              )}
-            </p>
+          <div className="px-5 py-4 space-y-3">
+            {submission.body ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                {submission.body}
+              </p>
+            ) : !submission.attachment ? (
+              <p className="italic text-slate-400 text-sm">No content submitted.</p>
+            ) : null}
+
+            {submission.attachment && (
+              <SubmissionAttachment attachment={submission.attachment} />
+            )}
           </div>
         </div>
 
@@ -148,120 +170,165 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
             )}
           </div>
 
-          {/* SpeedGrader controls */}
+          {/* Grading panel */}
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            {/* Idle: no grade yet */}
-            {panelState === 'idle' && (
-              <div className="text-center">
-                <p className="mb-4 text-sm text-slate-500">
-                  Run the AI SpeedGrader to generate a suggested score and feedback draft.
-                </p>
-                <button
-                  onClick={handleRunSpeedGrader}
-                  disabled={isRunning}
-                  className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
-                >
-                  Run AI SpeedGrader →
-                </button>
-              </div>
-            )}
-
-            {/* Running: AI in progress */}
-            {panelState === 'running' && (
-              <div className="flex items-center justify-center gap-3 py-6">
-                <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-                <span className="text-sm text-slate-600">Analyzing submission…</span>
-              </div>
-            )}
-
-            {/* Pending or approved: show grade */}
-            {(panelState === 'pending' || panelState === 'approved') && grade && (
+            {panelState === 'approved' ? (
+              /* ── Approved: read-only ── */
               <div className="space-y-4">
-                {/* AI suggested score (read-only) */}
-                <div className="rounded-lg bg-indigo-50 px-4 py-3">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-indigo-400">
-                    AI Suggested Score
-                  </p>
-                  <p className="text-2xl font-bold text-indigo-700">
-                    {grade.ai_suggested_score}
-                    <span className="ml-1 text-base font-normal text-indigo-400">
-                      / {assignment.points_possible}
-                    </span>
-                  </p>
-                  <p className="mt-2 text-xs leading-relaxed text-indigo-600">
-                    {grade.ai_suggested_feedback}
-                  </p>
-                </div>
-
-                {/* Final score + feedback (editable or read-only) */}
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-400">
-                    Final Score
-                  </label>
-                  {panelState === 'approved' ? (
-                    <p className="text-2xl font-bold text-slate-900">
-                      {grade.final_score}
-                      <span className="ml-1 text-base font-normal text-slate-400">
-                        / {assignment.points_possible}
-                      </span>
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={assignment.points_possible}
-                        value={finalScore}
-                        onChange={(e) => setFinalScore(Number(e.target.value))}
-                        className="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-center text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                      />
-                      <span className="text-sm text-slate-400">
-                        / {assignment.points_possible}
-                      </span>
-                    </div>
-                  )}
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-400">Final Score</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {grade?.final_score}
+                    <span className="ml-1 text-base font-normal text-slate-400">/ {assignment.points_possible}</span>
+                  </p>
                 </div>
-
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-400">
-                    Final Feedback
-                  </label>
-                  {panelState === 'approved' ? (
-                    <p className="text-sm leading-relaxed text-slate-700">
-                      {grade.final_feedback}
-                    </p>
-                  ) : (
-                    <textarea
-                      value={finalFeedback}
-                      onChange={(e) => setFinalFeedback(e.target.value)}
-                      rows={5}
-                      className="w-full resize-none rounded-lg border border-slate-300 p-3 text-sm leading-relaxed text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                    />
-                  )}
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-400">Final Feedback</p>
+                  <p className="text-sm leading-relaxed text-slate-700">{grade?.final_feedback}</p>
                 </div>
-
-                {errorMsg && (
-                  <p className="text-sm text-red-600">{errorMsg}</p>
-                )}
-
-                {panelState === 'pending' && (
-                  <button
-                    onClick={handleApprove}
-                    disabled={isApproving || !finalFeedback.trim()}
-                    className="w-full rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
-                  >
-                    {isApproving ? 'Publishing…' : 'Approve & Publish Grade →'}
-                  </button>
-                )}
               </div>
-            )}
+            ) : (
+              /* ── Editable: idle / running / pending ── */
+              <div className="space-y-4">
+                {/* AI suggestion box — shown after AI runs */}
+                {panelState === 'pending' && grade && (
+                  <div className="rounded-lg bg-indigo-50 px-4 py-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-indigo-400">
+                      AI Suggestion
+                    </p>
+                    <p className="text-lg font-bold text-indigo-700">
+                      {grade.ai_suggested_score}
+                      <span className="ml-1 text-sm font-normal text-indigo-400">/ {assignment.points_possible}</span>
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-indigo-600">
+                      {grade.ai_suggested_feedback}
+                    </p>
+                  </div>
+                )}
 
-            {errorMsg && panelState === 'idle' && (
-              <p className="mt-3 text-center text-sm text-red-600">{errorMsg}</p>
+                {/* Score input */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    Score
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={assignment.points_possible}
+                      value={finalScore}
+                      onChange={(e) => setFinalScore(Number(e.target.value))}
+                      disabled={panelState === 'running'}
+                      className="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-center text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:opacity-50"
+                    />
+                    <span className="text-sm text-slate-400">/ {assignment.points_possible}</span>
+                  </div>
+                </div>
+
+                {/* Feedback textarea */}
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                      Feedback
+                    </label>
+                    <div className="flex gap-2">
+                      {preAiSnapshot && (
+                        <button
+                          type="button"
+                          onClick={handleRevertToPreAi}
+                          className="text-xs text-slate-400 hover:text-indigo-600"
+                        >
+                          ↩ Revert to original
+                        </button>
+                      )}
+                      {finalFeedback && (
+                        <button
+                          type="button"
+                          onClick={() => setFinalFeedback('')}
+                          className="text-xs text-slate-400 hover:text-red-500"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <textarea
+                    value={finalFeedback}
+                    onChange={(e) => setFinalFeedback(e.target.value)}
+                    rows={5}
+                    disabled={panelState === 'running'}
+                    placeholder="Write feedback for the student…"
+                    className="w-full resize-none rounded-lg border border-slate-300 p-3 text-sm leading-relaxed text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:opacity-50"
+                  />
+                </div>
+
+                {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
+
+                {/* Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handlePublish}
+                    disabled={isPublishing || isRunning}
+                    className="flex-1 rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    {isPublishing ? 'Publishing…' : 'Publish Grade →'}
+                  </button>
+                  {panelState === 'idle' && (
+                    <button
+                      onClick={handleRunSpeedGrader}
+                      disabled={isRunning}
+                      className="rounded-lg border border-indigo-300 px-4 py-2.5 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50 disabled:opacity-60"
+                    >
+                      {isRunning ? (
+                        <span className="flex items-center gap-2">
+                          <span className="inline-flex h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                          Analyzing…
+                        </span>
+                      ) : 'AI Suggest'}
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+type Attachment = NonNullable<SpeedGraderData['submission']['attachment']>
+
+function SubmissionAttachment({ attachment }: { attachment: Attachment }) {
+  if (isImageAttachment(attachment)) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={attachment.url}
+          alt={attachment.fileName}
+          className="max-h-64 w-full object-contain bg-slate-50"
+        />
+        <div className="border-t border-slate-100 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+          {attachment.fileName} · {formatAttachmentBytes(attachment.fileSize)}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
+    >
+      <span className="text-xl">{submissionAttachmentIcon(attachment.fileType, attachment.fileName)}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{attachment.fileName}</span>
+      <span className="flex-shrink-0 text-xs text-slate-400">{formatAttachmentBytes(attachment.fileSize)}</span>
+      <span className="flex-shrink-0 text-xs text-slate-400">↗ open</span>
+    </a>
   )
 }

@@ -1,11 +1,71 @@
 Future ideas — not in scope for hackathon MVP
 
+
+## AI-graded uploaded quizzes with partial credit
+Students upload handwritten quiz work as a PDF or photo. The AI parses the image/document,
+reads each problem, evaluates the approach and final answer, and awards partial credit
+per question (e.g. correct method but arithmetic error = half credit). Requires vision
+or OCR capability in the grading model. Teacher still reviews and approves before publishing.
+Currently quizzes are submitted as file uploads and graded manually by the teacher.
+
+
+## In-app interactive homework (replace Connect)
+BIO 111 and similar courses currently reference McGraw-Hill Connect for homework.
+Long-term: move all homework into the LMS as native interactive question types —
+fill-in-the-blank, drag-and-drop term matching, multiple choice, short answer.
+Students never leave the app. Grades sync directly to the gradebook.
+Eliminates the third-party dependency and gives the AI access to response-level data
+for personalized coaching.
+
+
+## Word limit vs. paragraph limit — evaluate which is better criteria
+Current assignments use a mix of "250+ words" and "2+ paragraphs" as length criteria.
+Research and test whether word-count thresholds or paragraph-count thresholds produce
+better student writing and more consistent AI grading. Consider: paragraph limits are
+easier for students to visualize but harder for AI to verify; word limits are precise
+but can incentivize padding.
+Default rule (until resolved): if the teacher does not specify, use "400+" not a range.
+
+
+## AI-graded exams
+Currently exams (midterms, finals) are created as Assignments but graded manually by the
+teacher — the AI SpeedGrader is not invoked. Future: allow teachers to mark an Assignment
+as an "exam" type and upload an answer key or grading rubric. The AI compares student
+written responses against the key, awards partial credit per question, and flags answers
+that diverge from the expected approach. Multiple choice exams would require a separate
+answer-matching flow (no free-text). Essay-based exam questions could use the existing
+SpeedGrader rubric path with minimal changes. Teachers would still approve before publishing.
+
 ## Resubmission policy
 Allow students to edit and resubmit their Submission after the initial submit, up until
 a Pending Grade exists. Would require a teacher preference ("allow resubmissions") since
 this is a real classroom policy question. Edge case to resolve: what happens to a Pending
 Grade if the student resubmits — does it get invalidated and require the teacher to re-run
 SpeedGrader?
+
+
+## AI grading calibration — "Grill Me" session
+Before a teacher runs the SpeedGrader on real submissions, walk them through a short
+interactive session where the AI presents ambiguous edge-case scenarios (e.g. a partially
+completed submission, creative-but-off-topic work, copied-looking text) and asks how they
+would score each one. The session surfaces rubric ambiguities the teacher hadn't considered
+and produces a written calibration note that gets attached to the assignment rubric. Future
+SpeedGrader runs for that assignment include the calibration note in the grading prompt so
+the AI grades with the teacher's specific intent rather than generic fairness heuristics.
+Could also flag which criteria tend to produce the most disagreement and prompt the teacher
+to clarify them before students even start the assignment.
+
+
+## Teacher-trained grading model (few-shot personalization)
+Let teachers build up a grading history per assignment type or course: they submit examples
+of real (or hypothetical) student work alongside the score they would give and a brief
+rationale. These examples are stored as "grading memories" for that teacher. When the
+SpeedGrader runs, it retrieves the 3–5 most relevant examples (by assignment similarity)
+and includes them as few-shot demonstrations in the prompt, effectively calibrating the AI
+to match that teacher's grading philosophy. Over time the system learns each teacher's
+tolerance for partial credit, how strictly they read instructions, and how they weigh
+effort vs. accuracy. Teachers could also share calibration sets with colleagues to
+normalize grading across a department.
 
 
 ## B-full course generation persistence
@@ -15,3 +75,35 @@ teacher edit in-place via individual DB UPDATEs. Pre-create the Course row befor
 streaming starts. Handle partial stream states and rollback if teacher cancels.
 Estimated ~4-5 hours extra over the B-lite approach. Worth doing for a production app
 where teachers might have long-running editing sessions across multiple tabs/devices.
+
+
+## Student-side normalization ("teacher freedom, student consistency")
+Teachers have very different organizational styles — some group by week, some by topic,
+some with sub-modules, some flat. This is a real pain point for students juggling 4-5
+courses: every class has a different structure and navigation pattern, which adds cognitive
+load on top of the actual coursework.
+
+Proposal: let teachers organize however they want on the teacher side, but the student-
+facing view is always rendered in a normalized, consistent layout (e.g. always shows a
+timeline of upcoming work, always surfaces "what's due next" regardless of how the teacher
+structured the modules). The AI can act as the translation layer — given the teacher's
+arbitrary course structure, it produces a standardized student view.
+
+Extension: an "AI course organizer" that, after a teacher generates a course, suggests a
+cleaner module/assignment structure and lets the teacher accept or adjust before publishing.
+This nudges teachers toward better organization upstream without forcing them.
+
+
+## Solution-upload grading (answer-key comparison)
+Teachers upload a reference solution or answer key for an assignment. The AI SpeedGrader
+compares each student's submission against the solution rather than (or in addition to) a
+rubric. Especially valuable for STEM subjects where there is a definitive correct answer
+and the interesting grading question is not "did they follow the rubric" but:
+  - Did they get the right answer?
+  - Was the reasoning/logic correct even if they made a calculation error?
+  - How far into the correct method did they get before diverging?
+
+This would require a different grading prompt path — instead of rubric-based scoring, the
+AI performs a step-by-step comparison and flags where the student's work diverges from the
+solution. The teacher still approves the final grade. Could be offered as an alternative
+grading mode per-assignment ("Rubric" vs "Answer Key") when the teacher creates it.

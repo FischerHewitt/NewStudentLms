@@ -7,9 +7,10 @@ import type { GradebookData, GradebookCell } from '@/app/actions/gradebook'
 
 interface Props {
   data: GradebookData
+  embedded?: boolean
 }
 
-export function Gradebook({ data }: Props) {
+export function Gradebook({ data, embedded }: Props) {
   const { role } = useRole()
 
   // Student view: filter to the demo student's row only
@@ -21,7 +22,7 @@ export function Gradebook({ data }: Props) {
   if (data.assignments.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
-        <GradebookHeader courseId={data.courseId} courseTitle={data.courseTitle} role={role} />
+        {!embedded && <GradebookHeader courseId={data.courseId} courseTitle={data.courseTitle} role={role} />}
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
           <p className="text-sm text-slate-500">
             No assignments yet. Generate a course to populate the gradebook.
@@ -34,7 +35,7 @@ export function Gradebook({ data }: Props) {
   if (visibleStudents.length === 0) {
     return (
       <div className="mx-auto max-w-3xl">
-        <GradebookHeader courseId={data.courseId} courseTitle={data.courseTitle} role={role} />
+        {!embedded && <GradebookHeader courseId={data.courseId} courseTitle={data.courseTitle} role={role} />}
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
           <p className="text-sm text-slate-500">
             {role === 'teacher'
@@ -48,7 +49,7 @@ export function Gradebook({ data }: Props) {
 
   return (
     <div className="mx-auto max-w-full">
-      <GradebookHeader courseId={data.courseId} courseTitle={data.courseTitle} role={role} />
+      {!embedded && <GradebookHeader courseId={data.courseId} courseTitle={data.courseTitle} role={role} />}
 
       {/* Cell-state legend (teacher view) */}
       {role === 'teacher' && (

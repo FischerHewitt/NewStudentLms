@@ -2,11 +2,32 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { STUDENT_ID } from '@/lib/constants'
+import { deriveAssignmentStatus, type AssignmentDashboardStatus } from '@/lib/grade-lifecycle'
+
+export type { AssignmentDashboardStatus }
+
+export type StudentDashboardCourse = {
+  id: string
+  title: string
+  teacherName: string
+}
+
+export type StudentDashboardAssignment = {
+  id: string
+  courseId: string
+  title: string
+  due: string | null
+  points: number
+  status: AssignmentDashboardStatus
+  grade?: number
+  submittedAt: string | null
+}
 
 export type CourseWithModules = {
   id: string
   title: string
   teacherName: string
+  rawSyllabus: string | null
   modules: ModuleWithAssignments[]
 }
 
@@ -43,7 +64,7 @@ export async function getCourseWithModules(
 
   const { data: course } = await db
     .from('courses')
-    .select('id, title, teacher_id')
+    .select('id, title, teacher_id, raw_syllabus')
     .eq('id', courseId)
     .single()
 
@@ -64,6 +85,7 @@ export async function getCourseWithModules(
     id: course.id,
     title: course.title,
     teacherName: teacherResult.data?.name ?? 'Unknown',
+    rawSyllabus: course.raw_syllabus ?? null,
     modules: (modulesResult.data ?? []).map((m) => ({
       id: m.id,
       title: m.title,
@@ -157,4 +179,106 @@ export async function getModuleWithAssignments(
     order: mod.order,
     assignments: (mod.assignments ?? []) as AssignmentSummary[],
   }
+}
+
+/**
+ * Fetches everything the student dashboard needs in one round-trip:
+ * enrolled courses, all their assignments, the student's submissions,
+ * and Published Grades (approved_at IS NOT NULL) per submission.
+ */
+export async function getStudentDashboardData(): Promise<{
+  courses: StudentDashboardCourse[]
+  assignments: StudentDashboardAssignment[]
+}> {
+  const db = createServerClient()
+
+  // 1. Enrolled courses for this student
+  const { data: enrollments } = await db
+    .from('enrollments')
+    .select('course_id, courses(id, title, teacher_id)')
+    .eq('student_id', STUDENT_ID)
+
+  if (!enrollments || enrollments.length === 0) return { courses: [], assignments: [] }
+
+  const courseRows = enrollments.flatMap((e) => {
+    const c = e.courses as unknown as { id: string; title: string; teacher_id: string } | null
+    return c ? [c] : []
+  })
+  const courseIds = courseRows.map((c) => c.id)
+
+  // 2. Teacher names
+  const teacherIds = [...new Set(courseRows.map((c) => c.teacher_id))]
+  const { data: teachers } = await db
+    .from('users')
+    .select('id, name')
+    .in('id', teacherIds)
+  const teacherById = Object.fromEntries((teachers ?? []).map((t) => [t.id, t.name as string]))
+
+  const courses: StudentDashboardCourse[] = courseRows.map((c) => ({
+    id: c.id,
+    title: c.title,
+    teacherName: teacherById[c.teacher_id] ?? 'Unknown',
+  }))
+
+  // 3. All assignments across enrolled courses
+  const { data: assignments } = await db
+    .from('assignments')
+    .select('id, course_id, title, due_date, points_possible')
+    .in('course_id', courseIds)
+
+  if (!assignments || assignments.length === 0) return { courses, assignments: [] }
+
+  const assignmentIds = assignments.map((a) => a.id)
+
+  // 4. Student's submissions for those assignments
+  const { data: submissions } = await db
+    .from('submissions')
+    .select('id, assignment_id, body, status, submitted_at')
+    .eq('student_id', STUDENT_ID)
+    .in('assignment_id', assignmentIds)
+
+  const submissionByAssignment = Object.fromEntries(
+    (submissions ?? []).map((s) => [
+      s.assignment_id,
+      s as { id: string; assignment_id: string; body: string; status: 'draft' | 'submitted' | 'graded'; submitted_at: string | null },
+    ]),
+  )
+
+  // 5. Published grades for graded submissions (approved_at IS NOT NULL)
+  const submissionIds = (submissions ?? []).map((s) => s.id)
+  const gradeBySubmission: Record<string, { final_score: number; approved_at: string }> = {}
+  if (submissionIds.length > 0) {
+    const { data: grades } = await db
+      .from('grades')
+      .select('submission_id, final_score, approved_at')
+      .in('submission_id', submissionIds)
+      .not('approved_at', 'is', null)
+
+    for (const g of grades ?? []) {
+      gradeBySubmission[g.submission_id] = {
+        final_score: g.final_score as number,
+        approved_at: g.approved_at as string,
+      }
+    }
+  }
+
+  // 6. Derive per-assignment status using the pure function
+  const result: StudentDashboardAssignment[] = assignments.map((a) => {
+    const sub = submissionByAssignment[a.id] ?? null
+    const grade = sub ? (gradeBySubmission[sub.id] ?? null) : null
+    const derived = deriveAssignmentStatus(sub, grade)
+
+    return {
+      id: a.id,
+      courseId: a.course_id,
+      title: a.title,
+      due: a.due_date ?? null,
+      points: a.points_possible,
+      status: derived.status,
+      grade: derived.grade,
+      submittedAt: sub?.submitted_at ?? null,
+    }
+  })
+
+  return { courses, assignments: result }
 }

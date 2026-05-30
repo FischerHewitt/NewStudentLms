@@ -1,29 +1,10 @@
 'use server'
 
-import { generateObject } from 'ai'
-import { createGroq } from '@ai-sdk/groq'
-
-const groq = createGroq({ apiKey: process.env.GROQ_API_KEY })
-import { z } from 'zod'
 import { createServerClient } from '@/lib/supabase/server'
 import { TEACHER_ID } from '@/lib/constants'
-import { canApprove, isGradeVisibleToStudent } from '@/lib/speedgrader'
-
-// ── AI output schema ──────────────────────────────────────────────────────────
-
-const gradeOutputSchema = z.object({
-  suggested_score: z
-    .number()
-    .int()
-    .min(0)
-    .describe('Numeric score based on the rubric'),
-  rationale: z
-    .string()
-    .describe('Brief teacher-facing rationale explaining the score'),
-  feedback_draft: z
-    .string()
-    .describe('Student-facing feedback that the teacher can edit before sending'),
-})
+import { createPendingGradeFromAiSpeedGrader, type AiSpeedGraderDb, type AiSpeedGraderGrade } from '@/lib/ai-speedgrader'
+import { canApprove, isGradeVisibleToStudent } from '@/lib/grade-lifecycle'
+import { submissionAttachmentFromRow, type FileAttachment } from '@/lib/submission-attachment'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,6 +14,7 @@ export type SpeedGraderData = {
     body: string
     status: 'draft' | 'submitted' | 'graded'
     studentName: string
+    attachment: FileAttachment | null
   }
   assignment: {
     id: string
@@ -44,14 +26,7 @@ export type SpeedGraderData = {
   grade: GradeData | null
 }
 
-export type GradeData = {
-  id: string
-  ai_suggested_score: number
-  ai_suggested_feedback: string
-  final_score: number | null
-  final_feedback: string | null
-  approved_at: string | null
-}
+export type GradeData = AiSpeedGraderGrade
 
 export type PublishedGrade = {
   final_score: number
@@ -69,10 +44,10 @@ export async function getSpeedGraderData(
 ): Promise<SpeedGraderData | null> {
   const db = createServerClient()
 
-  // Submission + student name
+  // file_url/name/type/size needed to populate attachment in the return value
   const { data: submission } = await db
     .from('submissions')
-    .select('id, body, status, student_id, assignment_id')
+    .select('id, body, status, student_id, assignment_id, file_url, file_name, file_type, file_size')
     .eq('id', submissionId)
     .single()
 
@@ -109,6 +84,7 @@ export async function getSpeedGraderData(
       body: submission.body,
       status: submission.status as 'draft' | 'submitted' | 'graded',
       studentName: studentResult.data?.name ?? 'Unknown',
+      attachment: submissionAttachmentFromRow(submission),
     },
     assignment: {
       id: assignmentResult.data.id,
@@ -140,108 +116,8 @@ export async function getSpeedGraderData(
 export async function runSpeedGrader(
   submissionId: string,
 ): Promise<{ grade?: GradeData; error?: string }> {
-  const db = createServerClient()
-
-  // Guard: don't overwrite an existing grade
-  const { data: existingGrade } = await db
-    .from('grades')
-    .select('id')
-    .eq('submission_id', submissionId)
-    .single()
-
-  if (existingGrade) {
-    return { error: 'A grade already exists for this submission.' }
-  }
-
-  // Fetch submission + assignment + rubric
-  const { data: submission } = await db
-    .from('submissions')
-    .select('body, assignment_id')
-    .eq('id', submissionId)
-    .single()
-
-  if (!submission) return { error: 'Submission not found.' }
-
-  const [assignmentResult, rubricResult] = await Promise.all([
-    db
-      .from('assignments')
-      .select('title, instructions, points_possible')
-      .eq('id', submission.assignment_id)
-      .single(),
-    db
-      .from('rubrics')
-      .select('criteria')
-      .eq('assignment_id', submission.assignment_id)
-      .single(),
-  ])
-
-  if (!assignmentResult.data) return { error: 'Assignment not found.' }
-
-  const { title, instructions, points_possible } = assignmentResult.data
-  const criteria = rubricResult.data?.criteria ?? []
-
-  const criteriaText =
-    Array.isArray(criteria) && criteria.length > 0
-      ? (criteria as { description: string; points: number }[])
-          .map((c) => `- ${c.description} (${c.points} pts)`)
-          .join('\n')
-      : 'No rubric criteria specified.'
-
-  // Call AI
-  const { object: aiResult } = await generateObject({
-    model: groq('llama-3.3-70b-versatile'),
-    schema: gradeOutputSchema,
-    system: `You are an expert, fair-minded teacher grading a student submission.
-Score the submission strictly according to the rubric.
-Keep feedback constructive, specific, and student-facing.
-The suggested_score must be between 0 and ${points_possible}.`,
-    prompt: `Assignment: ${title}
-
-Instructions:
-${instructions}
-
-Rubric (${points_possible} pts total):
-${criteriaText}
-
-Student submission:
-${submission.body}
-
-Evaluate the submission and provide a score, rationale, and draft feedback.`,
-  })
-
-  // Clamp score to points_possible
-  const clampedScore = Math.min(
-    Math.max(0, aiResult.suggested_score),
-    points_possible,
-  )
-
-  // Insert pending grade
-  const { data: newGrade, error: insertErr } = await db
-    .from('grades')
-    .insert({
-      submission_id: submissionId,
-      ai_suggested_score: clampedScore,
-      ai_suggested_feedback: aiResult.feedback_draft,
-    })
-    .select(
-      'id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at',
-    )
-    .single()
-
-  if (insertErr || !newGrade) {
-    return { error: 'Failed to save grade. Please try again.' }
-  }
-
-  return {
-    grade: {
-      id: newGrade.id,
-      ai_suggested_score: newGrade.ai_suggested_score,
-      ai_suggested_feedback: newGrade.ai_suggested_feedback,
-      final_score: newGrade.final_score,
-      final_feedback: newGrade.final_feedback,
-      approved_at: newGrade.approved_at,
-    },
-  }
+  const db = createServerClient() as unknown as AiSpeedGraderDb
+  return createPendingGradeFromAiSpeedGrader(db, submissionId)
 }
 
 /**
@@ -290,6 +166,69 @@ export async function approveGrade(
     .eq('id', grade.submission_id)
 
   return {}
+}
+
+/**
+ * Publishes a manually-entered grade.
+ * If no grade row exists yet (AI never ran), creates one and immediately approves it.
+ * If a grade row already exists (AI ran), updates it with the final values.
+ */
+export async function publishManualGrade(
+  submissionId: string,
+  score: number,
+  feedback: string,
+): Promise<{ grade?: GradeData; error?: string }> {
+  const db = createServerClient()
+
+  const { data: existing } = await db
+    .from('grades')
+    .select('id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at')
+    .eq('submission_id', submissionId)
+    .single()
+
+  if (existing) {
+    const { error } = await approveGrade(existing.id, score, feedback)
+    if (error) return { error }
+    return {
+      grade: {
+        id: existing.id,
+        ai_suggested_score: existing.ai_suggested_score,
+        ai_suggested_feedback: existing.ai_suggested_feedback,
+        final_score: score,
+        final_feedback: feedback,
+        approved_at: new Date().toISOString(),
+      },
+    }
+  }
+
+  const { data: newGrade, error: insertErr } = await db
+    .from('grades')
+    .insert({
+      submission_id: submissionId,
+      ai_suggested_score: score,
+      ai_suggested_feedback: feedback,
+      final_score: score,
+      final_feedback: feedback,
+      approved_by: TEACHER_ID,
+      approved_at: new Date().toISOString(),
+    })
+    .select('id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at')
+    .single()
+
+  if (insertErr || !newGrade) return { error: 'Failed to save grade. Please try again.' }
+
+  await db.from('submissions').update({ status: 'graded' }).eq('id', submissionId)
+
+  return {
+    grade: {
+      id: newGrade.id,
+      ai_suggested_score: newGrade.ai_suggested_score,
+      ai_suggested_feedback: newGrade.ai_suggested_feedback,
+      final_score: newGrade.final_score,
+      final_feedback: newGrade.final_feedback,
+      approved_at: newGrade.approved_at,
+    },
+  }
 }
 
 /**

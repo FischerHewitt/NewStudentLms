@@ -7,6 +7,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // Default run excludes snapshot tests (real Groq API calls).
+    // Run snapshots separately with: npm run test:slow
+    exclude: ['**/node_modules/**', '**/snapshots/**', 'tests/e2e/**'],
   },
   resolve: {
     alias: {

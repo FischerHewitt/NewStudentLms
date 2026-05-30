@@ -86,6 +86,10 @@ User → Grade.approved_by (teacher approves)
 | **Feedback** | Text message explaining a grade, stored as two plain-text columns on Grade: `ai_suggested_feedback` (AI draft) and `final_feedback` (teacher-confirmed, visible to student) |
 | **AI SpeedGrader** | Feature that reads a Submission + Rubric and suggests an AI Suggested Grade and Feedback |
 | **AI coach** | Student-facing assistant that helps understand Assignments without writing the answer |
+| **Teacher Coach** | Teacher-facing orchestrator agent, available as a collapsible sidebar on every teacher page. Routes teacher requests to specialized sub-agents (SpeedGrader agent, Course Generator agent, and future additions) via tool use. Default greeting: "What do you need help with?" |
+| **Completion Criterion** | A Rubric criterion that awards points for making a genuine attempt to respond to the prompt, regardless of quality. Point weight signals assignment scope: ~20pts for warm-ups, ~10pts for mid-tier, ~5pts for finals. High completion weight means the other criteria should be slightly harder to fully satisfy so that 100 remains a meaningful score. |
+| **Assignment Scope** | The relative stakes of an Assignment, encoded implicitly in the Rubric's Completion Criterion weight. Not a schema field — inferred by the AI from the point distribution. |
+| **Grill Me** | A teacher-initiated calibration session where the AI presents grading scenarios (ambiguous or edge-case Submissions) and the teacher scores each one. The teacher's responses are saved as grading memory and included in future SpeedGrader prompts for that Assignment. Resets via a teacher setting. |
 | **Enrollment** | A record that a student has access to a Course. Created automatically when the teacher generates a course. Drives Gradebook rows — enrolled students appear even with no Submissions |
 | **Gradebook** | Table view of all enrolled students × Assignments for a Course. Each cell shows one of four states: blank (no Submission), Pending (Submission exists, no Grade yet), AI suggested score in muted style (Pending Grade), or confirmed Final Grade in full weight (Published Grade) |
 | **Role toggle** | MVP mechanism for switching between teacher and student views |
@@ -95,7 +99,10 @@ User → Grade.approved_by (teacher approves)
 - Say **Module**, not "Unit", "Week", or "Chapter"
 - Say **Submission**, not "Response", "Work", or "Answer"
 - Say **AI SpeedGrader**, not "AI Grader" or "Auto-grader"
-- Say **AI coach**, not "AI tutor" or "AI assistant"
+- Say **AI coach**, not "AI tutor" or "AI assistant" (student-facing)
+- Say **Teacher Coach**, not "teacher assistant" or "teacher AI" (teacher-facing orchestrator)
+- Say **Completion Criterion**, not "participation points" or "effort grade"
+- Say **Grill Me**, not "calibration session" or "grading training"
 - Say **Course structure**, not "Course outline" or "Curriculum"
 - Say **Final Grade**, not "Approved grade" or "Teacher grade"
 - Say **AI Suggested Grade**, not "AI grade" or "Draft grade"

@@ -1,9 +1,9 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase/server'
-import { explodeCoursePreview } from '@/lib/course-generator'
 import { TEACHER_ID, STUDENT_ID } from '@/lib/constants'
 import type { CoursePreview } from '@/lib/schemas/course'
+import { publishCourseStructure } from '@/lib/course-structure-persistence'
 
 /**
  * Called after streaming completes (B-lite step).
@@ -51,8 +51,8 @@ export async function saveCoursePreview(
 
 /**
  * Called when teacher clicks Save after reviewing/editing.
- * Explodes generation_preview into normalized rows, enrolls the demo student,
- * then clears generation_preview so the draft is no longer recoverable.
+ * Publishes the reviewed Course structure transactionally: Modules,
+ * Assignments, Rubrics, Enrollment, then clears generation_preview.
  * See docs/adr/0002-enrollment-entity-in-mvp.md
  */
 export async function saveCourseToDB(
@@ -61,61 +61,12 @@ export async function saveCourseToDB(
 ): Promise<{ courseId: string }> {
   const db = createServerClient()
 
-  // Update the course title (may have been edited by teacher)
-  await db
-    .from('courses')
-    .update({ title: preview.title, generation_preview: null })
-    .eq('id', courseId)
-
-  const { modules, assignments, rubrics } = explodeCoursePreview(preview)
-
-  // Insert modules and capture their DB-assigned IDs
-  const { data: moduleRows, error: modErr } = await db
-    .from('modules')
-    .insert(modules.map((m) => ({ ...m, course_id: courseId })))
-    .select('id, order')
-
-  if (modErr || !moduleRows) throw new Error(modErr?.message ?? 'Failed to insert modules')
-
-  // Sort returned rows by order to align with the original index
-  const moduleIdByIndex = moduleRows
-    .slice()
-    .sort((a, b) => a.order - b.order)
-    .map((r) => r.id)
-
-  // Insert assignments, resolving moduleIndex → real module_id
-  const { data: assignmentRows, error: assErr } = await db
-    .from('assignments')
-    .insert(
-      assignments.map(({ moduleIndex, ...a }) => ({
-        ...a,
-        module_id: moduleIdByIndex[moduleIndex],
-        course_id: courseId,
-      })),
-    )
-    .select('id')
-
-  if (assErr || !assignmentRows)
-    throw new Error(assErr?.message ?? 'Failed to insert assignments')
-
-  // Insert rubrics, resolving assignmentIndex → real assignment_id
-  if (rubrics.length > 0) {
-    const { error: rubErr } = await db.from('rubrics').insert(
-      rubrics.map(({ assignmentIndex, ...r }) => ({
-        ...r,
-        assignment_id: assignmentRows[assignmentIndex].id,
-      })),
-    )
-    if (rubErr) throw new Error(rubErr.message)
-  }
-
-  // Auto-enroll the seeded student (ADR-0002)
-  await db
-    .from('enrollments')
-    .insert({ course_id: courseId, student_id: STUDENT_ID })
-    .throwOnError()
-
-  return { courseId }
+  return publishCourseStructure(db, {
+    courseId,
+    teacherId: TEACHER_ID,
+    studentId: STUDENT_ID,
+    preview,
+  })
 }
 
 /**
@@ -172,6 +123,33 @@ export async function getLatestCourse(): Promise<{
 }
 
 /**
+ * Returns all saved courses for the demo teacher, newest first.
+ */
+export async function getAllCourses(): Promise<
+  { courseId: string; title: string; createdAt: string }[]
+> {
+  const db = createServerClient()
+
+  const { data } = await db
+    .from('courses')
+    .select('id, title, created_at')
+    .eq('teacher_id', TEACHER_ID)
+    .is('generation_preview', null)
+    .order('created_at', { ascending: false })
+
+  if (!data) return []
+  return data.map((r) => ({ courseId: r.id, title: r.title, createdAt: r.created_at }))
+}
+
+/**
+ * Deletes a course and all its related data (cascades to modules, assignments, enrollments, etc.).
+ */
+export async function deleteCourse(courseId: string): Promise<void> {
+  const db = createServerClient()
+  await db.from('courses').delete().eq('id', courseId).throwOnError()
+}
+
+/**
  * Returns the course the demo student is enrolled in, if any.
  */
 export async function getStudentCourse(): Promise<{
@@ -192,4 +170,26 @@ export async function getStudentCourse(): Promise<{
   const course = Array.isArray(data.courses) ? data.courses[0] : data.courses
   if (!course) return null
   return { courseId: course.id, title: course.title }
+}
+
+/**
+ * Returns all courses the demo student is enrolled in, newest first.
+ */
+export async function getAllStudentCourses(): Promise<
+  { courseId: string; title: string }[]
+> {
+  const db = createServerClient()
+
+  const { data } = await db
+    .from('enrollments')
+    .select('enrolled_at, courses(id, title)')
+    .eq('student_id', STUDENT_ID)
+    .order('enrolled_at', { ascending: false })
+
+  if (!data) return []
+  return data.flatMap((row) => {
+    const course = Array.isArray(row.courses) ? row.courses[0] : row.courses
+    if (!course) return []
+    return [{ courseId: course.id, title: course.title }]
+  })
 }

@@ -1,0 +1,7 @@
+id,name,email,role,note
+00000000-0000-0000-0000-000000000001,Dr. Fischer Hewitt,teacher@demo.lms,teacher,EXISTS in seed.sql
+00000000-0000-0000-0000-000000000002,Alex Rivera,alex@demo.lms,student,EXISTS in seed.sql — Scenario A (100pts strong)
+00000000-0000-0000-0000-000000000003,Jordan Lee,jordan@demo.lms,student,NEW — Scenario B2 (90pts nearly complete)
+00000000-0000-0000-0000-000000000004,Maya Patel,maya@demo.lms,student,NEW — Scenario B3 (68pts thin paragraphs)
+00000000-0000-0000-0000-000000000005,Tyler Brooks,tyler@demo.lms,student,NEW — Scenario B1 (60pts missing career) — often draft/no submission
+00000000-0000-0000-0000-000000000006,Sam Nguyen,sam@demo.lms,student,NEW — Scenario D (0pts empty) — mostly blank gradebook rows

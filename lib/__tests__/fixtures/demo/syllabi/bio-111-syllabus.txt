@@ -1,0 +1,102 @@
+BIO 111 – General Biology
+Instructor: Prof. Weston Gonor
+Lectures: Tuesday, Thursday 12:10–1:30pm, Performing Arts Center Room 204
+Lab: Weekly (mandatory attendance, see lab schedule)
+Textbook: Available via McGraw-Hill Connect (eTextbook access required)
+
+Course Overview:
+Biology is the scientific study of life. This course is split into three broad units:
+(1) Chemistry, Cells, and Energy — atomic structure, macromolecules, cell structure, photosynthesis, cellular respiration
+(2) Genetics and Heredity — DNA structure and replication, mitosis and meiosis, Mendelian genetics, gene expression
+(3) Evolution and Ecology — natural selection, evidence of evolution, population ecology, community interactions
+
+Even if biology is unrelated to your major, this course will give you the scientific literacy to evaluate biological issues in everyday life. The lab section is a separate grade component and mandatory — missing more than three labs results in an automatic failing grade.
+
+Grading Breakdown (Lecture):
+  Connect Homework Assignments: 50 pts total (~5 assignments per unit)
+  Connect Quizzes: 100 pts total (25 pts each, 5 quizzes, lowest dropped)
+  Midterm Exam 1: 50 pts (Week 4, multiple choice, Unit 1)
+  Midterm Exam 2: 100 pts (Week 7, multiple choice, Units 1–2)
+  Final Exam: 200 pts (comprehensive, Week 11)
+  Total Lecture: 500 pts
+
+Grading Breakdown (Lab):
+  Lab Notebook Assignments: 90 pts (10 pts each, 9 labs)
+  Lab Midterm Exam: 50 pts (Week 5)
+  Lab Final Exam: 60 pts (Week 10)
+  Total Lab: 200 pts
+
+Total Course Grade: 700 pts (Lecture + Lab combined)
+Grade Scale: A 93–100%, B 80–92%, C 67–79%, D 55–66%, F below 55%
+
+Weekly Schedule:
+
+Unit 1: Chemistry, Cells, and Energy (Weeks 1–4)
+
+Week 1: Introduction and Scientific Method
+  - What is biology? Scientific method and experimental design
+  - Connect Homework 1 due Sunday (Unit 1, Module 1)
+  - Lab 1: Introduction to the microscope and lab safety
+
+Week 2: Chemistry of Life
+  - Atoms, bonds, water properties, pH, organic molecules (carbohydrates, lipids, proteins, nucleic acids)
+  - Connect Homework 2 due Sunday (Unit 1, Module 2)
+  - Lab 2: Macromolecule identification lab — lab notebook due next week
+  - Lab notebook writing assignment: describe your observations and what they indicate about each substance tested
+
+Week 3: Cell Structure and Function
+  - Prokaryotic vs. eukaryotic cells, organelles, cell membrane structure, transport
+  - Connect Homework 3 due Sunday
+  - Quiz 1 Sunday (Unit 1, Modules 1–2, 25 pts, timed, online)
+  - Lab 3: Cell structure observation lab
+
+Week 4: Energy and Metabolism
+  - ATP, enzymes, photosynthesis, cellular respiration
+  - Connect Homework 4 due Sunday
+  - Midterm Exam 1 Thursday (in class, multiple choice, scantron, 50 pts)
+  - Lab 4: Photosynthesis lab — lab notebook due next week
+  - Lab notebook writing assignment: explain what your results suggest about the rate of photosynthesis under different light conditions
+
+Unit 2: Genetics and Heredity (Weeks 5–7)
+
+Week 5: DNA Structure and Replication
+  - DNA double helix, base pairing, replication process, mutations
+  - Connect Homework 5 due Sunday
+  - Quiz 2 Sunday (Unit 1 energy topics, 25 pts)
+  - Lab Midterm Exam (covers Labs 1–4, 50 pts)
+
+Week 6: Cell Division
+  - Mitosis phases and checkpoints, meiosis and genetic variation, comparison of mitosis vs. meiosis
+  - Connect Homework 6 due Sunday
+  - Lab 5: Mitosis observation lab — lab notebook due next week
+  - Lab notebook writing assignment: describe and sketch the stages of mitosis you observed and explain what is happening genetically at each stage
+
+Week 7: Genetics and Heredity
+  - Mendelian genetics, Punnett squares, dominance patterns, sex-linked traits, pedigree analysis
+  - Connect Homework 7 due Sunday
+  - Quiz 3 Sunday (DNA and cell division, 25 pts)
+  - Midterm Exam 2 Thursday (in class, multiple choice, scantron, 100 pts, covers Units 1–2)
+
+Unit 3: Evolution and Ecology (Weeks 8–10)
+
+Week 8: Evolution
+  - Natural selection, evidence of evolution, speciation, phylogenetics
+  - Connect Homework 8 due Sunday
+  - Quiz 4 Sunday (Genetics, 25 pts)
+  - Lab 6: Hardy-Weinberg simulation lab — lab notebook due next week
+
+Week 9: Population and Community Ecology
+  - Population growth models, limiting factors, species interactions, food webs, ecosystem energy flow
+  - Connect Homework 9 due Sunday
+  - Lab 7: Population ecology field observation — lab notebook due next week
+  - Lab notebook writing assignment: describe the population you observed and apply one population growth concept from lecture to explain its dynamics
+
+Week 10: Human Biology and Course Wrap-Up
+  - Human organ systems overview, homeostasis, biological literacy in everyday life
+  - Connect Homework 10 due Sunday
+  - Quiz 5 Sunday (Evolution and ecology, 25 pts — lowest quiz dropped)
+  - Course reflection assignment due Sunday: In 2–3 paragraphs, describe one concept from each unit that you found most surprising or relevant to your own life, and explain why. (300–500 words)
+  - Lab Final Exam (covers Labs 5–9, 60 pts)
+
+Week 11: Final Exam Week
+  - Final Exam Thursday (comprehensive, 200 pts, multiple choice + short answer, in class)

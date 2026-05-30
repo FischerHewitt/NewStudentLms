@@ -1,0 +1,72 @@
+Deferred items — not in scope for current sprint
+==================================================
+
+## Assignment 2 test data (Final Analysis Report) — DONE
+Fixture: lib/__tests__/fixtures/final-analysis-report.ts
+7 scenarios (A / B1–B4 / D / E), mock AI payloads, expected scores.
+Scores demonstrate the calibration principle: low-completion rubric (5 pts) means
+same-effort responses score 15–27 pts lower than the warm-up (20 pts completion).
+Tests that consume this fixture: not yet written — add to speedgrader.integration.test.ts
+when ready (a new describe block mirroring the existing "Flow A–B" pattern).
+
+
+## Teacher Coach — unbuilt sub-agents
+The following sub-agents are planned but not yet implemented:
+  - Grill Me (grading calibration)
+  - Gradebook summarizer ("how's my class doing?")
+  - Assignment advisor (rubric improvement suggestions)
+
+Each plugs into the Teacher Coach orchestrator as a tool. No orchestrator changes
+needed when adding — just implement the sub-agent and register the tool.
+See: docs/adr/0005-teacher-coach-orchestrator.md
+
+
+## Math text formatting (LaTeX / MathJax rendering)
+Add support for rendering mathematical notation in assignment instructions, rubric
+criteria, student submissions, and AI feedback. Teachers and students should be able
+to write LaTeX syntax (e.g. \frac{d}{dx}, \sum_{n=1}^{\infty}) and have it render
+as formatted math rather than raw text. Useful for MATH 143 and any STEM course.
+Recommended approach: MathJax or KaTeX in the frontend, both work well with Next.js.
+The submission text area would need a toggle between "plain text" and "math mode"
+or a live preview panel so students can see their formatted output before submitting.
+
+
+## Typed math input graded by AI (text input for math assignments)
+Currently math quizzes and problem sets are submitted as file uploads (handwritten PDF/photo).
+Add support for students to type math directly in the submission text area using LaTeX
+or a structured input format. The AI can then grade typed math responses — checking
+approach, intermediate steps, and final answer — without needing vision/OCR.
+This is lower friction than uploading a photo and opens up AI grading for math
+in the fast (non-snapshot) test suite since the input is plain text.
+Useful beyond math: any course where students need to express formulas, chemical
+equations, code snippets, or structured notation in their answers.
+
+
+## Real authentication + Row Level Security (RLS)
+Currently the app uses hardcoded UUIDs and a role toggle (no real login). For production:
+  1. Enable Supabase Auth (email/password or SSO)
+  2. Map real auth UIDs to the users table
+  3. Enable RLS on all tables — each user can only read/write their own rows
+  4. Remove hardcoded TEACHER_ID / STUDENT_ID constants
+  5. Consider 2FA for teacher accounts (grading data is sensitive)
+Do NOT enable RLS before real auth is wired — it will break the current anon-key setup.
+See: docs/context/security.md for current trust model.
+
+
+## Rubric editing — course creation and post-creation
+Teachers need to be able to edit rubric criteria and point values in two places:
+  1. During course creation — while reviewing the AI-generated course structure preview,
+     before clicking Save. Currently the preview is editable in React state but rubric
+     fields may not be individually editable.
+  2. After course creation — teachers should be able to open any assignment and modify
+     the rubric criteria, add/remove criteria, or adjust point values. Changes should
+     update the rubric row in the DB and take effect on future SpeedGrader runs.
+     Edge case: what happens to Pending Grades that were generated with the old rubric?
+     Likely needs a warning ("editing this rubric will not affect grades already generated").
+
+
+## E2E test flows B and C
+After Flow A (student submits → teacher grades → student sees published grade) is
+stable, add:
+  - Flow B: teacher creates course from syllabus → student sees it
+  - Flow C: student submits empty → SpeedGrader short-circuits → UI shows 0 + flag

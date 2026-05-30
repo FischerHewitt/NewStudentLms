@@ -1,0 +1,53 @@
+Grading calibration principles
+==============================
+
+1. Completion criterion encodes assignment scope
+   Every Rubric includes a "Completion / genuine attempt" criterion. Its point weight
+   signals the assignment's scope:
+     - Warm-up / reflection: ~20 pts completion (high)
+     - Mid-tier assignment:  ~10 pts completion (medium)
+     - Final project:         ~5 pts completion (low)
+   The AI reads the point distribution and calibrates strictness accordingly — no explicit
+   "assignment type" field needed. The rubric IS the spec.
+
+2. The 100% mark is lower on high-completion assignments
+   Because completion points are easy to max out, a score of 100 on a warm-up means
+   "genuine good effort." A score of 100 on a final means "mastered the material."
+   Same number, different signal. To keep 100 informative on warm-ups, the content
+   criteria (skill, career connection, etc.) should be slightly harder to fully satisfy —
+   the AI should not award full marks on a content criterion unless the evidence is clear
+   and specific, even on low-stakes assignments.
+
+3. Empty and file-only submissions always score 0
+   Submissions with no text body (body = "") score 0 on all criteria regardless of
+   assignment type. If a file is attached but no text is present, the system flags the
+   submission as potentially empty due to a technical issue — but the score is still 0.
+   The AI is not called for empty submissions (short-circuited at the server action).
+
+
+How we are saving API credits
+==============================
+
+1. Short-circuit AI grading for empty submissions
+   If a submission has no body AND no file (Scenario D), or no body with a file present
+   (Scenario E), we skip the Groq API call entirely and write a Grade row directly with
+   all scores = 0 and feedback = "No submission content was provided."
+   Saves: one Groq call per empty submission.
+
+2. AI grading is on-demand by default (autorun = false)
+   Teachers must click "AI Suggest" to trigger grading. Autorun can be enabled per-teacher
+   as a preference, but the default is off. Avoids accidental API calls when a teacher
+   opens SpeedGrader just to look at a submission.
+   Saves: API calls for every SpeedGrader open event where teacher doesn't actually grade.
+
+3. Mock AI responses in unit and integration tests
+   The fast test suite (unit + integration) never calls Groq. Mock payloads are used
+   instead. Only the slow "snapshot" suite makes real API calls, and only against the
+   canonical test submissions defined in the testing framework.
+   Saves: Groq API calls on every CI run.
+
+4. Real-call snapshot tests run in a separate slow suite
+   Snapshot tests are not part of the default test run. They are run manually or on a
+   scheduled CI job (e.g. nightly), not on every PR. This limits real API calls to
+   intentional regression checks rather than continuous testing.
+   Saves: API calls proportional to PR volume.

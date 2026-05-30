@@ -1,0 +1,22 @@
+student,assignment,course,gradebook_state,submission_status,ai_score,final_score,note
+Alex Rivera,Midterm 1 Reflection,MATH 143,final (published),graded,10,10,Strong reflection — all criteria met
+Jordan Lee,Midterm 1 Reflection,MATH 143,ai_suggested (pending),submitted,6,—,AI ran but teacher hasn't approved yet
+Maya Patel,Midterm 1 Reflection,MATH 143,pending (no grade),submitted,—,—,Submitted but teacher hasn't run AI yet
+Tyler Brooks,Midterm 1 Reflection,MATH 143,pending (draft),draft,—,—,Started but never submitted
+Sam Nguyen,Midterm 1 Reflection,MATH 143,blank,—,—,—,No submission at all
+Alex Rivera,Course Reflection,BIO 111,final (published),graded,10,10,Outstanding — all 3 unit concepts with genuine insight
+Jordan Lee,Course Reflection,BIO 111,ai_suggested (pending),submitted,9,—,AI ran but teacher hasn't approved yet
+Maya Patel,Course Reflection,BIO 111,pending (no grade),submitted,—,—,Submitted but teacher hasn't run AI yet
+Tyler Brooks,Course Reflection,BIO 111,blank,—,—,—,No submission
+Sam Nguyen,Course Reflection,BIO 111,blank,—,—,—,No submission
+Alex Rivera,Written Evaluation Round 1,COMS 101,final (published),graded,15,15,Excellent eval — specific moments cited throughout
+Jordan Lee,Written Evaluation Round 1,COMS 101,ai_suggested (pending),submitted,8,—,AI ran but teacher hasn't approved yet — too general
+Maya Patel,Written Evaluation Round 1,COMS 101,blank,—,—,—,No submission
+Tyler Brooks,Written Evaluation Round 1,COMS 101,blank,—,—,—,No submission
+Sam Nguyen,Written Evaluation Round 1,COMS 101,blank,—,—,—,No submission
+
+Gradebook state legend:
+  blank          = no submission row exists — shows as empty cell
+  pending        = student submitted but teacher hasn't run AI or entered grade
+  ai_suggested   = AI ran and suggested a score — teacher sees it (muted) but student cannot
+  final          = teacher approved — student can see score and feedback

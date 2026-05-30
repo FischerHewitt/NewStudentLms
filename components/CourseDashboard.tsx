@@ -1,225 +1,415 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 import { useRole } from '@/context/RoleContext'
+import { Gradebook } from '@/components/Gradebook'
+import { getGradebookData } from '@/app/actions/gradebook'
+import { assignmentHref } from '@/lib/routes'
 import type {
   CourseWithModules,
   SubmissionSummary,
 } from '@/app/actions/dashboard'
+import type { GradebookData } from '@/app/actions/gradebook'
+
+type TeacherTab = 'modules' | 'queue' | 'syllabus' | 'gradebook'
+type StudentTab = 'modules' | 'syllabus'
 
 interface Props {
   course: CourseWithModules
-  /** Demo student's submissions — drives status badges in student view */
   studentSubmissions: SubmissionSummary[]
-  /** All submissions across all students — drives count badges in teacher view */
   allSubmissions: SubmissionSummary[]
+  embedded?: boolean
 }
 
-export function CourseDashboard({
-  course,
-  studentSubmissions,
-  allSubmissions,
-}: Props) {
+export function CourseDashboard({ course, studentSubmissions, allSubmissions, embedded }: Props) {
   const { role } = useRole()
+  const [teacherTab, setTeacherTab] = useState<TeacherTab>('modules')
+  const [studentTab, setStudentTab] = useState<StudentTab>('modules')
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [gradebookData, setGradebookData] = useState<GradebookData | null>(null)
+  const [gradebookLoading, setGradebookLoading] = useState(false)
 
-  // Build lookup maps once
-  const studentSubMap = Object.fromEntries(
-    studentSubmissions.map((s) => [s.assignment_id, s]),
-  )
-  const submissionCountMap: Record<string, number> = {}
+  useEffect(() => {
+    if (teacherTab !== 'gradebook' || gradebookData) return
+    setGradebookLoading(true)
+    getGradebookData(course.id).then((data) => {
+      setGradebookData(data)
+      setGradebookLoading(false)
+    })
+  }, [teacherTab, gradebookData, course.id])
+
+  const studentSubMap = Object.fromEntries(studentSubmissions.map((s) => [s.assignment_id, s]))
+
+  // Per-assignment submission counts and pending-grade counts
+  const submittedByAssignment: Record<string, number> = {}
+  const pendingByAssignment: Record<string, number> = {}
   for (const sub of allSubmissions) {
-    submissionCountMap[sub.assignment_id] =
-      (submissionCountMap[sub.assignment_id] ?? 0) + 1
+    submittedByAssignment[sub.assignment_id] = (submittedByAssignment[sub.assignment_id] ?? 0) + 1
+    if (sub.status === 'submitted') {
+      pendingByAssignment[sub.assignment_id] = (pendingByAssignment[sub.assignment_id] ?? 0) + 1
+    }
   }
 
+  const totalPending = Object.values(pendingByAssignment).reduce((s, n) => s + n, 0)
+  const totalSubmissions = allSubmissions.length
   const allAssignments = course.modules.flatMap((m) => m.assignments)
-  const upcomingAssignments = allAssignments
-    .filter((a) => a.due_date)
-    .sort((a, b) => (a.due_date! > b.due_date! ? 1 : -1))
-    .slice(0, 5)
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      {/* ── Course header ──────────────────────────────── */}
-      <div className="mb-8">
-        <p className="mb-1 text-xs font-medium uppercase tracking-widest text-slate-400">
-          {course.teacherName}
-        </p>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          {course.title}
-        </h1>
+  // Assignments with at least one ungraded submission — SpeedGrader queue
+  const queueAssignments = allAssignments.filter((a) => (pendingByAssignment[a.id] ?? 0) > 0)
 
-        {role === 'teacher' && (
-          <div className="mt-4 flex gap-3">
-            <Link
-              href={`/course/${course.id}/gradebook`}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
-            >
-              Gradebook →
+  if (role === 'teacher') {
+    return (
+      <div className="mx-auto max-w-4xl">
+        {/* Hamburger */}
+        {!embedded && (
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="mb-5 flex flex-col gap-1 p-1"
+            aria-label="Open navigation"
+          >
+            <span className="block h-0.5 w-5 rounded bg-slate-600" />
+            <span className="block h-0.5 w-5 rounded bg-slate-600" />
+            <span className="block h-0.5 w-5 rounded bg-slate-600" />
+          </button>
+        )}
+
+        {/* Drawer */}
+        {drawerOpen && (
+          <>
+            <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setDrawerOpen(false)} />
+            <div className="fixed left-0 top-0 z-50 flex h-full w-64 flex-col bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
+                <span className="text-sm font-bold text-slate-800">Navigation</span>
+                <button onClick={() => setDrawerOpen(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+              </div>
+              <nav className="flex-1 p-3 space-y-1">
+                <DrawerLink href={`/course/${course.id}`} onClick={() => setDrawerOpen(false)} label="Modules & Assignments" icon="✦" />
+                <DrawerLink href={`/course/${course.id}/gradebook`} onClick={() => setDrawerOpen(false)} label="Gradebook" icon="▦" />
+                <DrawerLink href="/" onClick={() => setDrawerOpen(false)} label="All courses" icon="◉" />
+              </nav>
+            </div>
+          </>
+        )}
+
+        {/* Course header */}
+        <div className="mb-5">
+          {!embedded && (
+            <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-600">
+              ← All courses
             </Link>
+          )}
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{course.title}</h1>
+          <p className="text-xs text-slate-400">{course.teacherName}</p>
+        </div>
+
+        {/* Stats row */}
+        <div className="mb-6 grid grid-cols-3 gap-4">
+          <StatCard
+            label="Total submissions"
+            value={String(totalSubmissions)}
+            sub={`across ${allAssignments.length} assignments`}
+            color="indigo"
+          />
+          <StatCard
+            label="Pending grades"
+            value={String(totalPending)}
+            sub="submitted, awaiting review"
+            color={totalPending > 0 ? 'amber' : 'slate'}
+            action={totalPending > 0 ? { label: 'Go to queue →', tab: 'queue' as TeacherTab, setTab: setTeacherTab } : undefined}
+          />
+          <StatCard
+            label="Modules"
+            value={String(course.modules.length)}
+            sub={`${allAssignments.length} assignments total`}
+            color="slate"
+          />
+        </div>
+
+        {/* Tab bar */}
+        <div className="mb-5 flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-fit">
+          {([
+            ['modules', 'Modules & Assignments'],
+            ['queue', `SpeedGrader${totalPending > 0 ? ` (${totalPending})` : ''}`],
+            ['syllabus', 'Syllabus'],
+            ['gradebook', 'Gradebook'],
+          ] as [TeacherTab, string][]).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setTeacherTab(id)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                teacherTab === id ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Modules tab */}
+        {teacherTab === 'modules' && (
+          <ModuleGrid
+            course={course}
+            renderBadge={(a) => (
+              <SubmissionCountBadge
+                submitted={submittedByAssignment[a.id] ?? 0}
+                pending={pendingByAssignment[a.id] ?? 0}
+              />
+            )}
+          />
+        )}
+
+        {/* SpeedGrader queue tab */}
+        {teacherTab === 'queue' && (
+          <div>
+            {queueAssignments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                <p className="text-sm text-slate-500">No pending submissions — you&apos;re all caught up.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {queueAssignments.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                    <div>
+                      <p className="font-semibold text-slate-800">{a.title}</p>
+                      <p className="text-xs text-slate-400">
+                        {pendingByAssignment[a.id]} ungraded · {a.due_date ? `Due ${a.due_date}` : ''} · {a.points_possible} pts
+                      </p>
+                    </div>
+                    <Link
+                      href={`/course/${course.id}/assignment/${a.id}`}
+                      className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                    >
+                      Grade ⚡
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Syllabus tab */}
+        {teacherTab === 'syllabus' && <SyllabusPanel syllabus={course.rawSyllabus} />}
+
+        {/* Gradebook tab */}
+        {teacherTab === 'gradebook' && (
+          gradebookLoading || !gradebookData ? (
+            <div className="flex items-center justify-center py-24 text-sm text-slate-400">Loading…</div>
+          ) : (
+            <Gradebook data={gradebookData} embedded />
+          )
         )}
       </div>
+    )
+  }
 
-      {/* ── Upcoming assignments (teacher view only) ───── */}
-      {role === 'teacher' && upcomingAssignments.length > 0 && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Upcoming Assignments
-          </h2>
-          <div className="space-y-2">
-            {upcomingAssignments.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm"
-              >
-                <Link
-                  href={`/course/${course.id}/assignment/${a.id}`}
-                  className="text-sm font-medium text-slate-800 hover:text-indigo-600"
-                >
-                  {a.title}
-                </Link>
-                <div className="flex items-center gap-3">
-                  {a.due_date && (
-                    <span className="text-xs text-slate-400">{a.due_date}</span>
-                  )}
-                  <SubmissionCountBadge
-                    count={submissionCountMap[a.id] ?? 0}
-                  />
+  // ── Student view ────────────────────────────────────────────────────────────
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6">
+        <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-600">
+          ← All courses
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{course.title}</h1>
+        <p className="text-xs text-slate-400">{course.teacherName}</p>
+      </div>
+
+      {/* Tab bar */}
+      <div className="mb-5 flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-fit">
+        {([['modules', 'Assignments'], ['syllabus', 'Syllabus']] as [StudentTab, string][]).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setStudentTab(id)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              studentTab === id ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {studentTab === 'modules' && (
+        <div className="space-y-4">
+          {course.modules.length === 0 && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+              <p className="text-sm text-slate-500">No modules yet.</p>
+            </div>
+          )}
+          {course.modules.map((mod) => (
+            <div key={mod.id} className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                <span className="flex-shrink-0 rounded-md bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                  Week {mod.week_number}
+                </span>
+                <div>
+                  <p className="font-semibold text-slate-800">{mod.title}</p>
+                  {mod.description && <p className="text-xs text-slate-500">{mod.description}</p>}
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
+              {mod.assignments.length > 0 ? (
+                <div className="divide-y divide-slate-100">
+                  {mod.assignments.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between px-5 py-3">
+                      <Link
+                        href={`/course/${course.id}/assignment/${a.id}`}
+                        className="text-sm font-medium text-slate-800 hover:text-emerald-600"
+                      >
+                        {a.title}
+                      </Link>
+                      <div className="flex items-center gap-3">
+                        {a.due_date && <span className="text-xs text-slate-400">{a.due_date}</span>}
+                        <StudentStatusBadge submission={studentSubMap[a.id] ?? null} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-5 py-3 text-xs text-slate-400">No assignments in this module.</p>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* ── Module list ─────────────────────────────────── */}
-      <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
-          Modules
-        </h2>
-
-        {course.modules.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-            <p className="text-sm text-slate-500">
-              No modules yet. Generate a course to populate the structure.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {course.modules.map((mod) => (
-              <div
-                key={mod.id}
-                className="rounded-xl border border-slate-200 bg-white shadow-sm"
-              >
-                {/* Module header */}
-                <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
-                  <span className="flex-shrink-0 rounded-md bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                    Week {mod.week_number}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-800">{mod.title}</p>
-                    {mod.description && (
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
-                        {mod.description}
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    href={`/course/${course.id}/module/${mod.id}`}
-                    className="flex-shrink-0 text-xs text-indigo-600 hover:text-indigo-800"
-                  >
-                    View →
-                  </Link>
-                </div>
-
-                {/* Assignments */}
-                {mod.assignments.length > 0 ? (
-                  <div className="divide-y divide-slate-100">
-                    {mod.assignments.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex items-center justify-between px-5 py-3"
-                      >
-                        <Link
-                          href={`/course/${course.id}/assignment/${a.id}`}
-                          className="text-sm font-medium text-slate-800 hover:text-indigo-600"
-                        >
-                          {a.title}
-                        </Link>
-                        <div className="flex items-center gap-3">
-                          {a.due_date && (
-                            <span className="text-xs text-slate-400">
-                              {a.due_date}
-                            </span>
-                          )}
-                          {role === 'teacher' ? (
-                            <SubmissionCountBadge
-                              count={submissionCountMap[a.id] ?? 0}
-                            />
-                          ) : (
-                            <StudentStatusBadge
-                              submission={studentSubMap[a.id] ?? null}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="px-5 py-3 text-xs text-slate-400">
-                    No assignments in this module.
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {studentTab === 'syllabus' && <SyllabusPanel syllabus={course.rawSyllabus} />}
     </div>
   )
 }
 
-// ── Badge sub-components ────────────────────────────────────────────────────
+// ── Shared sub-components ────────────────────────────────────────────────────
 
-function SubmissionCountBadge({ count }: { count: number }) {
-  if (count === 0) {
+function ModuleGrid({
+  course,
+  renderBadge,
+}: {
+  course: CourseWithModules
+  renderBadge: (a: { id: string; title: string; due_date: string | null; points_possible: number }) => React.ReactNode
+}) {
+  if (course.modules.length === 0) {
     return (
-      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-        No submissions
-      </span>
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+        <p className="text-sm text-slate-500">No modules yet. Generate a course to populate the structure.</p>
+      </div>
     )
   }
+
   return (
-    <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
-      {count} submitted
-    </span>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {course.modules.map((mod) => (
+        <div key={mod.id} className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="flex-shrink-0 rounded-md bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                Wk {mod.week_number}
+              </span>
+              <div>
+                <p className="font-semibold text-slate-800 leading-tight">{mod.title}</p>
+                {mod.description && <p className="text-xs text-slate-400 truncate max-w-[180px]">{mod.description}</p>}
+              </div>
+            </div>
+          </div>
+          {mod.assignments.length > 0 ? (
+            <div className="divide-y divide-slate-50">
+              {mod.assignments.map((a) => (
+                <div key={a.id} className="flex items-center justify-between px-4 py-2.5">
+                  <Link
+                    href={assignmentHref(course.id, a.id)}
+                    className="truncate max-w-[160px] text-sm font-medium text-slate-700 hover:text-indigo-600"
+                  >
+                    {a.title}
+                  </Link>
+                  <div className="flex flex-shrink-0 items-center gap-2 ml-2">
+                    {a.due_date && <span className="text-xs text-slate-400">{a.due_date}</span>}
+                    {renderBadge(a)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="px-5 py-3 text-xs text-slate-400 italic">No assignments yet</p>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
 
-function StudentStatusBadge({
-  submission,
-}: {
-  submission: SubmissionSummary | null
-}) {
-  if (!submission || submission.status === 'draft') {
+function SyllabusPanel({ syllabus }: { syllabus: string | null }) {
+  if (!syllabus) {
     return (
-      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-        Not submitted
-      </span>
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+        <p className="text-sm text-slate-500">No syllabus uploaded for this course.</p>
+      </div>
     )
   }
-  if (submission.status === 'submitted') {
-    return (
-      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-        Submitted
-      </span>
-    )
-  }
-  // graded
   return (
-    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-      Graded
-    </span>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">{syllabus}</pre>
+    </div>
   )
+}
+
+function StatCard({
+  label, value, sub, color, action,
+}: {
+  label: string
+  value: string
+  sub: string
+  color: 'indigo' | 'amber' | 'emerald' | 'slate'
+  action?: { label: string; tab: TeacherTab; setTab: (t: TeacherTab) => void }
+}) {
+  const styles: Record<string, string> = {
+    indigo: 'border-indigo-200 bg-indigo-50',
+    amber: 'border-amber-200 bg-amber-50',
+    emerald: 'border-emerald-200 bg-emerald-50',
+    slate: 'border-slate-200 bg-white',
+  }
+  const textStyles: Record<string, string> = {
+    indigo: 'text-indigo-900',
+    amber: 'text-amber-900',
+    emerald: 'text-emerald-900',
+    slate: 'text-slate-900',
+  }
+  return (
+    <div className={`rounded-xl border p-4 shadow-sm ${styles[color]}`}>
+      <p className={`text-xs font-semibold uppercase tracking-widest opacity-60 ${textStyles[color]}`}>{label}</p>
+      <p className={`mt-1 text-3xl font-bold ${textStyles[color]}`}>{value}</p>
+      <p className={`text-xs opacity-60 ${textStyles[color]}`}>{sub}</p>
+      {action && (
+        <button
+          onClick={() => action.setTab(action.tab)}
+          className="mt-1 text-xs font-semibold underline opacity-80"
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function DrawerLink({ href, label, icon, onClick }: { href: string; label: string; icon: string; onClick: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+    >
+      <span className="text-xs">{icon}</span>
+      {label}
+    </Link>
+  )
+}
+
+function SubmissionCountBadge({ submitted, pending }: { submitted: number; pending: number }) {
+  if (submitted === 0) return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-400">No submissions</span>
+  if (pending > 0) return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{pending} to grade</span>
+  return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">All graded</span>
+}
+
+function StudentStatusBadge({ submission }: { submission: SubmissionSummary | null }) {
+  if (!submission || submission.status === 'draft') return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Not submitted</span>
+  if (submission.status === 'submitted') return <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Submitted</span>
+  return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Graded</span>
 }

@@ -3,6 +3,13 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { STUDENT_ID } from '@/lib/constants'
 import { canSubmit } from '@/lib/submission'
+import {
+  submissionAttachmentFromRow,
+  submissionAttachmentToFields,
+  type FileAttachment,
+} from '@/lib/submission-attachment'
+
+export type { FileAttachment } from '@/lib/submission-attachment'
 
 export type AssignmentWithDetails = {
   id: string
@@ -18,6 +25,7 @@ export type StudentSubmissionData = {
   body: string
   status: 'draft' | 'submitted' | 'graded' | null
   submitted_at: string | null
+  attachment: FileAttachment | null
 }
 
 export type SubmissionData = {
@@ -27,6 +35,16 @@ export type SubmissionData = {
   body: string
   status: 'draft' | 'submitted' | 'graded'
   submitted_at: string | null
+  attachment: FileAttachment | null
+  finalScore: number | null
+  grade: {
+    id: string
+    ai_suggested_score: number
+    ai_suggested_feedback: string
+    final_score: number | null
+    final_feedback: string | null
+    approved_at: string | null
+  } | null
 }
 
 /**
@@ -68,18 +86,19 @@ export async function getStudentSubmission(
 
   const { data } = await db
     .from('submissions')
-    .select('id, body, status, submitted_at')
+    .select('id, body, status, submitted_at, file_url, file_name, file_type, file_size')
     .eq('assignment_id', assignmentId)
     .eq('student_id', STUDENT_ID)
     .single()
 
-  if (!data) return { id: null, body: '', status: null, submitted_at: null }
+  if (!data) return { id: null, body: '', status: null, submitted_at: null, attachment: null }
 
   return {
     id: data.id,
     body: data.body,
     status: data.status as 'draft' | 'submitted' | 'graded',
     submitted_at: data.submitted_at,
+    attachment: submissionAttachmentFromRow(data),
   }
 }
 
@@ -94,7 +113,7 @@ export async function getAllSubmissionsForAssignment(
 
   const { data: submissions } = await db
     .from('submissions')
-    .select('id, student_id, body, status, submitted_at')
+    .select('id, student_id, body, status, submitted_at, file_url, file_name, file_type, file_size')
     .eq('assignment_id', assignmentId)
     .in('status', ['submitted', 'graded'])
     .order('submitted_at', { ascending: false })
@@ -103,20 +122,44 @@ export async function getAllSubmissionsForAssignment(
 
   // Resolve student names
   const studentIds = [...new Set(submissions.map((s) => s.student_id))]
-  const { data: users } = await db
-    .from('users')
-    .select('id, name')
-    .in('id', studentIds)
+  const submissionIds = submissions.map((s) => s.id)
+  const [usersResult, gradesResult] = await Promise.all([
+    db.from('users').select('id, name').in('id', studentIds),
+    db
+      .from('grades')
+      .select(
+        'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at',
+      )
+      .in('submission_id', submissionIds),
+  ])
 
-  const nameMap = Object.fromEntries((users ?? []).map((u) => [u.id, u.name]))
+  const nameMap = Object.fromEntries((usersResult.data ?? []).map((u) => [u.id, u.name]))
+  const gradeMap = Object.fromEntries(
+    (gradesResult.data ?? []).map((grade) => [grade.submission_id, grade]),
+  )
 
   return submissions.map((s) => ({
+    grade: gradeMap[s.id]
+      ? {
+          id: gradeMap[s.id].id,
+          ai_suggested_score: gradeMap[s.id].ai_suggested_score,
+          ai_suggested_feedback: gradeMap[s.id].ai_suggested_feedback,
+          final_score: gradeMap[s.id].final_score,
+          final_feedback: gradeMap[s.id].final_feedback,
+          approved_at: gradeMap[s.id].approved_at,
+        }
+      : null,
+    finalScore:
+      gradeMap[s.id]?.approved_at && gradeMap[s.id]?.final_score != null
+        ? gradeMap[s.id].final_score
+        : null,
     id: s.id,
     student_id: s.student_id,
     studentName: nameMap[s.student_id] ?? 'Unknown',
     body: s.body,
     status: s.status as 'draft' | 'submitted' | 'graded',
     submitted_at: s.submitted_at,
+    attachment: submissionAttachmentFromRow(s),
   }))
 }
 
@@ -131,8 +174,11 @@ export async function getAllSubmissionsForAssignment(
 export async function submitAssignment(
   assignmentId: string,
   body: string,
+  attachment?: FileAttachment,
 ): Promise<{ error?: string }> {
-  if (!body.trim()) return { error: 'Submission body cannot be empty.' }
+  if (!body.trim() && !attachment) {
+    return { error: 'Please write a response or upload a file.' }
+  }
 
   const db = createServerClient()
 
@@ -157,6 +203,8 @@ export async function submitAssignment(
     }
   }
 
+  const fileFields = submissionAttachmentToFields(attachment)
+
   if (existing) {
     const { error } = await db
       .from('submissions')
@@ -164,6 +212,7 @@ export async function submitAssignment(
         body,
         status: 'submitted',
         submitted_at: new Date().toISOString(),
+        ...fileFields,
       })
       .eq('id', existing.id)
 
@@ -175,6 +224,7 @@ export async function submitAssignment(
       body,
       status: 'submitted',
       submitted_at: new Date().toISOString(),
+      ...fileFields,
     })
 
     if (error) return { error: 'Failed to submit. Please try again.' }

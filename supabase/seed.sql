@@ -17,7 +17,7 @@ values
     '00000000-0000-0000-0000-000000000001',
     'teacher@demo.lms',
     'teacher',
-    'Dr. Sarah Chen',
+    'Dr. Fischer Hewitt',
     false
   ),
   (
