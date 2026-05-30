@@ -10,32 +10,9 @@
  * See docs/context/ai-flows.md — Syllabus-to-Course Generator (B-lite flow).
  */
 
-export interface RubricCriterion {
-  description: string
-  points: number
-}
+import type { CoursePreview, ModulePreview, AssignmentPreview, RubricCriterion } from '@/lib/schemas/course'
 
-export interface AssignmentPreview {
-  title: string
-  instructions: string
-  due_date: string | null
-  points_possible: number
-  rubric: {
-    criteria: RubricCriterion[]
-  }
-}
-
-export interface ModulePreview {
-  title: string
-  week_number: number
-  description: string
-  assignments: AssignmentPreview[]
-}
-
-export interface CoursePreview {
-  title: string
-  modules: ModulePreview[]
-}
+export type { CoursePreview, ModulePreview, AssignmentPreview, RubricCriterion }
 
 // ---------------------------------------------------------------------------
 // Row shapes returned by explodeCoursePreview (IDs are assigned by the DB)

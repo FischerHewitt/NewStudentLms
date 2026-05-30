@@ -1,3 +1,7 @@
+import { type TeacherPanelView } from '@/lib/grade'
+
+export type { TeacherPanelView as TeacherPanelGrade }
+
 export type TeacherPanelSubmission = {
   id: string
   studentName: string
@@ -12,13 +16,6 @@ export type TeacherAssignmentPanelState<T extends TeacherPanelSubmission> = {
   next: T | null
   isFirst: boolean
   isLast: boolean
-}
-
-export type TeacherPanelGrade = {
-  ai_suggested_score: number
-  ai_suggested_feedback: string
-  final_score: number | null
-  final_feedback: string | null
 }
 
 export function getTeacherAssignmentPanelState<T extends TeacherPanelSubmission>(
@@ -63,7 +60,7 @@ export function markSubmissionGraded<T extends TeacherPanelSubmission>(
   )
 }
 
-export function gradeFormFromGrade(grade: TeacherPanelGrade): {
+export function gradeFormFromGrade(grade: TeacherPanelView): {
   score: number
   feedback: string
 } {
