@@ -23,7 +23,8 @@
  *   npx playwright show-report — HTML report after a run
  */
 
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { setRole } from '../helpers'
 
 // ── Stable seed-data IDs ─────────────────────────────────────────────────────
 
@@ -52,31 +53,6 @@ They are smaller and structurally simpler, with no membrane-bound organelles. \
 Examples: bacteria (E. coli) and archaea. Eukaryotic cells have a membrane-bound \
 nucleus enclosing their DNA and contain organelles such as mitochondria and the \
 endoplasmic reticulum. Examples: humans, yeast, and oak trees.`
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Switches the app role by clicking the toggle button in the header.
- * If already in the target role, does nothing.
- */
-async function setRole(page: Page, target: 'teacher' | 'student') {
-  // Wait for RoleToggle to hydrate from localStorage (has skeleton loading state)
-  await page.waitForSelector('button[aria-label^="Switch to"]', { timeout: 8000 })
-
-  const label = await page
-    .locator('button[aria-label^="Switch to"]')
-    .getAttribute('aria-label')
-
-  // "Switch to student view" → currently teacher; "Switch to teacher view" → currently student
-  const currentRole = label?.includes('student') ? 'teacher' : 'student'
-  if (currentRole === target) return
-
-  await page.locator('button[aria-label^="Switch to"]').click()
-
-  const expectedLabel =
-    target === 'teacher' ? 'Switch to student view' : 'Switch to teacher view'
-  await page.waitForSelector(`button[aria-label="${expectedLabel}"]`, { timeout: 5000 })
-}
 
 // ── Flow A — main grading loop (serial — each test builds on the previous) ───
 
