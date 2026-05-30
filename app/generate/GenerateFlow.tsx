@@ -5,13 +5,26 @@ import { useRouter } from 'next/navigation'
 import { experimental_useObject as useObject } from 'ai/react'
 import { coursePreviewSchema, type CoursePreview } from '@/lib/schemas/course'
 import { saveCoursePreview, saveCourseToDB } from '@/app/actions/course'
+import { TeacherCoachContextBridge } from '@/components/TeacherCoachContextBridge'
+import type { CourseMetadataInput } from '@/lib/course-metadata'
+import { validateRubricGenerateInput } from '@/lib/rubric-generator'
+import {
+  addModule,
+  removeModule,
+  addAssignment,
+  removeAssignment,
+  addCriterion,
+  removeCriterion,
+  updateCriterion,
+} from '@/lib/course-editor'
+import { RichTextarea } from '@/components/RichTextarea'
 
 type FlowState = 'idle' | 'generating' | 'review' | 'saving' | 'error'
-type InputMode = 'upload' | 'paste'
+type InputMode = 'upload' | 'paste' | 'generate' | 'manual'
 
 interface Props {
   /** Pre-loaded draft from a previous session (tab-close recovery) */
-  draft?: { courseId: string; preview: CoursePreview; syllabus: string } | null
+  draft?: { courseId: string; preview: CoursePreview; syllabus: string; metadata: CourseMetadataInput } | null
 }
 
 async function parseFile(file: File): Promise<string> {
@@ -33,6 +46,9 @@ export function GenerateFlow({ draft }: Props) {
   const [flowState, setFlowState] = useState<FlowState>(
     draft ? 'review' : 'idle',
   )
+  const [metadata, setMetadata] = useState<CourseMetadataInput>(
+    draft?.metadata ?? { title: '' },
+  )
   // syllabus = the text stored as raw_syllabus in DB
   const [syllabus, setSyllabus] = useState(draft?.syllabus ?? '')
   // syllabusRef lets onFinish always see the latest syllabus value
@@ -42,7 +58,13 @@ export function GenerateFlow({ draft }: Props) {
     draft?.preview ?? null,
   )
   const [errorMsg, setErrorMsg] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [rubricPending, setRubricPending] = useState<string | null>(null)
+  const [rubricSuggestions, setRubricSuggestions] = useState<Record<string, { description: string; points: number }[]>>({})
+
+  // generate-syllabus mode
+  const [courseDescription, setCourseDescription] = useState('')
+  const [isGeneratingSyllabus, setIsGeneratingSyllabus] = useState(false)
+  const [syllabusGenError, setSyllabusGenError] = useState('')
 
   // input mode state
   const [inputMode, setInputMode] = useState<InputMode>('upload')
@@ -52,17 +74,23 @@ export function GenerateFlow({ draft }: Props) {
   const [syllabusOpen, setSyllabusOpen] = useState(false)
 
   // ── AI streaming ─────────────────────────────────────────────────────────
+  const metadataRef = useRef(metadata)
+  metadataRef.current = metadata
+  // Prevents a background stream from transitioning state after the user cancels
+  const generationCancelledRef = useRef(false)
+
   const { object: streamingPreview, submit } = useObject({
     api: '/api/generate-course',
     schema: coursePreviewSchema,
     onFinish: async ({ object }) => {
+      if (generationCancelledRef.current) return
       if (!object) {
         setErrorMsg('Generation produced no output. Please try again.')
         setFlowState('error')
         return
       }
       try {
-        const { courseId: id } = await saveCoursePreview(syllabusRef.current, object)
+        const { courseId: id } = await saveCoursePreview(syllabusRef.current, object, metadataRef.current)
         setCourseId(id)
         setEditablePreview(object)
         setFlowState('review')
@@ -72,15 +100,12 @@ export function GenerateFlow({ draft }: Props) {
       }
     },
     onError: () => {
+      if (generationCancelledRef.current) return
       setErrorMsg('Generation failed. Check your API key and try again.')
       setFlowState('error')
     },
   })
 
-  // Focus textarea on mount (paste mode)
-  useEffect(() => {
-    if (flowState === 'idle' && inputMode === 'paste') textareaRef.current?.focus()
-  }, [flowState, inputMode])
 
   // ── helpers ───────────────────────────────────────────────────────────────
   const setSyllabusAndRef = (text: string) => {
@@ -89,14 +114,21 @@ export function GenerateFlow({ draft }: Props) {
   }
 
   // ── handlers ─────────────────────────────────────────────────────────────
+  const handleCancelGeneration = () => {
+    generationCancelledRef.current = true
+    setFlowState('idle')
+  }
+
   const handleGenerate = async () => {
     setParseError('')
+    generationCancelledRef.current = false
+    const startDate = metadata.start_date ?? null
 
     if (inputMode === 'paste') {
       if (!syllabus.trim()) return
       syllabusRef.current = syllabus
       setFlowState('generating')
-      submit({ syllabus })
+      submit({ syllabus, start_date: startDate })
       return
     }
 
@@ -109,10 +141,109 @@ export function GenerateFlow({ draft }: Props) {
       const combined = texts.join('\n\n---\n\n')
       setSyllabusAndRef(combined)
       setFlowState('generating')
-      submit({ syllabus: combined })
+      submit({ syllabus: combined, start_date: startDate })
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Failed to parse file')
       setIsParsing(false)
+    }
+  }
+
+  const handleStartManual = async () => {
+    const emptyPreview: CoursePreview = {
+      title: 'Untitled Course',
+      modules: [{ title: '', week_number: 1, description: '', assignments: [] }],
+    }
+    setFlowState('saving') // reuse saving spinner while we create the DB row
+    try {
+      const { courseId: id } = await saveCoursePreview(null, emptyPreview, metadata)
+      setCourseId(id)
+      setEditablePreview(emptyPreview)
+      updateCourseTitle('Untitled Course')
+      setFlowState('review')
+    } catch {
+      setErrorMsg('Failed to start. Please try again.')
+      setFlowState('error')
+    }
+  }
+
+  const handleGenerateSyllabus = async () => {
+    if (!courseDescription.trim()) return
+    setSyllabusGenError('')
+    setIsGeneratingSyllabus(true)
+    try {
+      const res = await fetch('/api/generate-syllabus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: courseDescription }),
+      })
+      if (!res.ok || !res.body) throw new Error('Generation failed')
+
+      // Stream the response into the syllabus textarea and switch to paste mode
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let generated = ''
+      setInputMode('paste')
+      setSyllabusAndRef('')
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        generated += decoder.decode(value, { stream: true })
+        setSyllabusAndRef(generated)
+      }
+    } catch {
+      setSyllabusGenError('Failed to generate syllabus. Please try again.')
+    } finally {
+      setIsGeneratingSyllabus(false)
+    }
+  }
+
+  const handleClearCourse = () => {
+    if (!window.confirm('Clear all modules and assignments? This cannot be undone.')) return
+    setEditablePreview((p) => p ? { ...p, modules: [] } : p)
+  }
+
+  const handleRegenerateFromSyllabus = () => {
+    if (!syllabusRef.current.trim()) return
+    setFlowState('generating')
+    submit({ syllabus: syllabusRef.current, start_date: metadata.start_date ?? null })
+  }
+
+  const handleGenerateSyllabusFromStructure = async () => {
+    if (!editablePreview) return
+    setSyllabusGenError('')
+    setIsGeneratingSyllabus(true)
+    try {
+      const lines: string[] = [`Course: ${editablePreview.title}`]
+      for (const mod of editablePreview.modules) {
+        lines.push(`\nWeek ${mod.week_number}: ${mod.title}${mod.description ? ` — ${mod.description}` : ''}`)
+        for (const a of mod.assignments) {
+          const parts = [a.title, `${a.points_possible} pts`]
+          if (a.due_date) parts.push(`due ${a.due_date}`)
+          lines.push(`  - ${parts.join(', ')}`)
+        }
+      }
+      const description = lines.join('\n')
+      const res = await fetch('/api/generate-syllabus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      })
+      if (!res.ok || !res.body) throw new Error('Generation failed')
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let generated = ''
+      setSyllabusAndRef('')
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        generated += decoder.decode(value, { stream: true })
+        setSyllabusAndRef(generated)
+      }
+    } catch {
+      setSyllabusGenError('Failed to generate syllabus. Please try again.')
+    } finally {
+      setIsGeneratingSyllabus(false)
     }
   }
 
@@ -120,7 +251,7 @@ export function GenerateFlow({ draft }: Props) {
     if (!courseId || !editablePreview) return
     setFlowState('saving')
     try {
-      const { courseId: id } = await saveCourseToDB(courseId, editablePreview)
+      const { courseId: id } = await saveCourseToDB(courseId, editablePreview, metadata)
       router.push(`/course/${id}`)
     } catch {
       setErrorMsg('Save failed. Please try again.')
@@ -128,20 +259,15 @@ export function GenerateFlow({ draft }: Props) {
     }
   }
 
-  const updateCourseTitle = (title: string) =>
+  const updateCourseTitle = (title: string) => {
+    setMetadata((m) => ({ ...m, title }))
     setEditablePreview((p) => (p ? { ...p, title } : p))
+  }
 
-  const updateModule = (
-    mi: number,
-    field: 'title' | 'description',
-    value: string,
-  ) =>
+  const updateModule = (mi: number, field: 'title' | 'description', value: string) =>
     setEditablePreview((p) => {
       if (!p) return p
-      const modules = p.modules.map((m, i) =>
-        i === mi ? { ...m, [field]: value } : m,
-      )
-      return { ...p, modules }
+      return { ...p, modules: p.modules.map((m, i) => i === mi ? { ...m, [field]: value } : m) }
     })
 
   const updateAssignment = (
@@ -152,26 +278,78 @@ export function GenerateFlow({ draft }: Props) {
   ) =>
     setEditablePreview((p) => {
       if (!p) return p
-      const modules = p.modules.map((m, i) => {
-        if (i !== mi) return m
-        const assignments = m.assignments.map((a, j) =>
-          j === ai ? { ...a, [field]: value } : a,
-        )
-        return { ...m, assignments }
-      })
-      return { ...p, modules }
+      return {
+        ...p,
+        modules: p.modules.map((m, i) => {
+          if (i !== mi) return m
+          return { ...m, assignments: m.assignments.map((a, j) => j === ai ? { ...a, [field]: value } : a) }
+        }),
+      }
     })
+
+  const apply = (fn: (p: typeof editablePreview) => typeof editablePreview) =>
+    setEditablePreview(fn)
+
+  const handleGenerateRubric = async (mi: number, ai: number, title: string, instructions: string) => {
+    if (!validateRubricGenerateInput(title, instructions)) return
+    const key = `${mi}-${ai}`
+    setRubricPending(key)
+    try {
+      const res = await fetch('/api/generate-rubric', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, instructions }),
+      })
+      const data = await res.json()
+      if (data.criteria) {
+        setRubricSuggestions((prev) => ({ ...prev, [key]: data.criteria }))
+      }
+    } finally {
+      setRubricPending(null)
+    }
+  }
+
+  const acceptRubricSuggestion = (mi: number, ai: number) => {
+    const key = `${mi}-${ai}`
+    const criteria = rubricSuggestions[key]
+    if (!criteria) return
+    apply((p) => p ? {
+      ...p,
+      modules: p.modules.map((m, i) =>
+        i === mi
+          ? {
+              ...m,
+              assignments: m.assignments.map((a, j) =>
+                j === ai ? { ...a, rubric: { criteria } } : a,
+              ),
+            }
+          : m,
+      ),
+    } : p)
+    setRubricSuggestions((prev) => { const next = { ...prev }; delete next[key]; return next })
+  }
+
+  const dismissRubricSuggestion = (mi: number, ai: number) => {
+    const key = `${mi}-${ai}`
+    setRubricSuggestions((prev) => { const next = { ...prev }; delete next[key]; return next })
+  }
 
   // ── renders ───────────────────────────────────────────────────────────────
 
   const canGenerate =
-    inputMode === 'paste'
-      ? syllabus.trim().length > 0
-      : uploadedFiles.length > 0
+    inputMode === 'manual'
+      ? true
+      : inputMode === 'generate'
+        ? courseDescription.trim().length > 0
+        : inputMode === 'paste'
+          ? syllabus.trim().length > 0
+          : uploadedFiles.length > 0
 
   if (flowState === 'idle') {
     return (
-      <div className="mx-auto max-w-2xl">
+      <>
+        <TeacherCoachContextBridge context={{ syllabus }} />
+        <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             Create a course from your syllabus
@@ -184,7 +362,7 @@ export function GenerateFlow({ draft }: Props) {
 
         {/* ── Input mode tabs ── */}
         <div className="mb-5 flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
-          {(['upload', 'paste'] as InputMode[]).map((m) => (
+          {(['upload', 'paste', 'generate', 'manual'] as InputMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setInputMode(m)}
@@ -194,7 +372,7 @@ export function GenerateFlow({ draft }: Props) {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              {m === 'upload' ? 'Upload files' : 'Paste text'}
+              {m === 'upload' ? 'Upload' : m === 'paste' ? 'Paste text' : m === 'generate' ? 'Generate syllabus' : 'Manual'}
             </button>
           ))}
         </div>
@@ -204,42 +382,90 @@ export function GenerateFlow({ draft }: Props) {
         )}
 
         {inputMode === 'paste' && (
-          <textarea
-            ref={textareaRef}
+          <RichTextarea
             value={syllabus}
-            onChange={(e) => setSyllabus(e.target.value)}
+            onChange={setSyllabus}
             placeholder="Paste your syllabus here…"
             rows={16}
-            className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            autoFocus
           />
+        )}
+
+        {inputMode === 'generate' && (
+          <div className="space-y-3">
+            <textarea
+              value={courseDescription}
+              onChange={(e) => setCourseDescription(e.target.value)}
+              placeholder="Describe your course — subject, level, duration, topics, any specific requirements…&#10;&#10;e.g. Introductory biology for undergraduates, 16 weeks, covering cell biology, genetics, evolution, and ecology."
+              rows={8}
+              className="w-full resize-none rounded-xl border border-slate-300 bg-white p-4 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+            <p className="text-xs text-slate-400">AI will write a full syllabus from your description. You can review and edit it before generating the course structure.</p>
+            {syllabusGenError && <p className="text-sm text-red-600">{syllabusGenError}</p>}
+          </div>
+        )}
+
+        {inputMode === 'manual' && (
+          <div className="rounded-xl border-2 border-dashed border-slate-200 bg-white p-10 text-center">
+            <p className="text-sm font-medium text-slate-600">Build your course structure from scratch.</p>
+            <p className="mt-1 text-xs text-slate-400">Add modules and assignments manually in the next step — no syllabus needed.</p>
+          </div>
         )}
 
         {parseError && (
           <p className="mt-3 text-sm text-red-600">{parseError}</p>
         )}
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between">
           <button
-            onClick={handleGenerate}
-            disabled={!canGenerate || isParsing}
+            onClick={() => router.push('/')}
+            className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700"
+          >
+            ← Back
+          </button>
+          <button
+            onClick={
+              inputMode === 'manual'
+                ? handleStartManual
+                : inputMode === 'generate'
+                  ? handleGenerateSyllabus
+                  : handleGenerate
+            }
+            disabled={!canGenerate || isParsing || isGeneratingSyllabus}
             className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isParsing ? 'Reading file…' : 'Generate Course →'}
+            {inputMode === 'manual'
+              ? 'Start Building →'
+              : inputMode === 'generate'
+                ? isGeneratingSyllabus ? 'Writing syllabus…' : 'Generate Syllabus →'
+                : isParsing ? 'Reading file…' : 'Generate Course →'}
           </button>
         </div>
-      </div>
+        </div>
+      </>
     )
   }
 
   if (flowState === 'generating') {
     const partial = streamingPreview
     return (
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center gap-3">
-          <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-          <span className="text-sm font-medium text-slate-600">
-            Generating course structure…
-          </span>
+      <>
+        <TeacherCoachContextBridge context={{ syllabus }} />
+        <div className="mx-auto max-w-3xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+            <span className="text-sm font-medium text-slate-600">
+              Generating course structure…
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCancelGeneration}
+            className="text-sm text-slate-400 hover:text-slate-700"
+          >
+            ← Cancel
+          </button>
         </div>
 
         {partial?.title && (
@@ -286,13 +512,16 @@ export function GenerateFlow({ draft }: Props) {
             </div>
           ))}
         </div>
-      </div>
+        </div>
+      </>
     )
   }
 
   if (flowState === 'error') {
     return (
-      <div className="mx-auto max-w-md text-center">
+      <>
+        <TeacherCoachContextBridge context={{ syllabus }} />
+        <div className="mx-auto max-w-md text-center">
         <p className="text-red-600">{errorMsg}</p>
         <button
           onClick={() => setFlowState('idle')}
@@ -300,38 +529,99 @@ export function GenerateFlow({ draft }: Props) {
         >
           ← Try again
         </button>
-      </div>
+        </div>
+      </>
     )
   }
 
   // ── review / edit ─────────────────────────────────────────────────────────
   if ((flowState === 'review' || flowState === 'saving') && editablePreview) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <>
+        <TeacherCoachContextBridge context={{ syllabus }} />
+        <div className="mx-auto max-w-3xl">
+        {/* Back / Clear row */}
+        <div className="mb-4 flex items-center justify-between">
+          {!draft ? (
+            <button
+              type="button"
+              onClick={() => setFlowState('idle')}
+              className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700"
+            >
+              ← Back
+            </button>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={handleClearCourse}
+            className="text-xs text-slate-400 hover:text-red-500"
+          >
+            Clear course
+          </button>
+        </div>
+
         {draft && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             ↩ Recovered unsaved course from your last session.
           </div>
         )}
 
-        <div className="mb-6 flex items-end justify-between">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium uppercase tracking-widest text-slate-400">
-              Course Title
-            </label>
-            <input
-              value={editablePreview.title}
-              onChange={(e) => updateCourseTitle(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-xl font-bold text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            />
+        <div className="mb-6">
+          <div className="mb-3 flex items-end justify-between gap-4">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium uppercase tracking-widest text-slate-400">
+                Course Title
+              </label>
+              <input
+                value={editablePreview.title}
+                onChange={(e) => updateCourseTitle(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-xl font-bold text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={flowState === 'saving'}
+              className="flex-shrink-0 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {flowState === 'saving' ? 'Saving…' : 'Save Course →'}
+            </button>
           </div>
-          <button
-            onClick={handleSave}
-            disabled={flowState === 'saving'}
-            className="ml-4 flex-shrink-0 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {flowState === 'saving' ? 'Saving…' : 'Save Course →'}
-          </button>
+
+          {/* Optional course details — term, section, dates */}
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={metadata.term ?? ''}
+              onChange={(e) => setMetadata((m) => ({ ...m, term: e.target.value || undefined }))}
+              placeholder="Term (e.g. Fall 2026)"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+            />
+            <input
+              value={metadata.section ?? ''}
+              onChange={(e) => setMetadata((m) => ({ ...m, section: e.target.value || undefined }))}
+              placeholder="Section"
+              className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+            />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">Start</span>
+              <input
+                type="date"
+                value={metadata.start_date ?? ''}
+                onChange={(e) => setMetadata((m) => ({ ...m, start_date: e.target.value || undefined }))}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-400">End</span>
+              <input
+                type="date"
+                value={metadata.end_date ?? ''}
+                onChange={(e) => setMetadata((m) => ({ ...m, end_date: e.target.value || undefined }))}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Collapsible syllabus editor */}
@@ -346,25 +636,42 @@ export function GenerateFlow({ draft }: Props) {
           </button>
           {syllabusOpen && (
             <div className="border-t border-slate-100 px-5 py-4">
-              <textarea
+              <RichTextarea
                 value={syllabus}
-                onChange={(e) => setSyllabusAndRef(e.target.value)}
+                onChange={setSyllabusAndRef}
                 rows={14}
-                className="w-full resize-y rounded-lg border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
-              <p className="mt-1 text-xs text-slate-400">
-                Edits here update the stored syllabus text only — regenerate to reflect changes in the course structure.
-              </p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs text-slate-400">
+                  Edit the syllabus then regenerate to update the course structure.
+                </p>
+                <div className="flex flex-shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateSyllabusFromStructure}
+                    disabled={isGeneratingSyllabus}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isGeneratingSyllabus ? 'Writing…' : 'Generate syllabus'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRegenerateFromSyllabus}
+                    disabled={!syllabus.trim() || isGeneratingSyllabus}
+                    className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Generate course →
+                  </button>
+                </div>
+              </div>
+              {syllabusGenError && <p className="mt-1 text-xs text-red-600">{syllabusGenError}</p>}
             </div>
           )}
         </div>
 
         <div className="space-y-4">
           {editablePreview.modules.map((mod, mi) => (
-            <div
-              key={mi}
-              className="rounded-xl border border-slate-200 bg-white shadow-sm"
-            >
+            <div key={mi} className="rounded-xl border border-slate-200 bg-white shadow-sm">
               {/* Module header */}
               <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
                 <span className="flex-shrink-0 rounded-md bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
@@ -373,99 +680,170 @@ export function GenerateFlow({ draft }: Props) {
                 <input
                   value={mod.title}
                   onChange={(e) => updateModule(mi, 'title', e.target.value)}
+                  placeholder="Module title"
                   className="flex-1 rounded border-0 bg-transparent text-sm font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:ring-offset-1"
                 />
+                <button
+                  type="button"
+                  onClick={() => apply((p) => p ? removeModule(p, mi) : p)}
+                  className="ml-2 text-xs text-slate-400 hover:text-red-500"
+                  title="Remove module"
+                >
+                  ✕
+                </button>
               </div>
 
               <div className="px-5 py-3">
                 <textarea
                   value={mod.description}
-                  onChange={(e) =>
-                    updateModule(mi, 'description', e.target.value)
-                  }
+                  onChange={(e) => updateModule(mi, 'description', e.target.value)}
                   rows={2}
+                  placeholder="Module description"
                   className="w-full resize-none rounded border border-transparent bg-slate-50 px-2 py-1.5 text-sm text-slate-600 focus:border-slate-300 focus:outline-none focus:ring-0"
                 />
               </div>
 
               {/* Assignments */}
-              {mod.assignments.length > 0 && (
-                <div className="divide-y divide-slate-100 border-t border-slate-100">
-                  {mod.assignments.map((a, ai) => (
-                    <div key={ai} className="px-5 py-4">
-                      <div className="grid grid-cols-[1fr_auto_auto] items-start gap-3">
+              <div className="divide-y divide-slate-100 border-t border-slate-100">
+                {mod.assignments.map((a, ai) => (
+                  <div key={ai} className="px-5 py-4">
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-3">
+                      <input
+                        value={a.title}
+                        onChange={(e) => updateAssignment(mi, ai, 'title', e.target.value)}
+                        placeholder="Assignment title"
+                        className="rounded border-0 bg-transparent text-sm font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:ring-offset-1"
+                      />
+                      <input
+                        type="date"
+                        value={a.due_date ?? ''}
+                        onChange={(e) => updateAssignment(mi, ai, 'due_date', e.target.value || '')}
+                        className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 focus:border-indigo-500 focus:outline-none"
+                      />
+                      <div className="flex items-center gap-1">
                         <input
-                          value={a.title}
-                          onChange={(e) =>
-                            updateAssignment(mi, ai, 'title', e.target.value)
-                          }
-                          className="rounded border-0 bg-transparent text-sm font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-300 focus:ring-offset-1"
+                          type="number"
+                          value={a.points_possible}
+                          min={1}
+                          onChange={(e) => updateAssignment(mi, ai, 'points_possible', Number(e.target.value))}
+                          className="w-16 rounded border border-slate-200 px-2 py-1 text-center text-xs text-slate-600 focus:border-indigo-500 focus:outline-none"
                         />
-                        <input
-                          type="date"
-                          value={a.due_date ?? ''}
-                          onChange={(e) =>
-                            updateAssignment(
-                              mi,
-                              ai,
-                              'due_date',
-                              e.target.value || '',
-                            )
-                          }
-                          className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 focus:border-indigo-500 focus:outline-none"
-                        />
-                        <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400">pts</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => apply((p) => p ? removeAssignment(p, mi, ai) : p)}
+                        className="text-xs text-slate-400 hover:text-red-500"
+                        title="Remove assignment"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <textarea
+                      value={a.instructions}
+                      onChange={(e) => updateAssignment(mi, ai, 'instructions', e.target.value)}
+                      rows={2}
+                      placeholder="Assignment instructions"
+                      className="mt-2 w-full resize-none rounded border border-transparent bg-slate-50 px-2 py-1.5 text-xs leading-relaxed text-slate-500 focus:border-slate-300 focus:outline-none"
+                    />
+                    {/* Rubric criteria */}
+                    <div className="mt-2 space-y-1">
+                      {a.rubric.criteria.map((c, ci) => (
+                        <div key={ci} className="flex items-center gap-2">
+                          <span className="h-1 w-1 flex-shrink-0 rounded-full bg-slate-300" />
+                          <input
+                            value={c.description}
+                            onChange={(e) => apply((p) => p ? updateCriterion(p, mi, ai, ci, { description: e.target.value }) : p)}
+                            placeholder="Criterion description"
+                            className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-xs text-slate-500 focus:border-slate-300 focus:outline-none"
+                          />
                           <input
                             type="number"
-                            value={a.points_possible}
-                            min={1}
-                            onChange={(e) =>
-                              updateAssignment(
-                                mi,
-                                ai,
-                                'points_possible',
-                                Number(e.target.value),
-                              )
-                            }
-                            className="w-16 rounded border border-slate-200 px-2 py-1 text-center text-xs text-slate-600 focus:border-indigo-500 focus:outline-none"
+                            value={c.points}
+                            min={0}
+                            onChange={(e) => apply((p) => p ? updateCriterion(p, mi, ai, ci, { points: Number(e.target.value) }) : p)}
+                            className="w-14 rounded border border-slate-200 px-1 py-0.5 text-center text-xs text-slate-500 focus:border-indigo-400 focus:outline-none"
                           />
                           <span className="text-xs text-slate-400">pts</span>
+                          <button
+                            type="button"
+                            onClick={() => apply((p) => p ? removeCriterion(p, mi, ai, ci) : p)}
+                            className="text-xs text-slate-300 hover:text-red-400"
+                          >
+                            ✕
+                          </button>
                         </div>
-                      </div>
-                      <textarea
-                        value={a.instructions}
-                        onChange={(e) =>
-                          updateAssignment(
-                            mi,
-                            ai,
-                            'instructions',
-                            e.target.value,
-                          )
-                        }
-                        rows={2}
-                        className="mt-2 w-full resize-none rounded border border-transparent bg-slate-50 px-2 py-1.5 text-xs leading-relaxed text-slate-500 focus:border-slate-300 focus:outline-none"
-                      />
-                      {a.rubric.criteria.length > 0 && (
-                        <ul className="mt-2 space-y-1">
-                          {a.rubric.criteria.map((c, ci) => (
-                            <li
-                              key={ci}
-                              className="flex items-center gap-2 text-xs text-slate-400"
-                            >
-                              <span className="h-1 w-1 rounded-full bg-slate-300" />
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => apply((p) => p ? addCriterion(p, mi, ai) : p)}
+                        className="text-xs text-indigo-500 hover:text-indigo-700"
+                      >
+                        + Add criterion
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateRubric(mi, ai, a.title, a.instructions)}
+                        disabled={!validateRubricGenerateInput(a.title, a.instructions) || rubricPending === `${mi}-${ai}`}
+                        className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {rubricPending === `${mi}-${ai}` ? 'Generating…' : 'AI generate rubric'}
+                      </button>
+                    </div>
+                    {rubricSuggestions[`${mi}-${ai}`] && (
+                      <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+                        <p className="mb-2 text-xs font-medium text-indigo-700">AI suggested criteria:</p>
+                        <ul className="mb-3 space-y-1">
+                          {rubricSuggestions[`${mi}-${ai}`].map((c, idx) => (
+                            <li key={idx} className="flex items-center gap-2 text-xs text-indigo-800">
                               <span className="flex-1">{c.description}</span>
                               <span className="tabular-nums">{c.points} pts</span>
                             </li>
                           ))}
                         </ul>
-                      )}
-                    </div>
-                  ))}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => acceptRubricSuggestion(mi, ai)}
+                            className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+                          >
+                            Use this
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dismissRubricSuggestion(mi, ai)}
+                            className="rounded border border-indigo-200 px-3 py-1 text-xs text-indigo-600 hover:bg-indigo-100"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="px-5 py-3">
+                  <button
+                    type="button"
+                    onClick={() => apply((p) => p ? addAssignment(p, mi) : p)}
+                    className="text-xs text-indigo-500 hover:text-indigo-700"
+                  >
+                    + Add assignment
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => apply((p) => p ? addModule(p) : p)}
+          className="mt-3 w-full rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm text-slate-400 transition hover:border-indigo-300 hover:text-indigo-500"
+        >
+          + Add module
+        </button>
 
         <div className="mt-6 flex justify-end">
           <button
@@ -476,7 +854,8 @@ export function GenerateFlow({ draft }: Props) {
             {flowState === 'saving' ? 'Saving…' : 'Save Course →'}
           </button>
         </div>
-      </div>
+        </div>
+      </>
     )
   }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { usePathname } from 'next/navigation'
 import { useRole } from '@/context/RoleContext'
 import {
   getTeacherAutorunSetting,
@@ -13,6 +14,7 @@ import {
  * Hidden for the student role.
  */
 export function AutorunToggle() {
+  const pathname = usePathname()
   const { role, mounted } = useRole()
   const [autorun, setAutorun] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -20,13 +22,15 @@ export function AutorunToggle() {
 
   // Fetch current preference on mount
   useEffect(() => {
+    if (pathname.startsWith('/proto')) return
     getTeacherAutorunSetting().then((value) => {
       setAutorun(value)
       setLoaded(true)
     })
-  }, [])
+  }, [pathname])
 
   // Only render for the teacher role once hydrated
+  if (pathname.startsWith('/proto')) return null
   if (!mounted || role !== 'teacher') return null
 
   const handleToggle = () => {

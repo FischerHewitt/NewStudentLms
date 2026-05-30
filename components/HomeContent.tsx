@@ -1,9 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useRole } from '@/context/RoleContext'
+import { TeacherDashboard } from '@/components/TeacherDashboard'
 import { CourseDashboard } from '@/components/CourseDashboard'
 import { StudentDashboard } from '@/components/StudentDashboard'
 import { deleteCourse } from '@/app/actions/course'
@@ -18,9 +18,10 @@ import type {
   StudentDashboardCourse,
   StudentDashboardAssignment,
 } from '@/app/actions/dashboard'
+import type { TeacherDashboardData } from '@/lib/teacher-dashboard'
 
 interface Props {
-  teacherCourses: { courseId: string; title: string; createdAt: string }[]
+  teacherDashboard: TeacherDashboardData
   studentDashboard: {
     courses: StudentDashboardCourse[]
     assignments: StudentDashboardAssignment[]
@@ -33,11 +34,11 @@ interface LoadedCourse {
   allSubmissions: SubmissionSummary[]
 }
 
-export function HomeContent({ teacherCourses, studentDashboard }: Props) {
+export function HomeContent({ teacherDashboard, studentDashboard }: Props) {
   const { role } = useRole()
   const router = useRouter()
   const searchParams = useSearchParams()
-  // null = Home tab; pre-select from ?course= when returning from an assignment
+  // null = Home (gallery); string = open course tab
   const [selectedId, setSelectedId] = useState<string | null>(
     searchParams.get('course') ?? null,
   )
@@ -79,6 +80,7 @@ export function HomeContent({ teacherCourses, studentDashboard }: Props) {
     )
   }
 
+  const courses = teacherDashboard.courses
   const activeCourse = selectedId ? loaded[selectedId] : null
 
   return (
@@ -97,12 +99,12 @@ export function HomeContent({ teacherCourses, studentDashboard }: Props) {
             >
               Home
             </button>
-            {teacherCourses.map((c) => (
+            {courses.map((c) => (
               <button
-                key={c.courseId}
-                onClick={() => setSelectedId(c.courseId)}
+                key={c.id}
+                onClick={() => setSelectedId(c.id)}
                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                  selectedId === c.courseId
+                  selectedId === c.id
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 hover:bg-slate-50'
                 }`}
@@ -117,63 +119,10 @@ export function HomeContent({ teacherCourses, studentDashboard }: Props) {
       {/* Content area */}
       <div className="px-4 py-8">
         {selectedId === null ? (
-          /* Home view */
-          <div className="mx-auto max-w-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Courses</h2>
-              <Link
-                href="/generate"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                + New course
-              </Link>
-            </div>
-
-            {teacherCourses.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-                <p className="mb-1 text-lg font-semibold text-slate-800">No courses yet</p>
-                <p className="mb-5 text-sm text-slate-500">
-                  Paste your syllabus and let AI build the course structure for you.
-                </p>
-                <Link
-                  href="/generate"
-                  className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
-                >
-                  Create course from syllabus →
-                </Link>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {teacherCourses.map((course) => (
-                  <div
-                    key={course.courseId}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-                  >
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{course.title}</h3>
-                      <p className="text-xs text-slate-400">
-                        {new Date(course.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setSelectedId(course.courseId)}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
-                      >
-                        Open →
-                      </button>
-                      <button
-                        onClick={() => handleDelete(course.courseId, course.title)}
-                        className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <TeacherDashboard
+            data={teacherDashboard}
+            onOpenCourse={setSelectedId}
+          />
         ) : loading && !activeCourse ? (
           <div className="flex items-center justify-center py-24 text-sm text-slate-400">
             Loading…
@@ -183,6 +132,7 @@ export function HomeContent({ teacherCourses, studentDashboard }: Props) {
             course={activeCourse.course}
             studentSubmissions={activeCourse.studentSubmissions}
             allSubmissions={activeCourse.allSubmissions}
+            onDelete={() => handleDelete(activeCourse.course.id, activeCourse.course.title)}
             embedded
           />
         ) : null}

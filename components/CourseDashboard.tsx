@@ -1,34 +1,51 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRole } from '@/context/RoleContext'
 import { Gradebook } from '@/components/Gradebook'
 import { getGradebookData } from '@/app/actions/gradebook'
+import { publishCourse, unpublishCourse } from '@/app/actions/course'
+import { RosterPanel } from '@/components/RosterPanel'
 import { assignmentHref } from '@/lib/routes'
 import type {
   CourseWithModules,
   SubmissionSummary,
 } from '@/app/actions/dashboard'
 import type { GradebookData } from '@/app/actions/gradebook'
+import type { EnrolledStudent } from '@/app/actions/enrollment'
 
-type TeacherTab = 'modules' | 'queue' | 'syllabus' | 'gradebook'
+type TeacherTab = 'modules' | 'queue' | 'syllabus' | 'gradebook' | 'roster'
 type StudentTab = 'modules' | 'syllabus'
 
 interface Props {
   course: CourseWithModules
   studentSubmissions: SubmissionSummary[]
   allSubmissions: SubmissionSummary[]
+  enrolledStudents?: EnrolledStudent[]
   embedded?: boolean
+  onDelete?: () => void
 }
 
-export function CourseDashboard({ course, studentSubmissions, allSubmissions, embedded }: Props) {
+export function CourseDashboard({ course, studentSubmissions, allSubmissions, enrolledStudents = [], embedded, onDelete }: Props) {
   const { role } = useRole()
   const [teacherTab, setTeacherTab] = useState<TeacherTab>('modules')
   const [studentTab, setStudentTab] = useState<StudentTab>('modules')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [gradebookData, setGradebookData] = useState<GradebookData | null>(null)
   const [gradebookLoading, setGradebookLoading] = useState(false)
+  const [courseStatus, setCourseStatus] = useState<'draft' | 'published'>(course.status)
+  const [publishPending, startPublishTransition] = useTransition()
+
+  const handlePublish = () => startPublishTransition(async () => {
+    await publishCourse(course.id)
+    setCourseStatus('published')
+  })
+
+  const handleUnpublish = () => startPublishTransition(async () => {
+    await unpublishCourse(course.id)
+    setCourseStatus('draft')
+  })
 
   useEffect(() => {
     if (teacherTab !== 'gradebook' || gradebookData) return
@@ -92,6 +109,38 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, em
           </>
         )}
 
+        {/* Draft banner */}
+        {courseStatus === 'draft' && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-amber-200 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-800">Draft</span>
+              <span className="text-sm text-amber-800">This course is not visible to students.</span>
+            </div>
+            <button
+              onClick={handlePublish}
+              disabled={publishPending}
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {publishPending ? 'Publishing…' : 'Publish Course'}
+            </button>
+          </div>
+        )}
+        {courseStatus === 'published' && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-emerald-200 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-emerald-800">Published</span>
+              <span className="text-sm text-emerald-800">Students can see this course.</span>
+            </div>
+            <button
+              onClick={handleUnpublish}
+              disabled={publishPending}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              {publishPending ? 'Updating…' : 'Unpublish'}
+            </button>
+          </div>
+        )}
+
         {/* Course header */}
         <div className="mb-5">
           {!embedded && (
@@ -133,6 +182,7 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, em
             ['queue', `SpeedGrader${totalPending > 0 ? ` (${totalPending})` : ''}`],
             ['syllabus', 'Syllabus'],
             ['gradebook', 'Gradebook'],
+            ['roster', `Roster${enrolledStudents.length > 0 ? ` (${enrolledStudents.length})` : ''}`],
           ] as [TeacherTab, string][]).map(([id, label]) => (
             <button
               key={id}
@@ -199,6 +249,24 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, em
           ) : (
             <Gradebook data={gradebookData} embedded />
           )
+        )}
+
+        {teacherTab === 'roster' && (
+          <RosterPanel courseId={course.id} initialStudents={enrolledStudents} />
+        )}
+
+        {/* Danger zone */}
+        {onDelete && (
+          <div className="mt-10 border-t border-slate-200 pt-6">
+            <button
+              type="button"
+              onClick={onDelete}
+              className="rounded-md border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+            >
+              Delete course
+            </button>
+            <p className="mt-1.5 text-xs text-slate-400">Permanently removes this course and all its data.</p>
+          </div>
         )}
       </div>
     )

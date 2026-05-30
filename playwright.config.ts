@@ -21,6 +21,7 @@ const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1'
  *   Run supabase/seed-test-data.sql in the Supabase SQL editor, then re-run tests.
  */
 export default defineConfig({
+  globalSetup: './tests/global-setup.ts',
   testDir: './tests/e2e',
   fullyParallel: false,       // E2E tests share DB state — run serially
   retries: 0,                 // No retries — DB mutations are not idempotent

@@ -65,8 +65,141 @@ Teachers need to be able to edit rubric criteria and point values in two places:
      Likely needs a warning ("editing this rubric will not affect grades already generated").
 
 
+## Teacher solution upload and viewing
+Teachers should be able to upload a reference solution or answer key for an Assignment
+and view it later from the teacher-facing assignment page and SpeedGrader context. This
+supports manual review first, and later can feed the solution-upload grading flow where
+AI compares student work against the teacher-provided solution.
+
+Needed behavior:
+  - Upload a PDF/image/text solution file per Assignment
+  - Show whether a solution exists on the teacher dashboard / assignment view
+  - Let the teacher open, replace, or remove the solution
+  - Keep the solution teacher-only; students should not see answer keys
+  - Include the solution in SpeedGrader prompts only when the teacher chooses that mode
+
+
 ## E2E test flows B and C
 After Flow A (student submits → teacher grades → student sees published grade) is
 stable, add:
   - Flow B: teacher creates course from syllabus → student sees it
   - Flow C: student submits empty → SpeedGrader short-circuits → UI shows 0 + flag
+
+
+## Course editing after publish
+Teachers need to be able to edit a course after it has been saved and published.
+Currently there is no edit path — once a course is generated and saved, the structure
+is locked.
+
+Needed behavior:
+  - Edit course title and description
+  - Add, rename, or reorder modules
+  - Add, rename, or reorder assignments within a module
+  - Edit assignment instructions, due dates, and point values
+  - Rubric editing is covered separately (see "Rubric editing" above)
+  - UI entry point: an Edit button on the CourseDashboard (teacher view)
+  - DB: direct updates to courses / modules / assignments rows; no new DB function needed
+    unless we want atomic reordering (probably fine to do row-by-row for MVP)
+  - Edge cases: what happens to in-progress student submissions when instructions change?
+    Show a warning; do not block the edit.
+
+
+## Teacher dashboard quick-action shortcuts
+Teachers currently have to navigate into a course before creating an assignment or
+uploading a solution. Add a shortcuts panel on the teacher home dashboard so common
+actions are one click away.
+
+Needed shortcuts:
+  - Create assignment — opens a modal or drawer; teacher picks course → module → fills in
+    title, instructions, due date, points, rubric criteria. Saves directly to DB.
+  - Upload solution — opens a file picker; teacher picks course → assignment → uploads the
+    answer key file. Reuses the solution-upload flow (see "Teacher solution upload" above).
+
+Implementation notes:
+  - Both shortcuts work as modal flows layered over the dashboard (no full-page navigation).
+  - Course and module selectors are dropdowns populated from the teacher's enrolled courses.
+  - The Create Assignment shortcut and the per-assignment "Add assignment" action should
+    share the same form component to avoid duplication.
+
+
+## Per-assignment editing: rubric, materials, and solution upload
+Within each assignment's teacher-facing page, teachers should be able to manage all
+assignment content without leaving that page.
+
+Needed behavior:
+  - Edit rubric inline: add/remove criteria, edit descriptions and point values. Changes
+    take effect on future SpeedGrader runs; show a warning if Pending Grades already exist
+    ("existing AI grades were generated with the old rubric — re-run SpeedGrader to update").
+  - Upload assignment materials: attach supplementary files (PDFs, slides, handouts) that
+    students can download from the assignment view. These are not answer keys — they are
+    visible to students.
+  - Upload answer key / solution: teacher-only file, not visible to students. Shown in
+    SpeedGrader context when the teacher opts in. Supersedes the standalone "Teacher
+    solution upload" item — implement them together.
+  - UI: collapsible sections on the teacher assignment page for Rubric, Materials, Solution.
+  - DB: materials likely stored as a new assignment_files table with a type column
+    ('material' | 'solution'). Solution file could also be a column on assignments if only
+    one is ever allowed.
+
+
+## Student coach question cap
+The student chatbot (AI coach) currently has no usage limit. Add a per-assignment
+question cap so students get a fixed budget of AI hints per assignment rather than
+unlimited back-and-forth.
+
+Design decisions to make:
+  - Cap amount: suggest 5–10 questions per assignment as a starting point; make it
+    configurable per assignment by the teacher (default 5).
+  - What counts as a "question": each student message sent to the coach.
+  - What happens at the cap: show a friendly message ("You've used all your AI hints for
+    this assignment — try working through it on your own or ask your instructor."). Do NOT
+    silently fail or give a generic error.
+  - Persistence: track question count in a new coach_usage table (student_id,
+    assignment_id, question_count) or add a column to submissions. Must survive page
+    refresh — cannot be client-side only.
+  - Teacher visibility: show the usage count per student in the SpeedGrader context so the
+    teacher can see how much coaching a student needed.
+  - Edge case: cap is per assignment, not per session. Refreshing the page or coming back
+    the next day should not reset the counter.
+
+
+## Business value analysis — cost savings vs. Canvas
+Quantify and communicate the ROI of this LMS to make the case for adoption. Focus on
+three angles: direct cost savings, time savings, and educational outcome improvements.
+
+Brainstorm (to be refined into a formal doc):
+
+  Direct cost savings vs. Canvas:
+  - Canvas LMS licensing: ~$7–15 per student per year at the institutional tier, or
+    ~$3,000–8,000/year for a small department. This LMS runs on Vercel + Supabase free/pro
+    tiers — hosting cost for an MVP is effectively $0–50/month.
+  - Third-party integrations (Turnitin, McGraw-Hill Connect, etc.): Canvas schools often
+    pay $10–30/student/year per integration. Native AI grading eliminates Turnitin and
+    reduces dependence on publisher homework platforms.
+  - Estimate: a department of 500 students could save $5,000–15,000/year on licensing
+    alone before factoring in time savings.
+
+  Teacher time savings (the bigger number):
+  - Grading time: a typical essay-based assignment takes 5–10 min per student to grade.
+    At 30 students per class and 6 assignments per course, that's 9–18 hours of grading
+    per course. AI SpeedGrader reduces this to ~30 sec per student (review + approve),
+    saving ~80% of grading time. At $50/hr adjunct rate: $450–900 saved per course.
+  - Feedback turnaround: AI grades within seconds vs. 3–14 days for human grading.
+    Faster feedback is correlated with better learning outcomes (cite NWEA / Hattie).
+  - Course creation: AI generates a complete course structure from a syllabus in ~30
+    seconds vs. 2–4 hours of manual setup. For a new course: saves $100–200 of instructor
+    prep time.
+
+  Comparison surface vs. Canvas:
+  - Canvas has no AI grading. Teachers still grade everything manually.
+  - Canvas has no AI student coach. Students email the instructor or go to office hours.
+  - Canvas course setup is fully manual — copy-paste syllabi into modules by hand.
+  - This LMS's AI layer converts unstructured syllabi directly into graded course
+    structures with rubrics, saving the manual translation step entirely.
+
+  To build out:
+  - Create a formal one-page cost comparison doc (docs/business/cost-comparison.md)
+  - Add a pricing page or ROI calculator UI for the demo pitch
+  - Gather real grading-time data from a pilot instructor to validate the 80% estimate
+  - Quantify student outcome improvement if early data is available (grade distribution,
+    resubmission rate, time-to-feedback correlation with scores)

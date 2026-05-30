@@ -22,6 +22,13 @@ export function StudentCoach({ assignmentTitle, instructions, rubricCriteria, st
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/student-coach',
     body: { assignmentTitle, instructions, rubricCriteria, studentDraft },
+    initialMessages: [
+      {
+        id: 'greeting',
+        role: 'assistant',
+        content: `I'm here to help you think through "${assignmentTitle}". What part of the assignment feels most unclear right now?`,
+      },
+    ],
   })
 
   useEffect(() => {
@@ -49,11 +56,6 @@ export function StudentCoach({ assignmentTitle, instructions, rubricCriteria, st
         <div className="border-t border-indigo-100 px-5 pb-4">
           {/* Message list */}
           <div className="mb-3 max-h-72 overflow-y-auto space-y-3 pt-3">
-            {messages.length === 0 && (
-              <p className="text-sm text-indigo-400 italic">
-                Ask anything about this assignment — I&apos;ll help you think it through.
-              </p>
-            )}
             {messages.map((m) => (
               <div
                 key={m.id}

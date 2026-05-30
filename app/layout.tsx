@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { RoleProvider } from '@/context/RoleContext'
 import { Header } from '@/components/Header'
+import { TeacherCoach } from '@/components/TeacherCoach'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -22,6 +23,7 @@ export default function RootLayout({
         <RoleProvider>
           <Header />
           <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+          <TeacherCoach />
         </RoleProvider>
       </body>
     </html>

@@ -7,9 +7,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    // Default run excludes snapshot tests (real Groq API calls).
-    // Run snapshots separately with: npm run test:slow
-    exclude: ['**/node_modules/**', '**/snapshots/**', 'tests/e2e/**'],
+    // Default run excludes snapshot tests (real Groq API calls) and real-DB
+    // integration tests (require SUPABASE_SERVICE_ROLE_KEY from .env.local).
+    // Run snapshots: npm run test:slow
+    // Run real-DB tests: NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx vitest run lib/__tests__/integration/course-structure-persistence.integration.test.ts
+    exclude: ['**/node_modules/**', '**/snapshots/**', 'tests/e2e/**', '**/course-structure-persistence.integration.test.ts'],
   },
   resolve: {
     alias: {

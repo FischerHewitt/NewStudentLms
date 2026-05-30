@@ -26,6 +26,9 @@ export type StudentDashboardAssignment = {
 export type CourseWithModules = {
   id: string
   title: string
+  term: string | null
+  section: string | null
+  status: 'draft' | 'published'
   teacherName: string
   rawSyllabus: string | null
   modules: ModuleWithAssignments[]
@@ -64,7 +67,7 @@ export async function getCourseWithModules(
 
   const { data: course } = await db
     .from('courses')
-    .select('id, title, teacher_id, raw_syllabus')
+    .select('id, title, term, section, status, teacher_id, raw_syllabus')
     .eq('id', courseId)
     .single()
 
@@ -84,6 +87,9 @@ export async function getCourseWithModules(
   return {
     id: course.id,
     title: course.title,
+    term: course.term ?? null,
+    section: course.section ?? null,
+    status: (course.status ?? 'draft') as 'draft' | 'published',
     teacherName: teacherResult.data?.name ?? 'Unknown',
     rawSyllabus: course.raw_syllabus ?? null,
     modules: (modulesResult.data ?? []).map((m) => ({
@@ -192,11 +198,12 @@ export async function getStudentDashboardData(): Promise<{
 }> {
   const db = createServerClient()
 
-  // 1. Enrolled courses for this student
+  // 1. Enrolled courses for this student — only published courses are visible
   const { data: enrollments } = await db
     .from('enrollments')
-    .select('course_id, courses(id, title, teacher_id)')
+    .select('course_id, courses!inner(id, title, teacher_id, status)')
     .eq('student_id', STUDENT_ID)
+    .eq('courses.status', 'published')
 
   if (!enrollments || enrollments.length === 0) return { courses: [], assignments: [] }
 

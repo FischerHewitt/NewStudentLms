@@ -18,6 +18,7 @@ export type AssignmentWithDetails = {
   due_date: string | null
   points_possible: number
   rubric: { criteria: { description: string; points: number }[] } | null
+  resources: import('@/lib/resources').Resource[]
 }
 
 export type StudentSubmissionData = {
@@ -56,13 +57,14 @@ export async function getAssignmentWithDetails(
 ): Promise<AssignmentWithDetails | null> {
   const db = createServerClient()
 
-  const [assignmentResult, rubricResult] = await Promise.all([
+  const [assignmentResult, rubricResult, resourcesResult] = await Promise.all([
     db
       .from('assignments')
       .select('id, title, instructions, due_date, points_possible')
       .eq('id', assignmentId)
       .single(),
     db.from('rubrics').select('criteria').eq('assignment_id', assignmentId).single(),
+    db.from('resources').select('id, assignment_id, title, type, url, created_at').eq('assignment_id', assignmentId).order('created_at'),
   ])
 
   if (!assignmentResult.data) return null
@@ -72,6 +74,7 @@ export async function getAssignmentWithDetails(
     rubric: rubricResult.data
       ? (rubricResult.data as { criteria: { description: string; points: number }[] })
       : null,
+    resources: (resourcesResult.data ?? []) as import('@/lib/resources').Resource[],
   }
 }
 
@@ -228,6 +231,48 @@ export async function submitAssignment(
     })
 
     if (error) return { error: 'Failed to submit. Please try again.' }
+  }
+
+  return {}
+}
+
+/**
+ * Marks an assignment as turned in without a text submission — for paper
+ * handouts, in-class work, or any assignment where the student completed work
+ * outside the LMS. Creates an empty submission with status 'submitted' so the
+ * teacher can record a manual grade via SpeedGrader.
+ */
+export async function checkOffAssignment(
+  assignmentId: string,
+): Promise<{ error?: string }> {
+  const db = createServerClient()
+
+  const { data: existing } = await db
+    .from('submissions')
+    .select('id, status')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', STUDENT_ID)
+    .single()
+
+  if (existing?.status === 'submitted' || existing?.status === 'graded') {
+    return {}
+  }
+
+  if (existing) {
+    const { error } = await db
+      .from('submissions')
+      .update({ body: '', status: 'submitted', submitted_at: new Date().toISOString() })
+      .eq('id', existing.id)
+    if (error) return { error: 'Failed to check off. Please try again.' }
+  } else {
+    const { error } = await db.from('submissions').insert({
+      assignment_id: assignmentId,
+      student_id: STUDENT_ID,
+      body: '',
+      status: 'submitted',
+      submitted_at: new Date().toISOString(),
+    })
+    if (error) return { error: 'Failed to check off. Please try again.' }
   }
 
   return {}

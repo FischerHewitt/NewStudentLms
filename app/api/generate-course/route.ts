@@ -1,6 +1,7 @@
 import { streamObject } from 'ai'
 import { coursePreviewSchema } from '@/lib/schemas/course'
 import { getDefaultAiModel, LMS_STRUCTURED_OBJECT_MODE } from '@/lib/ai-model'
+import { buildGeneratePrompt } from '@/lib/course-metadata'
 
 export const maxDuration = 60
 
@@ -23,7 +24,7 @@ Combined document format:
 - If no "## Assignments" section exists, infer all assignments from the syllabus as normal`
 
 export async function POST(req: Request) {
-  const { syllabus } = (await req.json()) as { syllabus: string }
+  const { syllabus, start_date } = (await req.json()) as { syllabus: string; start_date?: string | null }
 
   try {
     const result = streamObject({
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
       mode: LMS_STRUCTURED_OBJECT_MODE,
       schema: coursePreviewSchema,
       system: SYSTEM_PROMPT,
-      prompt: `Here is the course syllabus. Extract the full course structure:\n\n${syllabus}`,
+      prompt: buildGeneratePrompt(syllabus, start_date ?? null),
       onError: (error) => {
         console.error('[generate-course] stream error:', error)
       },

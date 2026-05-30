@@ -10,6 +10,8 @@ import {
   isImageAttachment,
   submissionAttachmentIcon,
 } from '@/lib/submission-attachment'
+import { TeacherCoachContextBridge } from '@/components/TeacherCoachContextBridge'
+import { MarkdownContent } from '@/components/MarkdownContent'
 
 interface Props {
   courseId: string
@@ -101,7 +103,9 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <>
+      <TeacherCoachContextBridge context={{ submissionId: submission.id }} />
+      <div className="mx-auto max-w-5xl">
       {/* Back link */}
       <div className="mb-6 flex items-center justify-between">
         <Link
@@ -137,9 +141,7 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
           </div>
           <div className="px-5 py-4 space-y-3">
             {submission.body ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                {submission.body}
-              </p>
+              <MarkdownContent>{submission.body}</MarkdownContent>
             ) : !submission.attachment ? (
               <p className="italic text-slate-400 text-sm">No content submitted.</p>
             ) : null}
@@ -293,7 +295,8 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

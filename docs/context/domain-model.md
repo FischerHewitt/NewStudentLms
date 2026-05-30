@@ -5,9 +5,12 @@ Core entities, relationships, and canonical vocabulary for the AI-native LMS.
 ## Entities
 
 ### Course
-The top-level container. Has a teacher, a title, a raw syllabus, a generation preview, and a generated course structure. A Course has no draft or published state — once the teacher confirms the generated structure, it is immediately persisted and visible to students.
+The top-level container. Has a teacher, a title, a raw syllabus, a generation preview, and a generated course structure. A Course starts in **draft** and becomes visible to enrolled students only when the teacher explicitly publishes it (ADR-0007).
 
-Key fields: `id`, `title`, `teacher_id`, `raw_syllabus`, `generation_preview` (JSONB, nullable), `created_at`
+- **draft** — editable by the teacher; invisible to students
+- **published** — live to all enrolled students; teacher can still edit and can unpublish
+
+Key fields: `id`, `title`, `term`, `section`, `start_date`, `end_date`, `teacher_id`, `raw_syllabus`, `generation_preview` (JSONB, nullable), `status` (draft | published), `created_at`
 
 ### Module
 A unit within a course — typically a week or topic. Generated from the syllabus.
@@ -25,7 +28,7 @@ The grading criteria for an Assignment. Defines what a good submission looks lik
 Key fields: `id`, `assignment_id`, `criteria` (array of `{ description, points }`)
 
 ### Enrollment
-A record that a specific student has access to a specific Course. Created when the teacher generates a course (the seeded student is auto-enrolled). The Gradebook is built from Enrollments — one row per enrolled student — not from Submissions, so students with no Submissions still appear as blank rows.
+A record that a specific student has access to a specific Course. The Gradebook is built from Enrollments — one row per enrolled student — not from Submissions, so students with no Submissions still appear as blank rows. Teachers add students by entering email addresses manually or uploading a CSV roster. For the MVP demo, the seeded student is auto-enrolled on course creation.
 
 Key fields: `id`, `course_id`, `student_id`, `enrolled_at`
 
@@ -37,6 +40,13 @@ Key fields: `id`, `assignment_id`, `student_id`, `body`, `submitted_at`, `status
 - **draft** — student has started writing but not yet submitted.
 - **submitted** — student has submitted; body is locked and cannot be edited. Awaiting grading.
 - **graded** — the associated Grade has been published (teacher confirmed). Set when `Grade.approved_at` is written.
+
+### Resource
+A file or link attached to an Assignment for students to view. Teachers upload supplementary
+materials (slides, PDFs, readings, links) per Assignment. Students see Resources when they
+open the Assignment. Resources are not submitted — they are read-only reference material.
+
+Key fields: `id`, `assignment_id`, `title`, `type` (file | link), `url`, `created_at`
 
 ### Grade
 The grading record for a Submission. Created when the AI SpeedGrader runs; published when the teacher confirms it. Tracks both the AI Suggested Grade and the Final Grade in one row.
@@ -51,7 +61,7 @@ Key fields: `id`, `submission_id`, `ai_suggested_score`, `ai_suggested_feedback`
 ### User
 Teacher or student. For the MVP, the database is seeded with exactly two hard-coded Users: one teacher and one student, each with a fixed UUID. The role toggle switches which User is active client-side. All Submissions reference the seeded student's UUID as `student_id`. Real authentication can be added later by mapping auth UIDs to these rows.
 
-Key fields: `id`, `email`, `role` (teacher | student), `name`, `speedgrader_autorun` (boolean, default false)
+Key fields: `id`, `email`, `role` (teacher | student), `name`, `status` (pending | active), `speedgrader_autorun` (boolean, default false)
 
 - **speedgrader_autorun** — teacher preference. When true, the AI SpeedGrader runs automatically when the teacher opens a Submission. When false (default), the teacher triggers it manually via a button.
 
@@ -62,6 +72,7 @@ Course → Module (one-to-many)
 Course → Enrollment (one-to-many)
 Module → Assignment (one-to-many)
 Assignment → Rubric (one-to-one)
+Assignment → Resource (one-to-many)
 Assignment → Submission (one-to-many, one per enrolled student)
 Submission → Grade (one-to-one)
 User → Enrollment (student is enrolled)
@@ -73,6 +84,8 @@ User → Grade.approved_by (teacher approves)
 
 | Term | Definition |
 |------|------------|
+| **Draft Course** | A Course with `status = draft`; visible only to the teacher, not enrolled students |
+| **Published Course** | A Course with `status = published`; live to all enrolled students |
 | **Syllabus** | Raw text pasted by a teacher, used to generate a Course structure |
 | **Course structure** | AI-generated set of Modules, Assignments, and due dates derived from a Syllabus |
 | **Module** | A course unit (week/topic) containing Assignments |
@@ -89,6 +102,7 @@ User → Grade.approved_by (teacher approves)
 | **Teacher Coach** | Teacher-facing orchestrator agent, available as a collapsible sidebar on every teacher page. Routes teacher requests to specialized sub-agents (SpeedGrader agent, Course Generator agent, and future additions) via tool use. Default greeting: "What do you need help with?" |
 | **Completion Criterion** | A Rubric criterion that awards points for making a genuine attempt to respond to the prompt, regardless of quality. Point weight signals assignment scope: ~20pts for warm-ups, ~10pts for mid-tier, ~5pts for finals. High completion weight means the other criteria should be slightly harder to fully satisfy so that 100 remains a meaningful score. |
 | **Assignment Scope** | The relative stakes of an Assignment, encoded implicitly in the Rubric's Completion Criterion weight. Not a schema field — inferred by the AI from the point distribution. |
+| **Resource** | A file or link attached to an Assignment; read-only reference material for students |
 | **Grill Me** | A teacher-initiated calibration session where the AI presents grading scenarios (ambiguous or edge-case Submissions) and the teacher scores each one. The teacher's responses are saved as grading memory and included in future SpeedGrader prompts for that Assignment. Resets via a teacher setting. |
 | **Enrollment** | A record that a student has access to a Course. Created automatically when the teacher generates a course. Drives Gradebook rows — enrolled students appear even with no Submissions |
 | **Gradebook** | Table view of all enrolled students × Assignments for a Course. Each cell shows one of four states: blank (no Submission), Pending (Submission exists, no Grade yet), AI suggested score in muted style (Pending Grade), or confirmed Final Grade in full weight (Published Grade) |

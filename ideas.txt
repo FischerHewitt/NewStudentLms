@@ -1,6 +1,26 @@
 Future ideas — not in scope for hackathon MVP
 
 
+## Course materials — upload, organize, and interweave
+Teachers upload supplementary materials (PowerPoint slides, PDFs, readings, etc.) alongside
+or after course generation. The AI parses the content and suggests which Module each material
+belongs to based on topic overlap. Goal: modules are organized and somewhat uniform across
+teachers regardless of how each teacher structures their source documents. Materials are
+associated with Modules (not individual Assignments) so students can reference lecture content
+alongside their work. Needs a defined "Material" entity in the domain model before building.
+Key design questions: what file types are supported, how materials are displayed to students,
+and whether the AI can generate Assignment instructions from a lecture slide deck.
+
+
+## Quickstart manual course creation
+A "build from scratch" entry point that skips the syllabus entirely and drops the teacher
+directly into the course editor with a blank structure. The teacher adds Modules and
+Assignments manually without any AI generation step. Same editor as the post-syllabus
+review screen — the two paths converge on identical editing capabilities. Useful for
+teachers who don't have a syllabus document, are building a short workshop, or prefer
+direct control over structure from the start.
+
+
 ## AI-graded uploaded quizzes with partial credit
 Students upload handwritten quiz work as a PDF or photo. The AI parses the image/document,
 reads each problem, evaluates the approach and final answer, and awards partial credit
@@ -107,3 +127,16 @@ This would require a different grading prompt path — instead of rubric-based s
 AI performs a step-by-step comparison and flags where the student's work diverges from the
 solution. The teacher still approves the final grade. Could be offered as an alternative
 grading mode per-assignment ("Rubric" vs "Answer Key") when the teacher creates it.
+
+
+## Outlook integration on the teacher dashboard
+Connect the teacher dashboard to Outlook so calendar and email context can shape the
+"what needs attention" view. Pull upcoming class meetings, office hours, assignment due
+dates, and unread student emails into the dashboard so the teacher can act from one place.
+Examples: show today's teaching schedule beside the grading queue, surface student emails
+related to missing work, generate draft replies/reminders, and let teachers create Outlook
+calendar events for office hours or review sessions from the LMS.
+
+Important boundaries: keep Outlook permissions narrow, make sync status visible, and avoid
+letting private email content leak into student-facing AI responses. This likely belongs
+behind an explicit teacher opt-in and a dashboard settings panel.

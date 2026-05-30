@@ -5,6 +5,7 @@ import {
   getStudentSubmissionsForCourse,
   getAllSubmissionsForCourse,
 } from '@/app/actions/dashboard'
+import { getEnrolledStudents } from '@/app/actions/enrollment'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,10 +16,11 @@ export default async function CoursePage({
 }) {
   const { id } = await params
 
-  const [course, studentSubmissions, allSubmissions] = await Promise.all([
+  const [course, studentSubmissions, allSubmissions, enrolledStudents] = await Promise.all([
     getCourseWithModules(id),
     getStudentSubmissionsForCourse(id),
     getAllSubmissionsForCourse(id),
+    getEnrolledStudents(id),
   ])
 
   if (!course) notFound()
@@ -29,6 +31,7 @@ export default async function CoursePage({
         course={course}
         studentSubmissions={studentSubmissions}
         allSubmissions={allSubmissions}
+        enrolledStudents={enrolledStudents}
       />
     </div>
   )

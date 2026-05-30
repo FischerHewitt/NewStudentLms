@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { checkOffAssignment } from '@/app/actions/assignment'
+import { filterOpenAssignments } from '@/lib/studentDashboard'
 import type {
   StudentDashboardCourse,
   StudentDashboardAssignment,
@@ -83,16 +86,15 @@ function dateLabel(due: string): string {
   })
 }
 
-function getCurrentWeekDates(): { date: string; label: string }[] {
+function getCenteredDates(dayOffset: number): { date: string; label: string }[] {
   const today = new Date()
-  const dow = today.getDay()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1))
-  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const center = new Date(today)
+  center.setDate(today.getDate() + dayOffset)
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return { date: d.toISOString().slice(0, 10), label: labels[i] }
+    const d = new Date(center)
+    d.setDate(center.getDate() - 3 + i)
+    return { date: d.toISOString().slice(0, 10), label: dayLabels[d.getDay()] }
   })
 }
 
@@ -202,11 +204,44 @@ interface WeekStripProps {
 }
 
 function WeekStrip({ assignments, colorByCourse, dayFilter, setDayFilter }: WeekStripProps) {
-  const week = getCurrentWeekDates()
+  const [weekOffset, setWeekOffset] = useState(0)
+  const week = getCenteredDates(weekOffset)
   const today = todayStr()
+
+  const centerDate = week[3].date
+  const centerD = new Date(centerDate + 'T12:00:00')
+  const weekLabel = centerD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      {/* Nav row */}
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          onClick={() => setWeekOffset((o) => o - 7)}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+        >
+          ‹
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-500">{weekLabel}</span>
+          {weekOffset !== 0 && (
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition"
+            >
+              Today
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setWeekOffset((o) => o + 7)}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Day columns */}
       <div className="grid grid-cols-7 gap-1">
         {week.map(({ date, label }) => {
           const items = assignments.filter(
@@ -250,6 +285,7 @@ function WeekStrip({ assignments, colorByCourse, dayFilter, setDayFilter }: Week
           )
         })}
       </div>
+
       {dayFilter && (
         <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
           <span className="text-xs text-slate-500">Showing {dateLabel(dayFilter)}</span>
@@ -275,13 +311,21 @@ interface TodoAgendaProps {
 function TodoAgenda({
   assignments, colorByCourse, codeByCourse, courseFilter, dayFilter,
 }: TodoAgendaProps) {
-  const open = assignments
-    .filter((a) =>
-      (a.status === 'not-started' || a.status === 'in-progress')
-      && (!courseFilter || a.courseId === courseFilter)
-      && (!dayFilter || a.due === dayFilter)
-      && a.due !== null,
-    )
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [checkingOff, setCheckingOff] = useState<string | null>(null)
+
+  function handleCheckOff(e: React.MouseEvent, assignmentId: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    setCheckingOff(assignmentId)
+    startTransition(async () => {
+      await checkOffAssignment(assignmentId)
+      router.refresh()
+      setCheckingOff(null)
+    })
+  }
+  const open = filterOpenAssignments(assignments, courseFilter, dayFilter)
     .sort((a, b) => new Date(a.due!).getTime() - new Date(b.due!).getTime())
 
   const byDate: Record<string, typeof open> = {}
@@ -314,31 +358,50 @@ function TodoAgenda({
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               {byDate[date].map((a) => {
                 const col = COLORS[colorByCourse[a.courseId]]
+                const isCheckingThis = checkingOff === a.id
                 return (
-                  <Link
+                  <div
                     key={a.id}
-                    href={`/course/${a.courseId}/assignment/${a.id}`}
-                    className="flex items-center gap-0 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"
+                    className="flex items-stretch border-b border-slate-50 last:border-0"
                   >
-                    <div className={`w-1 self-stretch flex-shrink-0 ${col.leftBar}`} />
-                    <div className="flex flex-1 items-center gap-3 px-3 py-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-0.5 flex items-center gap-1.5">
-                          <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${col.pill}`}>
-                            {codeByCourse[a.courseId]}
-                          </span>
-                          {a.status === 'in-progress' && (
-                            <span className="text-xs font-medium text-blue-600">In progress</span>
-                          )}
+                    <Link
+                      href={`/course/${a.courseId}/assignment/${a.id}`}
+                      className="flex flex-1 items-center gap-0 hover:bg-slate-50 transition"
+                    >
+                      <div className={`w-1 self-stretch flex-shrink-0 ${col.leftBar}`} />
+                      <div className="flex flex-1 items-center gap-3 px-3 py-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-0.5 flex items-center gap-1.5">
+                            <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${col.pill}`}>
+                              {codeByCourse[a.courseId]}
+                            </span>
+                            {a.status === 'in-progress' && (
+                              <span className="text-xs font-medium text-blue-600">In progress</span>
+                            )}
+                          </div>
+                          <p className="truncate text-sm font-semibold text-slate-800">{a.title}</p>
+                          <p className="text-xs text-slate-400">
+                            {a.due} · {a.points}pts
+                          </p>
                         </div>
-                        <p className="truncate text-sm font-semibold text-slate-800">{a.title}</p>
-                        <p className="text-xs text-slate-400">
-                          {a.due} · {a.points}pts
-                        </p>
                       </div>
-                      <span className="flex-shrink-0 text-xs text-slate-300">→</span>
-                    </div>
-                  </Link>
+                    </Link>
+                    <button
+                      onClick={(e) => handleCheckOff(e, a.id)}
+                      disabled={isPending}
+                      title="Mark as turned in (paper / in-class)"
+                      className="flex w-10 flex-shrink-0 items-center justify-center border-l border-slate-100 text-slate-300 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {isCheckingThis ? (
+                        <span className="text-xs text-slate-400">…</span>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 16 16">
+                          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                          <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 )
               })}
             </div>

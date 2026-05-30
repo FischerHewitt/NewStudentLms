@@ -12,6 +12,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createMockDb } from '@/lib/__tests__/mocks/supabase'
 import { submissions, mockAiResponse, assignment, rubric } from '@/lib/__tests__/fixtures/week1-reflection'
+import {
+  submissions as finalSubmissions,
+  mockAiResponse as finalMockAiResponse,
+  assignment as finalAssignment,
+  rubric as finalRubric,
+} from '@/lib/__tests__/fixtures/final-analysis-report'
 
 // ---------------------------------------------------------------------------
 // Module mocks — vi.mock is hoisted to the top of the file by Vitest, so
@@ -313,5 +319,158 @@ describe('hasAttachmentWithoutBody UI flag', () => {
 
     // final_feedback should describe an empty submission, not mention a file
     expect(result.grade?.final_feedback).not.toMatch(/file/i)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Assignment 2: Final Analysis Report — low-completion-weight rubric
+//
+// Rubric: analysis 40 / evidence 30 / synthesis 25 / completion 5
+// Key calibration insight: "shows up and tries" earns ~23–27 pts fewer here
+// than on the warm-up because effort alone doesn't carry a 5-pt completion criterion.
+// ---------------------------------------------------------------------------
+
+const A2_SUB_ID = 'test-sub-002'
+const A2_ASSIGNMENT_ID = finalAssignment.id // 'test-assignment-002'
+
+const a2Assignment = {
+  id: A2_ASSIGNMENT_ID,
+  title: finalAssignment.title,
+  instructions: finalAssignment.instructions,
+  points_possible: finalAssignment.points_possible,
+}
+
+const a2Rubric = {
+  id: finalRubric.id,
+  assignment_id: A2_ASSIGNMENT_ID,
+  criteria: finalRubric.criteria,
+}
+
+function makeDb2(subOverrides: Record<string, unknown> = {}) {
+  return createMockDb({
+    submissions: [
+      {
+        id: A2_SUB_ID,
+        body: '',
+        assignment_id: A2_ASSIGNMENT_ID,
+        file_url: null,
+        status: 'submitted',
+        student_id: 'test-student-001',
+        ...subOverrides,
+      },
+    ],
+    assignments: [a2Assignment],
+    rubrics: [a2Rubric],
+    grades: [],
+  })
+}
+
+describe('[Assignment 2] runSpeedGrader — short-circuit for empty submissions', () => {
+  it('Scenario D: skips Groq call and writes Grade with score=0 when body is empty and no file', async () => {
+    dbRef.db = makeDb2({ body: '', file_url: null })
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.error).toBeUndefined()
+    expect(result.grade?.ai_suggested_score).toBe(0)
+    expect(mockedGenerateObject).not.toHaveBeenCalled()
+  })
+
+  it('Scenario E: skips Groq call and writes Grade with score=0 when body is empty with file attached', async () => {
+    dbRef.db = makeDb2({ body: '', file_url: finalSubmissions.E.file!.url })
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.error).toBeUndefined()
+    expect(result.grade?.ai_suggested_score).toBe(0)
+    expect(mockedGenerateObject).not.toHaveBeenCalled()
+  })
+
+  it('Scenario E: ai_suggested_feedback identifies file-only path', async () => {
+    dbRef.db = makeDb2({ body: '', file_url: finalSubmissions.E.file!.url })
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.ai_suggested_feedback).toContain('file')
+  })
+})
+
+describe('[Assignment 2] runSpeedGrader — AI grading with mock responses', () => {
+  it('Scenario A: score=99 (five concepts, timestamped evidence, strategic synthesis)', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.A.body })
+    mockGenerateObjectResponse(finalMockAiResponse.A)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.error).toBeUndefined()
+    expect(result.grade?.ai_suggested_score).toBe(finalSubmissions.A.expectedScore) // 99
+    expect(mockedGenerateObject).toHaveBeenCalledOnce()
+  })
+
+  it('Scenario B1: score=37 — effort without timestamps earns near-zero on the evidence criterion', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.B1.body })
+    mockGenerateObjectResponse(finalMockAiResponse.B1)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.ai_suggested_score).toBe(finalSubmissions.B1.expectedScore) // 37
+    // Evidence criterion: no timestamps anywhere → 6/30
+    expect(result.grade?.ai_suggested_feedback).toContain('6/30')
+  })
+
+  it('Scenario B2: score=72 — strong analysis and evidence, synthesis missing communication strategy', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.B2.body })
+    mockGenerateObjectResponse(finalMockAiResponse.B2)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.ai_suggested_score).toBe(finalSubmissions.B2.expectedScore) // 72
+    // Synthesis criterion: "deploys tools with skill" is not strategic analysis → 7/25
+    expect(result.grade?.ai_suggested_feedback).toContain('7/25')
+  })
+
+  it('Scenario B3: score=41 — correct structure but every evidence claim is a vague generality', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.B3.body })
+    mockGenerateObjectResponse(finalMockAiResponse.B3)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.ai_suggested_score).toBe(finalSubmissions.B3.expectedScore) // 41
+    // Evidence criterion: zero timestamps, all generalizations → 4/30
+    expect(result.grade?.ai_suggested_feedback).toContain('4/30')
+  })
+
+  it('Scenario B4: score=55 — one strong section, one misapplied concept, weak synthesis', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.B4.body })
+    mockGenerateObjectResponse(finalMockAiResponse.B4)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.ai_suggested_score).toBe(finalSubmissions.B4.expectedScore) // 55
+  })
+
+  it('ai_suggested_score is clamped to points_possible even if criterion sum exceeds it', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.A.body })
+
+    const inflatedResponse = {
+      criterion_scores: finalMockAiResponse.A.criterion_scores.map((c, i) =>
+        i === 0 ? { ...c, points_awarded: c.points_possible + 20 } : c,
+      ),
+      feedback_draft: 'Inflated score test',
+    }
+    mockGenerateObjectResponse(inflatedResponse)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.ai_suggested_score).toBeLessThanOrEqual(a2Assignment.points_possible)
+  })
+
+  it('approved_at is null after runSpeedGrader — grade is pending, not published', async () => {
+    dbRef.db = makeDb2({ body: finalSubmissions.A.body })
+    mockGenerateObjectResponse(finalMockAiResponse.A)
+
+    const result = await runSpeedGrader(A2_SUB_ID)
+
+    expect(result.grade?.approved_at).toBeNull()
   })
 })

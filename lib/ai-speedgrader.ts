@@ -1,7 +1,7 @@
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { getDefaultAiModel } from '@/lib/ai-model'
-import { hasAttachmentWithoutBody, isEmptySubmission } from '@/lib/speedgrader'
+import { needsAiGrading, buildPendingGrade, type PendingGradeDraft } from '@/lib/grade-computation'
 
 const gradeOutputSchema = z.object({
   criterion_scores: z
@@ -44,12 +44,6 @@ type SubmissionForSpeedGrader = {
   file_url?: string | null
 }
 
-type PendingGradeDraft = {
-  ai_suggested_score: number
-  ai_suggested_feedback: string
-  final_feedback: string
-}
-
 export type AiSpeedGraderGrade = {
   id: string
   ai_suggested_score: number
@@ -87,60 +81,19 @@ function toGrade(row: Record<string, unknown>): AiSpeedGraderGrade {
   }
 }
 
-export function buildEmptySubmissionPendingGrade(
-  body: string | null,
-  fileUrl: string | null,
-): PendingGradeDraft | null {
-  const submissionBody = body ?? ''
-  if (!isEmptySubmission(submissionBody)) return null
-
-  const isFileOnly = hasAttachmentWithoutBody(submissionBody, fileUrl)
-
-  return {
-    ai_suggested_score: 0,
-    ai_suggested_feedback: isFileOnly
-      ? 'Short-circuit: file attached but body empty - Groq not called.'
-      : 'Short-circuit: empty submission - Groq not called.',
-    final_feedback: isFileOnly
-      ? 'This submission appears empty - a file was attached but no written response was provided. If you experienced a technical difficulty, please contact your instructor and resubmit.'
-      : 'No submission content was provided. A score of 0 has been recorded.',
-  }
-}
-
-export function buildAiSuggestedPendingGrade(
-  aiResult: GradeOutput,
-  pointsPossible: number,
-): PendingGradeDraft {
-  const rawTotal = aiResult.criterion_scores.reduce(
-    (sum, criterion) => sum + Math.max(0, criterion.points_awarded),
-    0,
-  )
-
-  return {
-    ai_suggested_score: Math.min(rawTotal, pointsPossible),
-    ai_suggested_feedback: aiResult.criterion_scores
-      .map(
-        (criterion) =>
-          `${criterion.description} (${criterion.points_awarded}/${criterion.points_possible}): ${criterion.evidence}`,
-      )
-      .join('\n'),
-    final_feedback: aiResult.feedback_draft,
-  }
-}
-
 function criteriaText(criteria: RubricCriterion[]): string {
   if (criteria.length === 0) return 'No rubric criteria specified.'
   return criteria.map((criterion) => `- ${criterion.description} (${criterion.points} pts)`).join('\n')
 }
 
-async function buildAiGradeDraft(input: {
+async function callGroqForGrade(input: {
   assignment: AssignmentForSpeedGrader
   criteria: RubricCriterion[]
   submissionBody: string | null
-}): Promise<PendingGradeDraft> {
+}): Promise<GradeOutput> {
   const submissionContent = input.submissionBody?.trim() || '(No text response.)'
 
-  const { object: aiResult } = await generateObject({
+  const { object } = await generateObject({
     model: getDefaultAiModel(),
     schema: gradeOutputSchema,
     system: `You are a rigorous but fair teacher grading a student submission.
@@ -169,7 +122,7 @@ ${submissionContent}
 For each rubric criterion above, provide the criterion description, max points, points awarded (0 if not demonstrated), and one-sentence evidence note. Then write student-facing feedback.`,
   })
 
-  return buildAiSuggestedPendingGrade(aiResult, input.assignment.points_possible)
+  return object
 }
 
 async function insertPendingGrade(
@@ -217,38 +170,42 @@ export async function createPendingGradeFromAiSpeedGrader(
 
   if (!submission) return { error: 'Submission not found.' }
 
-  const speedGraderSubmission = submission as SubmissionForSpeedGrader
-  const emptyDraft = buildEmptySubmissionPendingGrade(
-    speedGraderSubmission.body,
-    speedGraderSubmission.file_url ?? null,
-  )
+  const sub = submission as SubmissionForSpeedGrader
 
-  if (emptyDraft) {
-    return insertPendingGrade(db, submissionId, emptyDraft)
+  let aiResult: GradeOutput | null = null
+  let assignment: AssignmentForSpeedGrader = { title: '', instructions: '', points_possible: 0 }
+
+  if (needsAiGrading(sub.body, sub.file_url)) {
+    const [assignmentResult, rubricResult] = await Promise.all([
+      db
+        .from('assignments')
+        .select('title, instructions, points_possible')
+        .eq('id', sub.assignment_id)
+        .single(),
+      db
+        .from('rubrics')
+        .select('criteria')
+        .eq('assignment_id', sub.assignment_id)
+        .single(),
+    ])
+
+    if (!assignmentResult.data) return { error: 'Assignment not found.' }
+
+    assignment = assignmentResult.data as AssignmentForSpeedGrader
+    aiResult = await callGroqForGrade({
+      assignment,
+      criteria: Array.isArray(rubricResult.data?.criteria)
+        ? (rubricResult.data.criteria as RubricCriterion[])
+        : [],
+      submissionBody: sub.body,
+    })
   }
 
-  const [assignmentResult, rubricResult] = await Promise.all([
-    db
-      .from('assignments')
-      .select('title, instructions, points_possible')
-      .eq('id', speedGraderSubmission.assignment_id)
-      .single(),
-    db
-      .from('rubrics')
-      .select('criteria')
-      .eq('assignment_id', speedGraderSubmission.assignment_id)
-      .single(),
-  ])
-
-  if (!assignmentResult.data) return { error: 'Assignment not found.' }
-
-  const draft = await buildAiGradeDraft({
-    assignment: assignmentResult.data as AssignmentForSpeedGrader,
-    criteria: Array.isArray(rubricResult.data?.criteria)
-      ? (rubricResult.data.criteria as RubricCriterion[])
-      : [],
-    submissionBody: speedGraderSubmission.body,
-  })
+  const draft = buildPendingGrade(
+    { body: sub.body, file_url: sub.file_url },
+    assignment,
+    aiResult,
+  )
 
   return insertPendingGrade(db, submissionId, draft)
 }

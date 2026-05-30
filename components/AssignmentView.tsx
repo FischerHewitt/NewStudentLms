@@ -7,6 +7,7 @@ import { useRole } from '@/context/RoleContext'
 import { submitAssignment } from '@/app/actions/assignment'
 import { publishManualGrade, runSpeedGrader } from '@/app/actions/speedgrader'
 import { StudentCoach } from '@/components/StudentCoach'
+import { ResourcePanel } from '@/components/ResourcePanel'
 import {
   getTeacherAssignmentPanelState,
   gradeFormFromGrade,
@@ -25,6 +26,8 @@ import {
   SUBMISSION_ATTACHMENT_ACCEPT,
   submissionAttachmentIcon,
 } from '@/lib/submission-attachment'
+import { RichTextarea } from '@/components/RichTextarea'
+import { MarkdownContent } from '@/components/MarkdownContent'
 
 interface Props {
   courseId: string
@@ -154,6 +157,30 @@ export function AssignmentView({
         </div>
       )}
 
+      {/* ── Student: resources ───────────────────────────── */}
+      {role === 'student' && assignment.resources && assignment.resources.length > 0 && (
+        <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Resources
+          </h2>
+          <ul className="space-y-2">
+            {assignment.resources.map((r) => (
+              <li key={r.id} className="flex items-center gap-2">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">{r.type}</span>
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  {r.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ── Student: rubric ──────────────────────────────── */}
       {role === 'student' && assignment.rubric && assignment.rubric.criteria.length > 0 && (
         <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -206,9 +233,9 @@ export function AssignmentView({
               </div>
 
               {studentSubmission.body && (
-                <div className="whitespace-pre-wrap rounded-lg bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
+                <MarkdownContent className="rounded-lg bg-slate-50 px-4 py-3">
                   {studentSubmission.body}
-                </div>
+                </MarkdownContent>
               )}
 
               {studentSubmission.attachment && (
@@ -219,12 +246,11 @@ export function AssignmentView({
             </div>
           ) : (
             <div>
-              <textarea
+              <RichTextarea
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
                 placeholder="Write your response here… (optional if you upload a file)"
                 rows={8}
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
 
               {/* ── File attachment ── */}
@@ -299,6 +325,16 @@ export function AssignmentView({
           <p className="text-sm leading-relaxed text-emerald-800">
             {publishedGrade.final_feedback}
           </p>
+        </div>
+      )}
+
+      {/* ── Teacher: resource management ─────────────────── */}
+      {role === 'teacher' && (
+        <div className="mb-5">
+          <ResourcePanel
+            assignmentId={assignment.id}
+            initialResources={assignment.resources}
+          />
         </div>
       )}
 

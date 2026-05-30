@@ -55,6 +55,18 @@ describe('gradebookCellProjection', () => {
   })
 })
 
+describe('deriveAssignmentStatus — checkoff scenarios', () => {
+  it('returns submitted when checkoff creates an empty-body submission', () => {
+    // checkOffAssignment always writes { body: '', status: 'submitted' }
+    expect(deriveAssignmentStatus({ body: '', status: 'submitted' }, null)).toEqual({ status: 'submitted' })
+  })
+
+  it('returns submitted when an in-progress draft is checked off (body cleared)', () => {
+    // Student had typed text, then clicked the checkmark — body is wiped to ''
+    expect(deriveAssignmentStatus({ body: '', status: 'submitted' }, null)).toEqual({ status: 'submitted' })
+  })
+})
+
 describe('compatibility read models', () => {
   it('keeps the existing Gradebook cell states', () => {
     expect(gradebookCellState({ hasSubmission: false, hasGrade: false, approvedAt: null })).toBe('blank')
