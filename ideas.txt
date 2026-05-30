@@ -167,3 +167,24 @@ Edge cases to handle: conflicting values (chat says 10 weeks, form already has 8
 which to keep), partial information (only start date given, leave other fields alone),
 and re-generation after settings change (prompt the teacher to re-run generation if
 parameters change after a course has already been generated).
+
+
+## Apply the full RichTextarea editor everywhere text is entered
+The rich text editor (with toolbar, formatting, table picker, math panel, etc.) currently
+appears in the syllabus input on the generate page and the assignment draft area. It should
+be the standard text input component used everywhere in the app that accepts multi-line
+content from teachers or students.
+
+Places to audit and update:
+  - Assignment instructions field (teacher side, course editor)
+  - Rubric criterion descriptions
+  - Module description / overview fields
+  - Student assignment submission textarea
+  - Teacher feedback / comment fields in SpeedGrader
+  - Any other free-text areas that currently use a plain <textarea>
+
+The goal is a consistent editing experience across the whole app — a teacher writing
+assignment instructions and a student writing a submission should have the same formatting
+capabilities. Audit every component that renders a <textarea> or plain text input and
+replace with <RichTextarea> where multi-line rich content makes sense. Skip single-line
+inputs (titles, names, URLs) — those stay as plain <input> fields.
