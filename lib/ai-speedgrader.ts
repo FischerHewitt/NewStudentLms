@@ -2,6 +2,7 @@ import { generateObject } from 'ai'
 import { z } from 'zod'
 import { getDefaultAiModel } from '@/lib/ai-model'
 import { needsAiGrading, buildPendingGrade, type PendingGradeDraft } from '@/lib/grade-computation'
+import type { Grade } from '@/lib/grade'
 
 const gradeOutputSchema = z.object({
   criterion_scores: z
@@ -44,15 +45,6 @@ type SubmissionForSpeedGrader = {
   file_url?: string | null
 }
 
-export type AiSpeedGraderGrade = {
-  id: string
-  ai_suggested_score: number
-  ai_suggested_feedback: string
-  final_score: number | null
-  final_feedback: string | null
-  approved_at: string | null
-}
-
 type QueryResult<T> = PromiseLike<{ data: T | null; error?: unknown }>
 
 export type AiSpeedGraderDb = {
@@ -70,14 +62,16 @@ export type AiSpeedGraderDb = {
   }
 }
 
-function toGrade(row: Record<string, unknown>): AiSpeedGraderGrade {
+function toGrade(row: Record<string, unknown>): Grade {
   return {
     id: row.id as string,
+    submission_id: (row.submission_id as string | null) ?? '',
     ai_suggested_score: row.ai_suggested_score as number,
     ai_suggested_feedback: row.ai_suggested_feedback as string,
     final_score: (row.final_score as number | null) ?? null,
     final_feedback: (row.final_feedback as string | null) ?? null,
     approved_at: (row.approved_at as string | null) ?? null,
+    approved_by: (row.approved_by as string | null) ?? null,
   }
 }
 
@@ -129,7 +123,7 @@ async function insertPendingGrade(
   db: AiSpeedGraderDb,
   submissionId: string,
   draft: PendingGradeDraft,
-): Promise<{ grade?: AiSpeedGraderGrade; error?: string }> {
+): Promise<{ grade?: Grade; error?: string }> {
   const { data, error } = await db
     .from('grades')
     .insert({
@@ -139,7 +133,7 @@ async function insertPendingGrade(
       final_feedback: draft.final_feedback,
     })
     .select(
-      'id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at',
+      'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by',
     )
     .single()
 
@@ -151,7 +145,7 @@ async function insertPendingGrade(
 export async function createPendingGradeFromAiSpeedGrader(
   db: AiSpeedGraderDb,
   submissionId: string,
-): Promise<{ grade?: AiSpeedGraderGrade; error?: string }> {
+): Promise<{ grade?: Grade; error?: string }> {
   const { data: existingGrade } = await db
     .from('grades')
     .select('id')

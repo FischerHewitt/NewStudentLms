@@ -2,9 +2,10 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { TEACHER_ID } from '@/lib/constants'
-import { createPendingGradeFromAiSpeedGrader, type AiSpeedGraderDb, type AiSpeedGraderGrade } from '@/lib/ai-speedgrader'
+import { createPendingGradeFromAiSpeedGrader, type AiSpeedGraderDb } from '@/lib/ai-speedgrader'
 import { canApprove, isGradeVisibleToStudent } from '@/lib/grade-lifecycle'
 import { submissionAttachmentFromRow, type FileAttachment } from '@/lib/submission-attachment'
+import type { Grade, StudentGradeView } from '@/lib/grade'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,15 +24,11 @@ export type SpeedGraderData = {
     points_possible: number
     rubric: { criteria: { description: string; points: number }[] } | null
   }
-  grade: GradeData | null
+  grade: Grade | null
 }
 
-export type GradeData = AiSpeedGraderGrade
-
-export type PublishedGrade = {
-  final_score: number
-  final_feedback: string
-} | null
+export type { Grade as GradeData }
+export type PublishedGrade = StudentGradeView | null
 
 // ── Server actions ────────────────────────────────────────────────────────────
 
@@ -63,7 +60,7 @@ export async function getSpeedGraderData(
     db
       .from('grades')
       .select(
-        'id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at',
+        'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by',
       )
       .eq('submission_id', submissionId)
       .single(),
@@ -98,11 +95,13 @@ export async function getSpeedGraderData(
     grade: gradeResult.data
       ? {
           id: gradeResult.data.id,
+          submission_id: gradeResult.data.submission_id,
           ai_suggested_score: gradeResult.data.ai_suggested_score,
           ai_suggested_feedback: gradeResult.data.ai_suggested_feedback,
           final_score: gradeResult.data.final_score,
           final_feedback: gradeResult.data.final_feedback,
           approved_at: gradeResult.data.approved_at,
+          approved_by: gradeResult.data.approved_by ?? null,
         }
       : null,
   }
@@ -115,7 +114,7 @@ export async function getSpeedGraderData(
  */
 export async function runSpeedGrader(
   submissionId: string,
-): Promise<{ grade?: GradeData; error?: string }> {
+): Promise<{ grade?: Grade; error?: string }> {
   const db = createServerClient() as unknown as AiSpeedGraderDb
   return createPendingGradeFromAiSpeedGrader(db, submissionId)
 }
@@ -177,12 +176,12 @@ export async function publishManualGrade(
   submissionId: string,
   score: number,
   feedback: string,
-): Promise<{ grade?: GradeData; error?: string }> {
+): Promise<{ grade?: Grade; error?: string }> {
   const db = createServerClient()
 
   const { data: existing } = await db
     .from('grades')
-    .select('id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at')
+    .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by')
     .eq('submission_id', submissionId)
     .single()
 
@@ -192,11 +191,13 @@ export async function publishManualGrade(
     return {
       grade: {
         id: existing.id,
+        submission_id: existing.submission_id,
         ai_suggested_score: existing.ai_suggested_score,
         ai_suggested_feedback: existing.ai_suggested_feedback,
         final_score: score,
         final_feedback: feedback,
         approved_at: new Date().toISOString(),
+        approved_by: TEACHER_ID,
       },
     }
   }
@@ -212,7 +213,7 @@ export async function publishManualGrade(
       approved_by: TEACHER_ID,
       approved_at: new Date().toISOString(),
     })
-    .select('id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at')
+    .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by')
     .single()
 
   if (insertErr || !newGrade) return { error: 'Failed to save grade. Please try again.' }
@@ -222,11 +223,13 @@ export async function publishManualGrade(
   return {
     grade: {
       id: newGrade.id,
+      submission_id: newGrade.submission_id,
       ai_suggested_score: newGrade.ai_suggested_score,
       ai_suggested_feedback: newGrade.ai_suggested_feedback,
       final_score: newGrade.final_score,
       final_feedback: newGrade.final_feedback,
       approved_at: newGrade.approved_at,
+      approved_by: newGrade.approved_by ?? null,
     },
   }
 }
@@ -238,7 +241,7 @@ export async function publishManualGrade(
  */
 export async function getPublishedGradeForSubmission(
   submissionId: string,
-): Promise<PublishedGrade> {
+): Promise<StudentGradeView | null> {
   const db = createServerClient()
 
   const { data } = await db

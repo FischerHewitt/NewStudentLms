@@ -3,8 +3,7 @@
  *
  * `Grade` mirrors the DB row shape from the `grades` table.
  * Derived view types are projections used by specific UI consumers.
- * Later files (ai-speedgrader.ts, app/actions/speedgrader.ts) will alias
- * their local types to these — tracked in issue #53.
+ * ai-speedgrader.ts and app/actions/speedgrader.ts import from here (issue #53).
  */
 
 // ── Canonical DB row ──────────────────────────────────────────────────────────
@@ -35,7 +34,7 @@ export type TeacherPanelView = {
 
 /**
  * The student-visible subset of an approved grade.
- * Matches the shape of `PublishedGrade` from app/actions/speedgrader.ts.
+ * app/actions/speedgrader.ts exports `PublishedGrade = StudentGradeView | null`.
  */
 export type StudentGradeView = {
   final_score: number

@@ -1,5 +1,5 @@
 import type { CoursePreview } from '@/lib/schemas/course'
-import type { AiSpeedGraderGrade } from '@/lib/ai-speedgrader'
+import type { Grade } from '@/lib/grade'
 
 export type TeacherCoachMessage = {
   role: 'user' | 'assistant' | 'system'
@@ -15,14 +15,14 @@ export type TeacherCoachInput = {
 }
 
 export type TeacherCoachAdapters = {
-  runSpeedGrader: (submissionId: string) => Promise<{ grade?: AiSpeedGraderGrade; error?: string }>
+  runSpeedGrader: (submissionId: string) => Promise<{ grade?: Grade; error?: string }>
   generateCourseStructure: (syllabus: string) => Promise<CoursePreview>
 }
 
 export type TeacherCoachResponse = {
   agent: TeacherCoachAgent
   content: string
-  grade?: AiSpeedGraderGrade
+  grade?: Grade
   coursePreview?: CoursePreview
 }
 
