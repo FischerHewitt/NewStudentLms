@@ -51,7 +51,7 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
   // 1. All published courses for this teacher
   const { data: courseRows } = await db
     .from('courses')
-    .select('id, title, created_at')
+    .select('id, title, status, created_at')
     .eq('teacher_id', TEACHER_ID)
     .is('generation_preview', null)
     .order('created_at', { ascending: false })
@@ -78,27 +78,13 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
   const assignments = assignmentsRes.data ?? []
   const assignmentIds = assignments.map((a) => a.id)
 
-  const [submissionsRes, gradesRes] = await Promise.all([
-    assignmentIds.length > 0
-      ? db
-          .from('submissions')
-          .select('id, assignment_id, status, submitted_at')
-          .in('assignment_id', assignmentIds)
-          .in('status', ['submitted', 'graded'])
-      : Promise.resolve({ data: [] }),
-    assignmentIds.length > 0
-      ? db
-          .from('grades')
-          .select('submission_id')
-          .in(
-            'submission_id',
-            // We only care about grades for submitted/graded submissions — IDs fetched below
-            // We'll filter in memory after the query
-            assignmentIds, // placeholder; replaced below after we have submission IDs
-          )
-          .is('approved_at', null)
-      : Promise.resolve({ data: [] }),
-  ])
+  const submissionsRes = assignmentIds.length > 0
+    ? await db
+        .from('submissions')
+        .select('id, assignment_id, status, submitted_at')
+        .in('assignment_id', assignmentIds)
+        .in('status', ['submitted', 'graded'])
+    : { data: [] }
 
   const submissions = submissionsRes.data ?? []
   const submissionIds = submissions.map((s) => s.id)
@@ -192,6 +178,7 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
     return {
       id: course.id,
       title: course.title,
+      status: (course.status ?? 'draft') as 'draft' | 'published',
       students: enrolledCount,
       pendingGrades,
       submittedRate: submissionRate(submittedCount, maxPossibleSubmissions),

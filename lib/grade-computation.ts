@@ -16,7 +16,7 @@ export type PendingGradeDraft = {
   final_feedback: string
 }
 
-export function needsAiGrading(body: string | null, fileUrl?: string | null): boolean {
+export function needsAiGrading(body: string | null): boolean {
   return (body ?? '').trim() !== ''
 }
 

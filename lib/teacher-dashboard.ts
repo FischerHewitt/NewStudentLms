@@ -14,6 +14,7 @@ export type SolutionStatus = 'missing' | 'uploaded' | 'needs-update'
 export type TeacherCourseRow = {
   id: string
   title: string
+  status: 'draft' | 'published'
   /** Number of enrolled students */
   students: number
   /** Grades awaiting teacher approval (approved_at IS NULL, per ADR-0003) */

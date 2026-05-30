@@ -23,8 +23,8 @@ type FlowState = 'idle' | 'generating' | 'review' | 'saving' | 'error'
 type InputMode = 'upload' | 'paste' | 'generate' | 'manual'
 
 interface Props {
-  /** Pre-loaded draft from a previous session (tab-close recovery) */
-  draft?: { courseId: string; preview: CoursePreview; syllabus: string; metadata: CourseMetadataInput } | null
+  /** Pre-loaded draft from an explicit Resume action on the home page */
+  draft?: { courseId: string; preview: CoursePreview; syllabus: string; metadata: CourseMetadataInput; draftKey: string | null } | null
 }
 
 async function parseFile(file: File): Promise<string> {
@@ -41,6 +41,27 @@ async function parseFile(file: File): Promise<string> {
 
 export function GenerateFlow({ draft }: Props) {
   const router = useRouter()
+
+  // ── draft key (ADR-0008) ─────────────────────────────────────────────────
+  // One UUID per browser tab, stored in sessionStorage. When resuming via the
+  // home-page Resume link, reuse the draft's existing key so the upsert targets
+  // the same row rather than creating a duplicate.
+  const draftKeyRef = useRef<string>('')
+  useEffect(() => {
+    if (draft?.draftKey) {
+      draftKeyRef.current = draft.draftKey
+      sessionStorage.setItem('generate-draft-key', draft.draftKey)
+    } else {
+      const stored = sessionStorage.getItem('generate-draft-key')
+      if (stored) {
+        draftKeyRef.current = stored
+      } else {
+        const key = crypto.randomUUID()
+        sessionStorage.setItem('generate-draft-key', key)
+        draftKeyRef.current = key
+      }
+    }
+  }, [draft?.draftKey])
 
   // ── state ────────────────────────────────────────────────────────────────
   const [flowState, setFlowState] = useState<FlowState>(
@@ -79,7 +100,7 @@ export function GenerateFlow({ draft }: Props) {
   // Prevents a background stream from transitioning state after the user cancels
   const generationCancelledRef = useRef(false)
 
-  const { object: streamingPreview, submit } = useObject({
+  const { object: streamingPreview, submit, stop } = useObject({
     api: '/api/generate-course',
     schema: coursePreviewSchema,
     onFinish: async ({ object }) => {
@@ -90,7 +111,7 @@ export function GenerateFlow({ draft }: Props) {
         return
       }
       try {
-        const { courseId: id } = await saveCoursePreview(syllabusRef.current, object, metadataRef.current)
+        const { courseId: id } = await saveCoursePreview(syllabusRef.current, object, metadataRef.current, draftKeyRef.current)
         setCourseId(id)
         setEditablePreview(object)
         setFlowState('review')
@@ -116,6 +137,7 @@ export function GenerateFlow({ draft }: Props) {
   // ── handlers ─────────────────────────────────────────────────────────────
   const handleCancelGeneration = () => {
     generationCancelledRef.current = true
+    stop()
     setFlowState('idle')
   }
 
@@ -155,7 +177,7 @@ export function GenerateFlow({ draft }: Props) {
     }
     setFlowState('saving') // reuse saving spinner while we create the DB row
     try {
-      const { courseId: id } = await saveCoursePreview(null, emptyPreview, metadata)
+      const { courseId: id } = await saveCoursePreview(null, emptyPreview, metadata, draftKeyRef.current)
       setCourseId(id)
       setEditablePreview(emptyPreview)
       updateCourseTitle('Untitled Course')
@@ -349,7 +371,7 @@ export function GenerateFlow({ draft }: Props) {
     return (
       <>
         <TeacherCoachContextBridge context={{ syllabus }} />
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-2xl pb-80">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
             Create a course from your syllabus
@@ -451,7 +473,7 @@ export function GenerateFlow({ draft }: Props) {
     return (
       <>
         <TeacherCoachContextBridge context={{ syllabus }} />
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-3xl pb-80">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
@@ -521,7 +543,7 @@ export function GenerateFlow({ draft }: Props) {
     return (
       <>
         <TeacherCoachContextBridge context={{ syllabus }} />
-        <div className="mx-auto max-w-md text-center">
+        <div className="mx-auto max-w-md pb-80 text-center">
         <p className="text-red-600">{errorMsg}</p>
         <button
           onClick={() => setFlowState('idle')}
@@ -539,20 +561,16 @@ export function GenerateFlow({ draft }: Props) {
     return (
       <>
         <TeacherCoachContextBridge context={{ syllabus }} />
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-3xl pb-80">
         {/* Back / Clear row */}
         <div className="mb-4 flex items-center justify-between">
-          {!draft ? (
-            <button
-              type="button"
-              onClick={() => setFlowState('idle')}
-              className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700"
-            >
-              ← Back
-            </button>
-          ) : (
-            <span />
-          )}
+          <button
+            type="button"
+            onClick={() => setFlowState('idle')}
+            className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700"
+          >
+            ← Back
+          </button>
           <button
             type="button"
             onClick={handleClearCourse}
@@ -564,7 +582,7 @@ export function GenerateFlow({ draft }: Props) {
 
         {draft && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            ↩ Recovered unsaved course from your last session.
+            ↩ Resuming draft — your changes are saved automatically.
           </div>
         )}
 

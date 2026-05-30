@@ -1,0 +1,5 @@
+Teachers are not Utilize Modules in canvas -> we need to make it intuitive on how to use modules. Modules need to be consistent, so whatever the first module is named, the rest should follow.
+Modules is a student checklist, so you should not be able to reorder the structure/you can but it should be intuitive and this is where AI can help out and basically help keep it organized. It should just be one long checklist for the entire course. Maybe a module can intuitively open up based on what you have and have not done.
+There should not be daily pages. We want students to be able to navigate easily.
+Pages should not be overwhelming visually, it should be simpler, but should also not be a block of text, we need to suggest that to teachers.
+THe home page should just tell you where to start. Pages have to many visuals, or not enough visuals. Visual engagement is important, use headings, stick to 2-3 visuals.Pages should not be to long. Canvas Cross List Section, basically if you have multiple sections of the same course.

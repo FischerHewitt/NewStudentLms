@@ -657,7 +657,7 @@ function VariantGalleryStatBar() {
           <section className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">Teacher Coach</p>
             <p className="mt-2 text-sm font-semibold text-indigo-950">
-              "Start with BIO 111 — solution is uploaded and 11 submissions are waiting."
+              &ldquo;Start with BIO 111 — solution is uploaded and 11 submissions are waiting.&rdquo;
             </p>
             <button className="mt-3 text-xs font-semibold text-indigo-600 hover:underline">
               Ask a question →
@@ -746,7 +746,7 @@ function VariantGalleryBento() {
           <section className="rounded-lg border border-indigo-200 bg-indigo-50 p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">Teacher Coach</p>
             <p className="mt-2 text-sm font-semibold text-indigo-950">
-              "Start with BIO 111 — solution is uploaded and 11 submissions are waiting."
+              &ldquo;Start with BIO 111 — solution is uploaded and 11 submissions are waiting.&rdquo;
             </p>
             <button className="mt-3 text-xs font-semibold text-indigo-600 hover:underline">Ask a question →</button>
           </section>
@@ -854,7 +854,7 @@ function VariantWideCards() {
       <div className="mb-5 flex items-center gap-4 rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-3 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">Teacher Coach</p>
         <p className="text-sm font-semibold text-indigo-900">
-          "Start with BIO 111 — solution is uploaded and 11 submissions are waiting."
+          &ldquo;Start with BIO 111 — solution is uploaded and 11 submissions are waiting.&rdquo;
         </p>
         <button className="ml-auto shrink-0 text-xs font-semibold text-indigo-600 hover:underline">
           Ask a question →

@@ -7,7 +7,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('ai/react', () => ({
-  experimental_useObject: () => ({ object: null, submit: vi.fn() }),
+  experimental_useObject: () => ({ object: null, submit: vi.fn(), stop: vi.fn() }),
 }))
 
 vi.mock('@/app/actions/course', () => ({
@@ -22,6 +22,7 @@ describe('GenerateFlow Teacher Coach context', () => {
         draft={{
           courseId: 'course-draft-1',
           syllabus: 'BIO 111 syllabus',
+          draftKey: 'test-draft-key',
           metadata: { title: 'Biology 111', term: 'Fall 2026' },
           preview: {
             title: 'Biology 111',

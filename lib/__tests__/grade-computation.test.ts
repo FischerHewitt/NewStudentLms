@@ -3,19 +3,19 @@ import { needsAiGrading, buildPendingGrade } from '@/lib/grade-computation'
 
 describe('needsAiGrading', () => {
   it('returns false for empty body with no file', () => {
-    expect(needsAiGrading(null, null)).toBe(false)
+    expect(needsAiGrading(null)).toBe(false)
   })
 
   it('returns false for whitespace-only body', () => {
-    expect(needsAiGrading('   ', null)).toBe(false)
+    expect(needsAiGrading('   ')).toBe(false)
   })
 
   it('returns false when body is empty but a file is attached', () => {
-    expect(needsAiGrading('', 'https://example.com/essay.pdf')).toBe(false)
+    expect(needsAiGrading('')).toBe(false)
   })
 
   it('returns true when body has actual content', () => {
-    expect(needsAiGrading('I want to develop data analysis skills.', null)).toBe(true)
+    expect(needsAiGrading('I want to develop data analysis skills.')).toBe(true)
   })
 })
 

@@ -2,9 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import type { TeacherDashboardData, TeacherCourseSummary, CourseHealth, SolutionStatus } from '@/lib/teacher-dashboard'
+import type { TeacherDashboardData, TeacherCourseSummary, CourseHealth } from '@/lib/teacher-dashboard'
 import { teacherCoachHint } from '@/lib/teacher-dashboard'
-import { courseHref } from '@/lib/routes'
 
 const COURSE_COLORS = ['indigo', 'emerald', 'amber', 'violet', 'rose', 'teal'] as const
 type CourseColor = typeof COURSE_COLORS[number]
@@ -29,12 +28,22 @@ const PROGRESS_BAR: Record<CourseColor, string> = {
 
 // ─── Root ────────────────────────────────────────────────────────────────────
 
+type CourseDraft = { courseId: string; title: string; draftKey: string; createdAt: string }
+
 export function TeacherDashboard({
   data,
+  drafts = [],
   onOpenCourse,
+  onPublish,
+  onUnpublish,
+  onDiscardDraft,
 }: {
   data: TeacherDashboardData
+  drafts?: CourseDraft[]
   onOpenCourse?: (courseId: string) => void
+  onPublish?: (courseId: string) => void
+  onUnpublish?: (courseId: string) => void
+  onDiscardDraft?: (courseId: string) => void
 }) {
   const { courses, stats } = data
   const [selectedId, setSelectedId] = useState<string>(courses[0]?.id ?? '')
@@ -91,6 +100,11 @@ export function TeacherDashboard({
         />
       </div>
 
+      {/* Drafts panel */}
+      {drafts.length > 0 && (
+        <DraftsPanel drafts={drafts} onDiscard={onDiscardDraft} />
+      )}
+
       {/* Gallery + context panel */}
       <div className="grid grid-cols-[minmax(0,1fr)_22rem] items-start gap-5">
         {/* Course cards — 3-col normally, 2-col when count doesn't divide evenly into 3 */}
@@ -113,7 +127,12 @@ export function TeacherDashboard({
         {/* Context panel */}
         {selected && (
           <aside className="space-y-3">
-            <SelectedCoursePanel course={selected} onOpenCourse={onOpenCourse} />
+            <SelectedCoursePanel
+              course={selected}
+              onOpenCourse={onOpenCourse}
+              onPublish={onPublish}
+              onUnpublish={onUnpublish}
+            />
             <GradingQueueWidget course={selected} onOpenCourse={onOpenCourse} />
             <TeacherCoachWidget hint={hint} />
           </aside>
@@ -185,7 +204,7 @@ function CourseCard({
         >
           {course.title}
         </h2>
-        <HealthBadge health={course.health} />
+        {course.status === 'draft' ? <DraftBadge /> : <HealthBadge health={course.health} />}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
@@ -225,9 +244,13 @@ function CourseCard({
 function SelectedCoursePanel({
   course,
   onOpenCourse,
+  onPublish,
+  onUnpublish,
 }: {
   course: TeacherCourseSummary
   onOpenCourse?: (courseId: string) => void
+  onPublish?: (courseId: string) => void
+  onUnpublish?: (courseId: string) => void
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -268,6 +291,23 @@ function SelectedCoursePanel({
         >
           Ask Teacher Coach
         </button>
+        {course.status === 'draft' ? (
+          <button
+            type="button"
+            onClick={() => onPublish?.(course.id)}
+            className="block w-full rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-left text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+          >
+            Publish course
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onUnpublish?.(course.id)}
+            className="block w-full rounded-md border border-slate-200 px-3 py-2 text-left text-sm font-semibold text-slate-500 hover:bg-slate-50"
+          >
+            Unpublish
+          </button>
+        )}
       </div>
     </section>
   )
@@ -328,13 +368,55 @@ function TeacherCoachWidget({ hint }: { hint: string }) {
       <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">
         Teacher Coach
       </p>
-      <p className="mt-2 text-sm font-semibold text-indigo-950">"{hint}"</p>
+      <p className="mt-2 text-sm font-semibold text-indigo-950">&ldquo;{hint}&rdquo;</p>
       <button
         type="button"
         className="mt-3 text-xs font-semibold text-indigo-600 hover:underline"
       >
         Ask a question →
       </button>
+    </section>
+  )
+}
+
+// ─── Drafts panel ────────────────────────────────────────────────────────────
+
+function DraftsPanel({
+  drafts,
+  onDiscard,
+}: {
+  drafts: CourseDraft[]
+  onDiscard?: (courseId: string) => void
+}) {
+  return (
+    <section className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-amber-700">
+        Unsaved drafts
+      </p>
+      <ul className="space-y-2">
+        {drafts.map((d) => (
+          <li key={d.courseId} className="flex items-center justify-between gap-4">
+            <span className="truncate text-sm font-semibold text-amber-900">
+              {d.title || 'Untitled Course'}
+            </span>
+            <div className="flex shrink-0 gap-2">
+              <Link
+                href={`/generate?courseId=${d.courseId}`}
+                className="rounded border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              >
+                Resume
+              </Link>
+              <button
+                type="button"
+                onClick={() => onDiscard?.(d.courseId)}
+                className="rounded border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-600 hover:bg-amber-100 hover:text-amber-900"
+              >
+                Discard
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }
@@ -377,6 +459,14 @@ function Metric({
   )
 }
 
+function DraftBadge() {
+  return (
+    <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+      Draft
+    </span>
+  )
+}
+
 function HealthBadge({ health }: { health: CourseHealth }) {
   const cls =
     health === 'urgent'
@@ -391,10 +481,4 @@ function HealthBadge({ health }: { health: CourseHealth }) {
       {health}
     </span>
   )
-}
-
-function solutionLabel(status: SolutionStatus) {
-  if (status === 'uploaded') return 'Uploaded'
-  if (status === 'needs-update') return 'Update'
-  return 'Missing'
 }

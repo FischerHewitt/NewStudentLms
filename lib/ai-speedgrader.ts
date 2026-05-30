@@ -169,7 +169,7 @@ export async function createPendingGradeFromAiSpeedGrader(
   let aiResult: GradeOutput | null = null
   let assignment: AssignmentForSpeedGrader = { title: '', instructions: '', points_possible: 0 }
 
-  if (needsAiGrading(sub.body, sub.file_url)) {
+  if (needsAiGrading(sub.body)) {
     const [assignmentResult, rubricResult] = await Promise.all([
       db
         .from('assignments')

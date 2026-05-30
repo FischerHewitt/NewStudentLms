@@ -6,7 +6,7 @@ import { useRole } from '@/context/RoleContext'
 import { TeacherDashboard } from '@/components/TeacherDashboard'
 import { CourseDashboard } from '@/components/CourseDashboard'
 import { StudentDashboard } from '@/components/StudentDashboard'
-import { deleteCourse } from '@/app/actions/course'
+import { deleteCourse, publishCourse, unpublishCourse } from '@/app/actions/course'
 import {
   getCourseWithModules,
   getStudentSubmissionsForCourse,
@@ -20,12 +20,15 @@ import type {
 } from '@/app/actions/dashboard'
 import type { TeacherDashboardData } from '@/lib/teacher-dashboard'
 
+type CourseDraft = { courseId: string; title: string; draftKey: string; createdAt: string }
+
 interface Props {
   teacherDashboard: TeacherDashboardData
   studentDashboard: {
     courses: StudentDashboardCourse[]
     assignments: StudentDashboardAssignment[]
   }
+  drafts: CourseDraft[]
 }
 
 interface LoadedCourse {
@@ -34,7 +37,7 @@ interface LoadedCourse {
   allSubmissions: SubmissionSummary[]
 }
 
-export function HomeContent({ teacherDashboard, studentDashboard }: Props) {
+export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Props) {
   const { role } = useRole()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -68,6 +71,21 @@ export function HomeContent({ teacherDashboard, studentDashboard }: Props) {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
     await deleteCourse(courseId)
     if (selectedId === courseId) setSelectedId(null)
+    router.refresh()
+  }
+
+  async function handleDiscardDraft(courseId: string) {
+    await deleteCourse(courseId)
+    router.refresh()
+  }
+
+  async function handlePublish(courseId: string) {
+    await publishCourse(courseId)
+    router.refresh()
+  }
+
+  async function handleUnpublish(courseId: string) {
+    await unpublishCourse(courseId)
     router.refresh()
   }
 
@@ -121,7 +139,11 @@ export function HomeContent({ teacherDashboard, studentDashboard }: Props) {
         {selectedId === null ? (
           <TeacherDashboard
             data={teacherDashboard}
+            drafts={drafts}
             onOpenCourse={setSelectedId}
+            onPublish={handlePublish}
+            onUnpublish={handleUnpublish}
+            onDiscardDraft={handleDiscardDraft}
           />
         ) : loading && !activeCourse ? (
           <div className="flex items-center justify-center py-24 text-sm text-slate-400">

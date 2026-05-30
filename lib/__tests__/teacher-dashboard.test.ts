@@ -11,6 +11,7 @@ function makeRow(overrides: Partial<TeacherCourseRow> = {}): TeacherCourseRow {
   return {
     id: 'course-1',
     title: 'Biology and Society',
+    status: 'published',
     students: 28,
     pendingGrades: 0,
     submittedRate: 0,

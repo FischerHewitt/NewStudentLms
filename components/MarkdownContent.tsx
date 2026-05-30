@@ -22,6 +22,23 @@ const components: Components = {
 }
 
 export function MarkdownContent({ children, className = '' }: { children: string; className?: string }) {
+  const containsHtml = /<\/?[a-z][\s\S]*>/i.test(children)
+
+  if (containsHtml) {
+    const safeHtml = children
+      .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+="[^"]*"/gi, '')
+      .replace(/\son\w+='[^']*'/gi, '')
+      .replace(/href=["']javascript:[^"']*["']/gi, 'href="#"')
+
+    return (
+      <div
+        className={`text-slate-700 [&_a]:text-indigo-600 [&_a]:underline [&_blockquote]:mb-2 [&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:text-sm [&_blockquote]:italic [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-4 [&_li]:ml-5 [&_ol]:mb-2 [&_ol]:list-decimal [&_p]:mb-2 [&_p]:text-sm [&_p]:leading-relaxed [&_span[data-editor-math]]:rounded [&_span[data-editor-math]]:border [&_span[data-editor-math]]:border-slate-200 [&_span[data-editor-math]]:bg-slate-50 [&_span[data-editor-math]]:px-1 [&_span[data-editor-math]]:font-mono [&_strong]:font-semibold [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-slate-300 [&_td]:p-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-50 [&_th]:p-2 [&_u]:underline [&_ul]:mb-2 [&_ul]:list-disc ${className}`}
+        dangerouslySetInnerHTML={{ __html: safeHtml }}
+      />
+    )
+  }
+
   return (
     <div className={`text-slate-700 ${className}`}>
       <ReactMarkdown components={components}>{children}</ReactMarkdown>

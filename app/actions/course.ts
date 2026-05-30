@@ -9,57 +9,45 @@ import type { CourseMetadataInput } from '@/lib/course-metadata'
 export type { CourseMetadataInput }
 
 /**
- * Called after streaming completes (B-lite step).
- * Creates a Course row with generation_preview for tab-close recovery.
- * If an unsaved draft already exists for this teacher, updates it instead.
+ * Called after streaming completes or when manual mode starts.
+ * When draftKey is provided (ADR-0008), upserts on (teacher_id, draft_key) so
+ * the same tab always updates the same row and two tabs never collide.
  */
 export async function saveCoursePreview(
   syllabus: string | null,
   preview: CoursePreview,
   metadata?: CourseMetadataInput,
+  draftKey?: string | null,
 ): Promise<{ courseId: string }> {
   const db = createServerClient()
 
-  // Check for existing unsaved draft (has generation_preview, no modules yet)
-  const { data: existing } = await db
-    .from('courses')
-    .select('id')
-    .eq('teacher_id', TEACHER_ID)
-    .not('generation_preview', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+  const row = {
+    teacher_id: TEACHER_ID,
+    raw_syllabus: syllabus,
+    generation_preview: preview,
+    title: metadata?.title || preview.title,
+    term: metadata?.term ?? null,
+    section: metadata?.section ?? null,
+    start_date: metadata?.start_date ?? null,
+    end_date: metadata?.end_date ?? null,
+    ...(draftKey ? { draft_key: draftKey } : {}),
+  }
 
-  const metaFields = metadata
-    ? {
-        title: metadata.title || preview.title,
-        term: metadata.term ?? null,
-        section: metadata.section ?? null,
-        start_date: metadata.start_date ?? null,
-        end_date: metadata.end_date ?? null,
-      }
-    : {}
-
-  if (existing) {
-    await db
+  if (draftKey) {
+    const { data, error } = await db
       .from('courses')
-      .update({ raw_syllabus: syllabus, generation_preview: preview, ...metaFields })
-      .eq('id', existing.id)
-    return { courseId: existing.id }
+      .upsert(row, { onConflict: 'teacher_id,draft_key' })
+      .select('id')
+      .single()
+    if (error || !data) throw new Error(error?.message ?? 'Failed to save preview')
+    return { courseId: data.id }
   }
 
   const { data, error } = await db
     .from('courses')
-    .insert({
-      title: metadata?.title || preview.title,
-      teacher_id: TEACHER_ID,
-      raw_syllabus: syllabus,
-      generation_preview: preview,
-      ...metaFields,
-    })
+    .insert(row)
     .select('id')
     .single()
-
   if (error || !data) throw new Error(error?.message ?? 'Failed to save preview')
   return { courseId: data.id }
 }
@@ -96,25 +84,24 @@ export async function saveCourseToDB(
 }
 
 /**
- * Fetches the latest unsaved draft course for the demo teacher.
- * Returns null if no draft exists (no course with generation_preview).
- * Used for tab-close recovery on the generate page.
+ * Fetches a specific draft by courseId for the Resume flow (ADR-0008).
+ * Used by /generate?courseId=... to load a draft the teacher chose from the home page.
  */
-export async function getCourseDraft(): Promise<{
+export async function getCourseDraftById(courseId: string): Promise<{
   courseId: string
   preview: CoursePreview
   syllabus: string
   metadata: CourseMetadataInput
+  draftKey: string | null
 } | null> {
   const db = createServerClient()
 
   const { data } = await db
     .from('courses')
-    .select('id, title, raw_syllabus, generation_preview, term, section, start_date, end_date')
+    .select('id, title, raw_syllabus, generation_preview, draft_key, term, section, start_date, end_date')
+    .eq('id', courseId)
     .eq('teacher_id', TEACHER_ID)
     .not('generation_preview', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
     .single()
 
   if (!data?.generation_preview) return null
@@ -123,6 +110,7 @@ export async function getCourseDraft(): Promise<{
     courseId: data.id,
     preview: data.generation_preview as CoursePreview,
     syllabus: data.raw_syllabus ?? '',
+    draftKey: data.draft_key ?? null,
     metadata: {
       title: data.title,
       term: data.term ?? undefined,
@@ -131,6 +119,38 @@ export async function getCourseDraft(): Promise<{
       end_date: data.end_date ?? undefined,
     },
   }
+}
+
+/**
+ * Returns all pending drafts for the demo teacher created within the last 30 days.
+ * Drafts are courses with generation_preview IS NOT NULL and a non-null draft_key.
+ * Used by the home page Drafts panel (ADR-0008).
+ */
+export async function getCourseDrafts(): Promise<{
+  courseId: string
+  title: string
+  draftKey: string
+  createdAt: string
+}[]> {
+  const db = createServerClient()
+
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data } = await db
+    .from('courses')
+    .select('id, title, draft_key, created_at')
+    .eq('teacher_id', TEACHER_ID)
+    .not('generation_preview', 'is', null)
+    .not('draft_key', 'is', null)
+    .gte('created_at', cutoff)
+    .order('created_at', { ascending: false })
+
+  return (data ?? []).map((r) => ({
+    courseId: r.id,
+    title: r.title,
+    draftKey: r.draft_key!,
+    createdAt: r.created_at,
+  }))
 }
 
 /**
@@ -188,6 +208,15 @@ export async function getAllCourses(): Promise<
 export async function deleteCourse(courseId: string): Promise<void> {
   const db = createServerClient()
   await db.from('courses').delete().eq('id', courseId).throwOnError()
+}
+
+/**
+ * Updates the syllabus text for an existing course without changing publish state.
+ */
+export async function updateCourseSyllabus(courseId: string, syllabus: string): Promise<void> {
+  const db = createServerClient()
+  await db.from('courses').update({ raw_syllabus: syllabus })
+    .eq('id', courseId).eq('teacher_id', TEACHER_ID).throwOnError()
 }
 
 /**

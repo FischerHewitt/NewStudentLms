@@ -5,8 +5,10 @@ import { useState, useEffect, useTransition } from 'react'
 import { useRole } from '@/context/RoleContext'
 import { Gradebook } from '@/components/Gradebook'
 import { getGradebookData } from '@/app/actions/gradebook'
-import { publishCourse, unpublishCourse } from '@/app/actions/course'
+import { publishCourse, unpublishCourse, updateCourseSyllabus } from '@/app/actions/course'
 import { RosterPanel } from '@/components/RosterPanel'
+import { MarkdownContent } from '@/components/MarkdownContent'
+import { RichTextarea } from '@/components/RichTextarea'
 import { assignmentHref } from '@/lib/routes'
 import type {
   CourseWithModules,
@@ -35,6 +37,7 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, en
   const [gradebookData, setGradebookData] = useState<GradebookData | null>(null)
   const [gradebookLoading, setGradebookLoading] = useState(false)
   const [courseStatus, setCourseStatus] = useState<'draft' | 'published'>(course.status)
+  const [syllabus, setSyllabus] = useState(course.rawSyllabus ?? '')
   const [publishPending, startPublishTransition] = useTransition()
 
   const handlePublish = () => startPublishTransition(async () => {
@@ -240,7 +243,13 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, en
         )}
 
         {/* Syllabus tab */}
-        {teacherTab === 'syllabus' && <SyllabusPanel syllabus={course.rawSyllabus} />}
+        {teacherTab === 'syllabus' && (
+          <EditableSyllabusPanel
+            courseId={course.id}
+            syllabus={syllabus}
+            onSaved={setSyllabus}
+          />
+        )}
 
         {/* Gradebook tab */}
         {teacherTab === 'gradebook' && (
@@ -341,7 +350,7 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, en
         </div>
       )}
 
-      {studentTab === 'syllabus' && <SyllabusPanel syllabus={course.rawSyllabus} />}
+      {studentTab === 'syllabus' && <SyllabusPanel syllabus={syllabus} />}
     </div>
   )
 }
@@ -414,7 +423,107 @@ function SyllabusPanel({ syllabus }: { syllabus: string | null }) {
   }
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">{syllabus}</pre>
+      <MarkdownContent className="max-w-none">{syllabus}</MarkdownContent>
+    </div>
+  )
+}
+
+function EditableSyllabusPanel({
+  courseId,
+  syllabus,
+  onSaved,
+}: {
+  courseId: string
+  syllabus: string
+  onSaved: (syllabus: string) => void
+}) {
+  const [isEditing, setIsEditing] = useState(!syllabus)
+  const [draft, setDraft] = useState(syllabus)
+  const [message, setMessage] = useState('')
+  const [isPending, startTransition] = useTransition()
+  const hasChanges = draft !== syllabus
+
+  useEffect(() => {
+    if (isEditing) return
+    setDraft(syllabus)
+  }, [isEditing, syllabus])
+
+  const handleSave = () => {
+    setMessage('')
+    startTransition(async () => {
+      try {
+        await updateCourseSyllabus(courseId, draft)
+        onSaved(draft)
+        setIsEditing(false)
+        setMessage('Syllabus saved.')
+      } catch {
+        setMessage('Could not save the syllabus. Please try again.')
+      }
+    })
+  }
+
+  if (isEditing) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-800">Edit syllabus</h2>
+            <p className="text-xs text-slate-400">Changes update this course without changing whether it is published.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {syllabus && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(syllabus)
+                  setIsEditing(false)
+                  setMessage('')
+                }}
+                disabled={isPending}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isPending || !hasChanges}
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? 'Saving...' : 'Save syllabus'}
+            </button>
+          </div>
+        </div>
+        <RichTextarea
+          value={draft}
+          onChange={setDraft}
+          placeholder="Add the course syllabus..."
+          rows={18}
+          autoFocus
+        />
+        {message && <p className={`mt-2 text-xs ${message.startsWith('Could') ? 'text-red-600' : 'text-emerald-600'}`}>{message}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            setDraft(syllabus)
+            setIsEditing(true)
+            setMessage('')
+          }}
+          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Edit syllabus
+        </button>
+      </div>
+      <SyllabusPanel syllabus={syllabus} />
+      {message && <p className="text-xs text-emerald-600">{message}</p>}
     </div>
   )
 }
