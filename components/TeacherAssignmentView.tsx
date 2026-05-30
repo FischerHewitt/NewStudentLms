@@ -1,47 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { useRole } from '@/context/RoleContext'
-import { StudentAssignmentView } from '@/components/StudentAssignmentView'
-import type {
-  AssignmentWithDetails,
-  StudentSubmissionData,
-  SubmissionData,
-} from '@/app/actions/assignment'
-import type { PublishedGrade } from '@/app/actions/speedgrader'
+import type { AssignmentWithDetails, SubmissionData } from '@/app/actions/assignment'
 
-interface Props {
+interface TeacherAssignmentViewProps {
   courseId: string
   assignment: AssignmentWithDetails
-  /** Demo student's current submission state */
-  studentSubmission: StudentSubmissionData
-  /** All submitted/graded submissions — visible to teacher only */
   allSubmissions: SubmissionData[]
-  /** Published grade for the student (null if not yet approved) */
-  publishedGrade?: PublishedGrade
 }
 
-export function AssignmentView({
+export function TeacherAssignmentView({
   courseId,
   assignment,
-  studentSubmission,
   allSubmissions,
-  publishedGrade,
-}: Props) {
-  const { role } = useRole()
-
-  if (role === 'student') {
-    return (
-      <StudentAssignmentView
-        courseId={courseId}
-        assignment={assignment}
-        studentSubmission={studentSubmission}
-        publishedGrade={publishedGrade}
-      />
-    )
-  }
-
-  // ── Teacher view ─────────────────────────────────────────────────────────────
+}: TeacherAssignmentViewProps) {
   return (
     <div className="mx-auto max-w-3xl">
       {/* Back link */}

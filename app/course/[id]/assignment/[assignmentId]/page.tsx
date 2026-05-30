@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { AssignmentView } from '@/components/AssignmentView'
+import { AssignmentRouter } from './AssignmentRouter'
 import {
   getAssignmentWithDetails,
   getStudentSubmission,
@@ -31,7 +31,7 @@ export default async function AssignmentPage({
 
   return (
     <div className="px-4 py-8">
-      <AssignmentView
+      <AssignmentRouter
         courseId={courseId}
         assignment={assignment}
         studentSubmission={studentSubmission}
