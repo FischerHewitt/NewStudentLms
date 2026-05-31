@@ -788,7 +788,7 @@ function TablePicker({
   hover,
   onHover,
   onInsert,
-  onClose,
+  onClose: _onClose,
 }: {
   hover: { cols: number; rows: number } | null
   onHover: (h: { cols: number; rows: number } | null) => void
@@ -841,7 +841,7 @@ function TablePicker({
 function MathPanel({
   categories,
   onInsert,
-  onClose,
+  onClose: _onClose,
 }: {
   categories: MathCategory[]
   onInsert: (key: MathFnKey) => void
