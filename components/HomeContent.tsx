@@ -80,13 +80,6 @@ export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Prop
     })
   }, [selectedId, loaded])
 
-  async function handleDelete(courseId: string, title: string) {
-    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
-    await deleteCourse(courseId)
-    if (selectedId === courseId) setSelectedId(null)
-    router.refresh()
-  }
-
   async function handleDiscardDraft(courseId: string) {
     await deleteCourse(courseId)
     router.refresh()
@@ -189,8 +182,6 @@ export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Prop
             course={activeCourse.course}
             studentSubmissions={activeCourse.studentSubmissions}
             allSubmissions={activeCourse.allSubmissions}
-            onDelete={() => handleDelete(activeCourse.course.id, activeCourse.course.title)}
-            embedded
           />
         ) : null}
       </div>
