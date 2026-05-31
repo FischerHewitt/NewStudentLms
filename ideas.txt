@@ -188,3 +188,11 @@ assignment instructions and a student writing a submission should have the same 
 capabilities. Audit every component that renders a <textarea> or plain text input and
 replace with <RichTextarea> where multi-line rich content makes sense. Skip single-line
 inputs (titles, names, URLs) — those stay as plain <input> fields.
+
+
+## Email Intelligence widget (teacher dashboard)
+A right-column dashboard widget that surfaces the teacher's email inbox with AI triage. Shows
+email previews (sender, subject, snippet) with AI-generated tags like "Needs Reply" and
+"AI Draft Ready". The AI pre-drafts replies based on the email content and course context.
+Requires an email provider integration (Gmail/Outlook OAuth), a new data source, and likely a
+background job for polling/classifying emails. Came from the Luminous Intelligence design mockup.

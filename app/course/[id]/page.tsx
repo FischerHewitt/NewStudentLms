@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import { CourseDashboard } from '@/components/CourseDashboard'
+import { SetBreadcrumb } from '@/components/SetBreadcrumb'
 import {
   getCourseWithModules,
   getStudentSubmissionsForCourse,
   getAllSubmissionsForCourse,
 } from '@/app/actions/dashboard'
 import { getEnrolledStudents } from '@/app/actions/enrollment'
-
 export const dynamic = 'force-dynamic'
 
 export default async function CoursePage({
@@ -26,13 +26,19 @@ export default async function CoursePage({
   if (!course) notFound()
 
   return (
-    <div className="px-4 py-8">
-      <CourseDashboard
-        course={course}
-        studentSubmissions={studentSubmissions}
-        allSubmissions={allSubmissions}
-        enrolledStudents={enrolledStudents}
-      />
-    </div>
+    <>
+      <SetBreadcrumb items={[
+        { label: 'Courses', href: '/courses' },
+        { label: course.title },
+      ]} />
+      <div className="px-4 py-8">
+        <CourseDashboard
+          course={course}
+          studentSubmissions={studentSubmissions}
+          allSubmissions={allSubmissions}
+          enrolledStudents={enrolledStudents}
+        />
+      </div>
+    </>
   )
 }

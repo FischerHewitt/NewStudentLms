@@ -1,10 +1,10 @@
 # Project Context
 
-AI-native LMS hackathon MVP — competing with Canvas.
+**Alumos** — AI-native LMS hackathon MVP, competing with Canvas.
 
-## One-sentence pitch
+## Pitch
 
-> We are building an AI-native LMS that turns a syllabus into a course, helps students learn responsibly, and helps teachers grade faster while keeping humans in control.
+> Alumos is a smarter LMS built around clarity. It reads the syllabus, assignments, grades, and course updates, then turns them into a simple command center for students and teachers. Instead of making people search through course pages, Alumos tells them what changed, what matters, and what to do next.
 
 ## Stack
 

@@ -163,6 +163,59 @@ Design decisions to make:
     the next day should not reset the counter.
 
 
+## Accessibility tools and features
+Add accessibility support so the LMS is usable by students and teachers with
+disabilities. Target WCAG 2.1 AA compliance.
+
+Key areas to address:
+
+  Keyboard navigation:
+  - All interactive elements (buttons, links, modals, tabs, course cards) must be
+    reachable and operable via keyboard alone (Tab, Shift+Tab, Enter, Space, Escape).
+  - Focus indicators must be visible — the current dark theme removes default outlines;
+    add explicit focus-visible ring styles throughout.
+  - Trap focus inside modals and drawers; return focus to the trigger on close.
+
+  Screen reader support:
+  - Add aria-label / aria-describedby to icon-only buttons (Grade, close, toggle).
+  - Use aria-live regions for dynamic content: grading queue updates, coach responses,
+    stat card refreshes, and loading states.
+  - Ensure course cards convey health status and pending count semantically, not just
+    visually (color alone is not sufficient).
+  - Add role="status" or role="alert" for toast/notification messages.
+
+  Color and contrast:
+  - Audit all text/background combinations in the dark teacher dashboard for WCAG AA
+    contrast ratios (minimum 4.5:1 for normal text, 3:1 for large text).
+  - Muted text colors (rgba(238,240,255,0.35)) likely fail — increase opacity or darken
+    background to meet threshold.
+  - Never rely on color alone to convey meaning (health badges: Urgent/Watch/Steady
+    use color + text label, which is good — keep this pattern everywhere).
+
+  Motion and animation:
+  - Wrap all CSS animations (alumos-fade-up, etc.) in a prefers-reduced-motion media
+    query so users who have enabled reduced motion in their OS see no animation.
+  - The Teacher Coach and other animated panels should also respect this preference.
+
+  Forms and inputs:
+  - All form fields (assignment submission textarea, coach input, generate-course form)
+    must have explicit <label> elements or aria-label, not just placeholder text.
+  - Error messages should be associated with their field via aria-describedby.
+  - Required fields should be marked with aria-required="true".
+
+  AI-generated content:
+  - Coach responses and AI feedback should be announced to screen readers via an
+    aria-live="polite" region so they don't interrupt ongoing reading.
+  - Long AI responses should be structured with headings or lists, not a single
+    paragraph blob, so screen reader users can navigate them efficiently.
+
+  Testing approach:
+  - Use axe-core or @axe-core/react in the test suite for automated a11y checks.
+  - Manual audit with VoiceOver (macOS) and NVDA (Windows) for the two primary flows:
+    student submission and teacher SpeedGrader review.
+  - Add a Playwright a11y test that runs axe on every major page route.
+
+
 ## Business value analysis — cost savings vs. Canvas
 Quantify and communicate the ROI of this LMS to make the case for adoption. Focus on
 three angles: direct cost savings, time savings, and educational outcome improvements.
@@ -203,3 +256,31 @@ Brainstorm (to be refined into a formal doc):
   - Gather real grading-time data from a pilot instructor to validate the 80% estimate
   - Quantify student outcome improvement if early data is available (grade distribution,
     resubmission rate, time-to-feedback correlation with scores)
+
+
+## Student dashboard To-Do / Completed cleanup
+The redesigned student dashboard is working, but the To-Do list can become overwhelming
+when a course has many open assignments. Tighten this flow so it feels more usable and
+less like an endless wall of work.
+
+  To-Do list:
+  - Reduce overwhelm by showing a smaller default window of work, such as overdue,
+    today/tomorrow, and the next few upcoming assignments.
+  - Add a clear "Show more" or "View all upcoming" path for the full list.
+  - Group assignments more softly so repeated date headers do not dominate the page.
+  - Prioritize what needs attention first: overdue, due soon, in-progress, then later work.
+  - Make sure course/day filtering still works after the list is shortened.
+
+  Completed list:
+  - Make Completed more student-friendly: clearer status labels, calmer visual hierarchy,
+    and better separation between graded work and submitted/awaiting-grade work.
+  - Consider a simple summary at the top: graded count, awaiting grade count, recent
+    completed work.
+  - Avoid making completed work feel like another task list; it should feel reassuring
+    and easy to scan.
+
+  Verification:
+  - Add/keep tests for To-Do vs. Completed switching.
+  - Verify the check-off action still works after simplifying the To-Do list.
+  - Browser-test desktop and mobile so the weekly panel does not become cramped or
+    visually overwhelming.

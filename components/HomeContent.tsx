@@ -37,16 +37,29 @@ interface LoadedCourse {
   allSubmissions: SubmissionSummary[]
 }
 
+const BRAND_GRADIENT = 'linear-gradient(135deg, #FFAA00 0%, #FF3B7A 55%, #7B2FFF 100%)'
+
 export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Props) {
   const { role } = useRole()
   const router = useRouter()
   const searchParams = useSearchParams()
-  // null = Home (gallery); string = open course tab
   const [selectedId, setSelectedId] = useState<string | null>(
     searchParams.get('course') ?? null,
   )
   const [loaded, setLoaded] = useState<Record<string, LoadedCourse>>({})
   const [loading, setLoading] = useState(false)
+
+  // Dark body when in teacher mode
+  useEffect(() => {
+    if (role === 'teacher') {
+      document.body.style.backgroundColor = '#090B18'
+    } else {
+      document.body.style.backgroundColor = ''
+    }
+    return () => {
+      document.body.style.backgroundColor = ''
+    }
+  }, [role])
 
   useEffect(() => {
     if (!selectedId) return
@@ -102,18 +115,36 @@ export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Prop
   const activeCourse = selectedId ? loaded[selectedId] : null
 
   return (
-    <div>
-      {/* Tab bar */}
-      <div className="border-b border-slate-200 bg-white px-4 py-3">
+    // Escape the max-w-6xl px-6 py-8 container to go full-bleed dark
+    <div
+      style={{
+        marginLeft: '-1.5rem',
+        marginRight: '-1.5rem',
+        marginTop: '-2rem',
+        minHeight: 'calc(100vh - 3.5rem)',
+      }}
+    >
+      {/* Dark tab bar */}
+      <div
+        className="border-b px-6 py-3"
+        style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+      >
         <div className="overflow-x-auto">
-          <div className="flex w-max gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          <div
+            className="flex w-max gap-1 rounded-xl p-1"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
             <button
               onClick={() => setSelectedId(null)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+              className="rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+              style={
                 selectedId === null
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
+                  ? { background: BRAND_GRADIENT, color: 'white' }
+                  : { color: 'rgba(238,240,255,0.45)' }
+              }
             >
               Home
             </button>
@@ -121,11 +152,12 @@ export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Prop
               <button
                 key={c.id}
                 onClick={() => setSelectedId(c.id)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                className="rounded-lg px-4 py-2 text-sm font-semibold transition-all"
+                style={
                   selectedId === c.id
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
+                    ? { background: BRAND_GRADIENT, color: 'white' }
+                    : { color: 'rgba(238,240,255,0.45)' }
+                }
               >
                 {c.title}
               </button>
@@ -134,8 +166,8 @@ export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Prop
         </div>
       </div>
 
-      {/* Content area */}
-      <div className="px-4 py-8">
+      {/* Content */}
+      <div className="px-6 py-8">
         {selectedId === null ? (
           <TeacherDashboard
             data={teacherDashboard}
@@ -146,7 +178,10 @@ export function HomeContent({ teacherDashboard, studentDashboard, drafts }: Prop
             onDiscardDraft={handleDiscardDraft}
           />
         ) : loading && !activeCourse ? (
-          <div className="flex items-center justify-center py-24 text-sm text-slate-400">
+          <div
+            className="flex items-center justify-center py-24 text-sm"
+            style={{ color: 'rgba(238,240,255,0.35)' }}
+          >
             Loading…
           </div>
         ) : activeCourse ? (

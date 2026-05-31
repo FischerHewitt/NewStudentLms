@@ -1,44 +1,111 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useMemo, useState, useTransition } from 'react'
 import { checkOffAssignment } from '@/app/actions/assignment'
 import { filterOpenAssignments } from '@/lib/studentDashboard'
 import type {
-  StudentDashboardCourse,
   StudentDashboardAssignment,
+  StudentDashboardCourse,
 } from '@/app/actions/dashboard'
 
-// ─── Color palette ────────────────────────────────────────────────────────────
+type StudentTab = 'overview' | 'grades' | 'messages'
+type WorkView = 'todo' | 'completed'
 
-const PALETTE = ['indigo', 'violet', 'emerald', 'amber', 'rose', 'cyan'] as const
+interface Props {
+  courses: StudentDashboardCourse[]
+  assignments: StudentDashboardAssignment[]
+  initialTab?: StudentTab
+  initialCourseId?: string | null
+  initialWorkView?: WorkView
+}
+
+const PALETTE = ['purple', 'emerald', 'orange', 'pink', 'slate'] as const
 type PaletteColor = (typeof PALETTE)[number]
 
 const COLORS: Record<PaletteColor, {
-  pill: string; border: string; leftBar: string; leftBarFaint: string
-  dot: string; ring: string; bar: string
+  accent: string
+  border: string
+  bar: string
+  pill: string
+  dot: string
+  soft: string
 }> = {
-  indigo:  { pill: 'bg-indigo-100 text-indigo-700',   border: 'border-l-indigo-400',  leftBar: 'bg-indigo-400',  leftBarFaint: 'bg-indigo-200',  dot: 'bg-indigo-400',  ring: 'ring-indigo-300',  bar: 'bg-indigo-400' },
-  violet:  { pill: 'bg-violet-100 text-violet-700',   border: 'border-l-violet-400',  leftBar: 'bg-violet-400',  leftBarFaint: 'bg-violet-200',  dot: 'bg-violet-400',  ring: 'ring-violet-300',  bar: 'bg-violet-400' },
-  emerald: { pill: 'bg-emerald-100 text-emerald-700', border: 'border-l-emerald-400', leftBar: 'bg-emerald-400', leftBarFaint: 'bg-emerald-200', dot: 'bg-emerald-400', ring: 'ring-emerald-300', bar: 'bg-emerald-400' },
-  amber:   { pill: 'bg-amber-100 text-amber-700',     border: 'border-l-amber-400',   leftBar: 'bg-amber-400',   leftBarFaint: 'bg-amber-200',   dot: 'bg-amber-400',   ring: 'ring-amber-300',   bar: 'bg-amber-400' },
-  rose:    { pill: 'bg-rose-100 text-rose-700',       border: 'border-l-rose-400',    leftBar: 'bg-rose-400',    leftBarFaint: 'bg-rose-200',    dot: 'bg-rose-400',    ring: 'ring-rose-300',    bar: 'bg-rose-400' },
-  cyan:    { pill: 'bg-cyan-100 text-cyan-700',       border: 'border-l-cyan-400',    leftBar: 'bg-cyan-400',    leftBarFaint: 'bg-cyan-200',    dot: 'bg-cyan-400',    ring: 'ring-cyan-300',    bar: 'bg-cyan-400' },
+  purple: {
+    accent: 'text-[#7C3AED]',
+    border: 'border-l-[#7C3AED]',
+    bar: 'bg-[#7C3AED]',
+    pill: 'bg-violet-100 text-violet-700',
+    dot: 'bg-[#7C3AED]',
+    soft: 'bg-violet-50',
+  },
+  emerald: {
+    accent: 'text-emerald-600',
+    border: 'border-l-emerald-500',
+    bar: 'bg-emerald-500',
+    pill: 'bg-emerald-100 text-emerald-700',
+    dot: 'bg-emerald-500',
+    soft: 'bg-emerald-50',
+  },
+  orange: {
+    accent: 'text-orange-600',
+    border: 'border-l-orange-500',
+    bar: 'bg-orange-500',
+    pill: 'bg-orange-100 text-orange-700',
+    dot: 'bg-orange-500',
+    soft: 'bg-orange-50',
+  },
+  pink: {
+    accent: 'text-pink-600',
+    border: 'border-l-pink-500',
+    bar: 'bg-pink-500',
+    pill: 'bg-pink-100 text-pink-700',
+    dot: 'bg-pink-500',
+    soft: 'bg-pink-50',
+  },
+  slate: {
+    accent: 'text-slate-600',
+    border: 'border-l-slate-500',
+    bar: 'bg-slate-500',
+    pill: 'bg-slate-100 text-slate-700',
+    dot: 'bg-slate-500',
+    soft: 'bg-slate-50',
+  },
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function assignColor(index: number): PaletteColor {
   return PALETTE[index % PALETTE.length]
 }
 
 function courseCode(title: string): string {
+  const match = title.match(/[A-Z]{2,}\s*\d{2,}/)
+  if (match) return match[0].replace(/\s+/, '')
+
   const words = title
     .split(/\s+/)
-    .filter((w) => w.length > 2 && !/^(the|and|for|with|in|of|a|an|to|is)$/i.test(w))
-  if (words.length === 0) return title.slice(0, 4).toUpperCase()
-  return words.map((w) => w[0].toUpperCase()).join('').slice(0, 5)
+    .filter((word) => word.length > 2 && !/^(the|and|for|with|of)$/i.test(word))
+
+  return (words.length ? words : [title])
+    .map((word) => word[0]?.toUpperCase() ?? '')
+    .join('')
+    .slice(0, 5)
+}
+
+function isOpenAssignment(assignment: StudentDashboardAssignment): boolean {
+  return assignment.status === 'not-started' || assignment.status === 'in-progress'
+}
+
+function courseGradeStats(assignments: StudentDashboardAssignment[], courseId: string) {
+  const graded = assignments.filter(
+    (assignment) => assignment.courseId === courseId && assignment.status === 'graded',
+  )
+  const earned = graded.reduce((sum, assignment) => sum + (assignment.grade ?? 0), 0)
+  const total = graded.reduce((sum, assignment) => sum + assignment.points, 0)
+
+  if (total === 0) return null
+  return { earned, total, pct: Math.round((earned / total) * 100) }
 }
 
 function letterGrade(pct: number): string {
@@ -52,28 +119,14 @@ function letterGrade(pct: number): string {
   return 'D'
 }
 
-function gradeTextCls(pct: number): string {
-  if (pct >= 90) return 'text-emerald-600'
-  if (pct >= 80) return 'text-indigo-600'
-  if (pct >= 70) return 'text-amber-600'
-  return 'text-red-600'
-}
-
-function gradeBarCls(pct: number): string {
-  if (pct >= 90) return 'bg-emerald-400'
-  if (pct >= 80) return 'bg-indigo-400'
-  if (pct >= 70) return 'bg-amber-400'
-  return 'bg-red-400'
-}
-
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
 function daysUntil(due: string): number {
-  const today = new Date(todayStr())
-  const d = new Date(due)
-  return Math.ceil((d.getTime() - today.getTime()) / 86400000)
+  const today = new Date(`${todayStr()}T12:00:00`)
+  const date = new Date(`${due}T12:00:00`)
+  return Math.ceil((date.getTime() - today.getTime()) / 86400000)
 }
 
 function dateLabel(due: string): string {
@@ -81,243 +134,444 @@ function dateLabel(due: string): string {
   if (days < 0) return 'Overdue'
   if (days === 0) return 'Today'
   if (days === 1) return 'Tomorrow'
-  return new Date(due + 'T12:00:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'short', day: 'numeric',
+  return new Date(`${due}T12:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
   })
 }
 
-function getCenteredDates(dayOffset: number): { date: string; label: string }[] {
-  const today = new Date()
-  const center = new Date(today)
-  center.setDate(today.getDate() + dayOffset)
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(center)
-    d.setDate(center.getDate() - 3 + i)
-    return { date: d.toISOString().slice(0, 10), label: dayLabels[d.getDay()] }
+function getWeekDates(dayOffset: number): { date: string; label: string }[] {
+  const center = new Date()
+  center.setDate(center.getDate() + dayOffset)
+  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(center)
+    date.setDate(center.getDate() - 3 + index)
+    return {
+      date: date.toISOString().slice(0, 10),
+      label: labels[date.getDay()],
+    }
   })
 }
 
-function calcStreak(submittedAts: (string | null)[]): number {
-  const days = new Set(
-    submittedAts.filter(Boolean).map((s) => s!.slice(0, 10)),
-  )
-  let streak = 0
-  const today = new Date()
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    if (days.has(d.toISOString().slice(0, 10))) streak++
-    else break
+function buildAiCoachInsight(
+  courses: StudentDashboardCourse[],
+  assignments: StudentDashboardAssignment[],
+): string {
+  if (courses.length === 0) {
+    return 'Once your teacher publishes a Course, I will help you spot what needs attention first.'
   }
-  return streak
+
+  const nextOpen = assignments
+    .filter((assignment) => isOpenAssignment(assignment) && assignment.due)
+    .sort((a, b) => new Date(a.due!).getTime() - new Date(b.due!).getTime())[0]
+
+  if (!nextOpen) {
+    return 'You are caught up on visible work. Use this window to review materials before the next Module opens.'
+  }
+
+  const course = courses.find((item) => item.id === nextOpen.courseId)
+  return `Your next priority is ${nextOpen.title}${course ? ` in ${course.title}` : ''}. Review the materials before ${dateLabel(nextOpen.due!)} so the assignment does not sneak up on you.`
 }
 
-function courseGradeStats(assignments: StudentDashboardAssignment[], courseId: string) {
-  const graded = assignments.filter((a) => a.courseId === courseId && a.status === 'graded')
-  const earned = graded.reduce((s, a) => s + (a.grade ?? 0), 0)
-  const total = graded.reduce((s, a) => s + a.points, 0)
-  return total > 0 ? { pct: Math.round((earned / total) * 100), earned, total } : null
+function groupOpenAssignments(assignments: StudentDashboardAssignment[]) {
+  const groups: Record<string, StudentDashboardAssignment[]> = {}
+  for (const assignment of assignments) {
+    if (!assignment.due) continue
+    const key = assignment.due
+    groups[key] = groups[key] ? [...groups[key], assignment] : [assignment]
+  }
+  return Object.keys(groups)
+    .sort()
+    .map((date) => ({ date, label: dateLabel(date), assignments: groups[date] }))
 }
 
-// ─── CourseGradeCards (left pane) ─────────────────────────────────────────────
+function switchToTeacher() {
+  localStorage.setItem('lms_active_role', 'teacher')
+  window.location.href = '/dashboard'
+}
 
-interface CourseGradeCardsProps {
+function StudentSidebar() {
+  const navItems = [
+    ['dashboard', 'Dashboard'],
+    ['school', 'My Courses'],
+    ['assignment', 'Assignments'],
+    ['psychology', 'AI Coach'],
+    ['calendar_month', 'Calendar'],
+    ['local_library', 'Library'],
+  ]
+
+  return (
+    <aside className="flex border-slate-200 bg-white lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:border-r">
+      <div className="hidden h-full flex-col p-6 lg:flex">
+        <div className="mb-8 flex items-center gap-3">
+          <Image src="/alumos-icon.png" alt="" width={40} height={40} className="h-10 w-10 rounded-lg" />
+          <span className="font-heading text-2xl font-bold text-slate-950">Alumos</span>
+        </div>
+
+        <div className="mb-8 flex items-center gap-3 rounded-xl bg-slate-50 p-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white ring-1 ring-slate-200">
+            <span className="material-symbols-outlined text-slate-700">person</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-950">Alex Rivers</p>
+            <p className="text-xs text-slate-500">Computer Science Year 2</p>
+          </div>
+        </div>
+
+        <nav className="space-y-2" aria-label="Student">
+          {navItems.map(([icon, label], index) => (
+            <button
+              key={label}
+              type="button"
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-semibold transition ${
+                index === 0
+                  ? 'bg-slate-950 text-white'
+                  : 'text-slate-700 hover:bg-slate-50 hover:text-slate-950'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[22px]">{icon}</span>
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="mt-auto space-y-3 border-t border-slate-200 pt-5">
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+          >
+            <span className="material-symbols-outlined text-[20px]">psychology</span>
+            Ask AI Coach
+          </button>
+          <button
+            type="button"
+            onClick={switchToTeacher}
+            className="flex w-full items-center justify-center rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+          >
+            Teacher View
+          </button>
+        </div>
+      </div>
+
+      <div className="flex w-full items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 lg:hidden">
+        <div className="flex items-center gap-2">
+          <Image src="/alumos-icon.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
+          <div>
+            <span className="text-xl font-bold leading-tight text-slate-950">Alumos</span>
+            <p className="text-xs font-semibold text-slate-500">Alex Rivers</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={switchToTeacher}
+          className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white"
+        >
+          Teacher View
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+function StudentTopBar({
+  activeTab,
+  setActiveTab,
+}: {
+  activeTab: StudentTab
+  setActiveTab: (tab: StudentTab) => void
+}) {
+  const tabs: { id: StudentTab; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'grades', label: 'Grades' },
+    { id: 'messages', label: 'Messages' },
+  ]
+
+  return (
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-[#F8FAFC]/90 px-4 backdrop-blur-md sm:px-8">
+      <div className="flex h-full items-center gap-8">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`relative h-full px-1 text-sm font-semibold transition sm:text-base ${
+              activeTab === tab.id ? 'text-slate-950' : 'text-slate-500 hover:text-slate-950'
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-orange-500" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden items-center gap-3 sm:flex">
+        <button type="button" aria-label="Notifications" className="rounded-full p-2 text-slate-700 hover:bg-white">
+          <span className="material-symbols-outlined">notifications</span>
+        </button>
+        <button type="button" aria-label="Theme" className="rounded-full p-2 text-slate-700 hover:bg-white">
+          <span className="material-symbols-outlined">dark_mode</span>
+        </button>
+        <button type="button" className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-white hover:bg-orange-600">
+          Check In
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function InsightBanner({
+  courses,
+  assignments,
+}: {
+  courses: StudentDashboardCourse[]
+  assignments: StudentDashboardAssignment[]
+}) {
+  return (
+    <section className="rounded-2xl border-2 border-transparent bg-gradient-to-r from-orange-500 via-pink-500 to-violet-600 p-[3px]">
+      <div className="flex flex-col gap-5 rounded-[14px] bg-white p-5 sm:flex-row sm:items-center sm:p-7">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 via-pink-500 to-violet-600 text-white shadow-lg">
+          <span className="material-symbols-outlined">psychology</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-slate-950">AI Coach Insights</h2>
+            <span className="material-symbols-outlined text-[20px] text-violet-600">auto_awesome</span>
+          </div>
+          <p className="max-w-3xl text-sm leading-6 text-slate-700 sm:text-base">
+            {buildAiCoachInsight(courses, assignments)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className="rounded-lg bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-700">
+            Accept Schedule
+          </button>
+          <button type="button" className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function CourseCards({
+  courses,
+  assignments,
+  colorByCourse,
+  codeByCourse,
+  selectedCourseId,
+  setSelectedCourseId,
+}: {
   courses: StudentDashboardCourse[]
   assignments: StudentDashboardAssignment[]
   colorByCourse: Record<string, PaletteColor>
   codeByCourse: Record<string, string>
-  filter: string | null
-  setFilter: (id: string | null) => void
-}
-
-function CourseGradeCards({
-  courses, assignments, colorByCourse, codeByCourse, filter, setFilter,
-}: CourseGradeCardsProps) {
+  selectedCourseId: string | null
+  setSelectedCourseId: (courseId: string | null) => void
+}) {
   return (
-    <div className="w-56 flex-shrink-0 space-y-3">
-      <div className="mb-1 flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Courses</p>
-        {filter && (
-          <button onClick={() => setFilter(null)} className="text-xs text-indigo-600 hover:underline">
-            All
+    <section>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Courses</h2>
+        {selectedCourseId && (
+          <button type="button" onClick={() => setSelectedCourseId(null)} className="text-sm font-semibold text-violet-600">
+            All courses
           </button>
         )}
       </div>
 
-      {courses.map((c) => {
-        const color = colorByCourse[c.id]
-        const col = COLORS[color]
-        const g = courseGradeStats(assignments, c.id)
-        const openCount = assignments.filter(
-          (a) => a.courseId === c.id && (a.status === 'not-started' || a.status === 'in-progress'),
-        ).length
-        const isActive = filter === c.id
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+        {courses.map((course) => {
+          const color = COLORS[colorByCourse[course.id]]
+          const stats = courseGradeStats(assignments, course.id)
+          const openCount = assignments.filter(
+            (assignment) => assignment.courseId === course.id && isOpenAssignment(assignment),
+          ).length
+          const selected = selectedCourseId === course.id
 
-        return (
-          <button
-            key={c.id}
-            onClick={() => setFilter(isActive ? null : c.id)}
-            className={`w-full rounded-2xl border border-l-4 bg-white px-4 py-3 text-left shadow-sm transition hover:shadow-md ${col.border} ${isActive ? `ring-2 ${col.ring}` : ''}`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${col.pill}`}>
-                  {codeByCourse[c.id]}
+          return (
+            <button
+              key={course.id}
+              type="button"
+              onClick={() => setSelectedCourseId(selected ? null : course.id)}
+              className={`rounded-xl border border-l-4 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${color.border} ${
+                selected ? 'ring-2 ring-violet-300' : ''
+              }`}
+            >
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${color.pill}`}>
+                  {codeByCourse[course.id]}
                 </span>
-                <p className="mt-1 text-sm font-bold leading-tight text-slate-800">{c.title}</p>
-                <p className="truncate text-xs text-slate-400">{c.teacherName}</p>
+                {stats ? (
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-emerald-600">{letterGrade(stats.pct)}</p>
+                    <p className="text-xs text-slate-600">{stats.pct}%</p>
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-slate-500">No grades</p>
+                )}
               </div>
-              {g ? (
-                <div className="flex-shrink-0 text-right">
-                  <p className={`text-xl font-bold leading-none ${gradeTextCls(g.pct)}`}>
-                    {letterGrade(g.pct)}
-                  </p>
-                  <p className="text-xs font-semibold text-slate-400">{g.pct}%</p>
+              <h3 className="text-lg font-semibold leading-tight text-slate-950">{course.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{course.teacherName}</p>
+              {stats && (
+                <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${stats.pct}%` }} />
                 </div>
-              ) : (
-                <p className="flex-shrink-0 text-xs italic text-slate-300">No grades</p>
               )}
-            </div>
-            {g && (
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full ${gradeBarCls(g.pct)}`} style={{ width: `${g.pct}%` }} />
-              </div>
-            )}
-            {openCount > 0 && (
-              <p className="mt-1.5 text-xs font-semibold text-amber-600">{openCount} open</p>
-            )}
-          </button>
-        )
-      })}
-    </div>
+              <p className="mt-6 text-sm font-semibold text-orange-600">{openCount} open</p>
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
-// ─── WeekStrip ────────────────────────────────────────────────────────────────
-
-interface WeekStripProps {
+function WeekStrip({
+  assignments,
+  colorByCourse,
+  dayFilter,
+  setDayFilter,
+  workView,
+  setWorkView,
+  openCount,
+  completedCount,
+}: {
   assignments: StudentDashboardAssignment[]
   colorByCourse: Record<string, PaletteColor>
   dayFilter: string | null
-  setDayFilter: (d: string | null) => void
-}
-
-function WeekStrip({ assignments, colorByCourse, dayFilter, setDayFilter }: WeekStripProps) {
+  setDayFilter: (day: string | null) => void
+  workView: WorkView
+  setWorkView: (view: WorkView) => void
+  openCount: number
+  completedCount: number
+}) {
   const [weekOffset, setWeekOffset] = useState(0)
-  const week = getCenteredDates(weekOffset)
+  const week = getWeekDates(weekOffset)
   const today = todayStr()
 
-  const centerDate = week[3].date
-  const centerD = new Date(centerDate + 'T12:00:00')
-  const weekLabel = centerD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      {/* Nav row */}
-      <div className="mb-3 flex items-center justify-between">
-        <button
-          onClick={() => setWeekOffset((o) => o - 7)}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
-        >
-          ‹
-        </button>
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-950">This Week</p>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500">{weekLabel}</span>
-          {weekOffset !== 0 && (
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition"
-            >
-              Today
-            </button>
-          )}
+          <button type="button" onClick={() => setWeekOffset((value) => value - 7)} className="rounded-full p-2 text-slate-500 hover:bg-slate-50">
+            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full px-3 py-1 text-xs font-semibold text-violet-600 hover:bg-violet-50">
+            Today
+          </button>
+          <button type="button" onClick={() => setWeekOffset((value) => value + 7)} className="rounded-full p-2 text-slate-500 hover:bg-slate-50">
+            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
         </div>
+      </div>
+      <div
+        aria-label="Weekly assignment status"
+        className="mb-5 grid grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1"
+      >
         <button
-          onClick={() => setWeekOffset((o) => o + 7)}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+          type="button"
+          aria-label={`To-Do ${openCount}`}
+          onClick={() => setWorkView('todo')}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            workView === 'todo'
+              ? 'bg-violet-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-white hover:text-slate-950'
+          }`}
         >
-          ›
+          To-Do
+          <span className={`ml-2 rounded-md px-2 py-0.5 text-xs ${
+            workView === 'todo' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {openCount}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-label={`Completed ${completedCount}`}
+          onClick={() => setWorkView('completed')}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+            workView === 'completed'
+              ? 'bg-violet-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-white hover:text-slate-950'
+          }`}
+        >
+          Completed
+          <span className={`ml-2 rounded-md px-2 py-0.5 text-xs ${
+            workView === 'completed' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {completedCount}
+          </span>
         </button>
       </div>
-
-      {/* Day columns */}
       <div className="grid grid-cols-7 gap-1">
         {week.map(({ date, label }) => {
           const items = assignments.filter(
-            (a) => a.due === date && a.status !== 'graded' && a.status !== 'submitted',
+            (assignment) => assignment.due === date && isOpenAssignment(assignment),
           )
+          const active = dayFilter === date
           const isToday = date === today
-          const isPast = daysUntil(date) < 0
-          const isActive = dayFilter === date
-          const totalPts = items.reduce((s, a) => s + a.points, 0)
+          const totalPoints = items.reduce((sum, assignment) => sum + assignment.points, 0)
 
           return (
             <button
               key={date}
-              onClick={() => setDayFilter(isActive ? null : date)}
-              className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 transition ${
-                isActive ? 'bg-indigo-600 text-white'
-                : isToday ? 'bg-indigo-50'
-                : 'hover:bg-slate-50'
+              type="button"
+              onClick={() => setDayFilter(active ? null : date)}
+              className={`min-h-24 rounded-lg px-2 py-3 text-center transition ${
+                active
+                  ? 'bg-violet-600 text-white'
+                  : isToday
+                    ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
+                    : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span className={`text-xs font-semibold ${isActive ? 'text-white' : isPast ? 'text-slate-300' : 'text-slate-500'}`}>
-                {label}
-              </span>
-              <span className={`text-sm font-bold ${isActive ? 'text-white' : isToday ? 'text-indigo-600' : isPast ? 'text-slate-300' : 'text-slate-800'}`}>
-                {new Date(date + 'T12:00:00').getDate()}
-              </span>
-              <div className="flex gap-0.5">
-                {items.slice(0, 3).map((a) => (
+              <span className="block text-xs font-medium">{label}</span>
+              <span className="mt-1 block text-xl font-semibold">{new Date(`${date}T12:00:00`).getDate()}</span>
+              <span className="mt-3 flex justify-center gap-1">
+                {items.slice(0, 3).map((assignment) => (
                   <span
-                    key={a.id}
-                    className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-white/70' : COLORS[colorByCourse[a.courseId]].dot}`}
+                    key={assignment.id}
+                    className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-white' : COLORS[colorByCourse[assignment.courseId]].dot}`}
                   />
                 ))}
-              </div>
-              {totalPts > 0 && (
-                <span className={`text-xs font-medium ${isActive ? 'text-white/80' : 'text-slate-400'}`}>
-                  {totalPts}pt
+              </span>
+              {totalPoints > 0 && (
+                <span className={`mt-1 block text-xs font-semibold ${active ? 'text-white' : 'text-emerald-600'}`}>
+                  {totalPoints}pt
                 </span>
               )}
             </button>
           )
         })}
       </div>
-
-      {dayFilter && (
-        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
-          <span className="text-xs text-slate-500">Showing {dateLabel(dayFilter)}</span>
-          <button onClick={() => setDayFilter(null)} className="text-xs text-indigo-600 hover:underline">
-            Show all
-          </button>
-        </div>
-      )}
-    </div>
+    </section>
   )
 }
 
-// ─── TodoAgenda ───────────────────────────────────────────────────────────────
-
-interface TodoAgendaProps {
+function AssignmentChecklist({
+  assignments,
+  colorByCourse,
+  codeByCourse,
+}: {
   assignments: StudentDashboardAssignment[]
   colorByCourse: Record<string, PaletteColor>
   codeByCourse: Record<string, string>
-  courseFilter: string | null
-  dayFilter: string | null
-}
-
-function TodoAgenda({
-  assignments, colorByCourse, codeByCourse, courseFilter, dayFilter,
-}: TodoAgendaProps) {
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [checkingOff, setCheckingOff] = useState<string | null>(null)
+  const groups = groupOpenAssignments(assignments)
 
-  function handleCheckOff(e: React.MouseEvent, assignmentId: string) {
-    e.preventDefault()
-    e.stopPropagation()
+  function handleCheckOff(event: React.MouseEvent, assignmentId: string) {
+    event.preventDefault()
+    event.stopPropagation()
     setCheckingOff(assignmentId)
     startTransition(async () => {
       await checkOffAssignment(assignmentId)
@@ -325,330 +579,359 @@ function TodoAgenda({
       setCheckingOff(null)
     })
   }
-  const open = filterOpenAssignments(assignments, courseFilter, dayFilter)
-    .sort((a, b) => new Date(a.due!).getTime() - new Date(b.due!).getTime())
 
-  const byDate: Record<string, typeof open> = {}
-  for (const a of open) {
-    const key = a.due!
-    byDate[key] = byDate[key] ? [...byDate[key], a] : [a]
-  }
-  const dateGroups = Object.keys(byDate).sort()
-
-  if (dateGroups.length === 0) {
+  if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-        All caught up! 🎉
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center text-sm text-slate-500">
+        All caught up. New work will appear here when a Course opens it.
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {dateGroups.map((date) => {
-        const days = daysUntil(date)
-        return (
-          <div key={date}>
-            <div className="mb-2 flex items-center gap-2">
-              <span className={`text-sm font-bold ${days < 0 ? 'text-red-600' : days === 1 ? 'text-amber-700' : 'text-slate-700'}`}>
-                {dateLabel(date)}
-              </span>
-              <div className="h-px flex-1 bg-slate-100" />
-            </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              {byDate[date].map((a) => {
-                const col = COLORS[colorByCourse[a.courseId]]
-                const isCheckingThis = checkingOff === a.id
-                return (
-                  <div
-                    key={a.id}
-                    className="flex items-stretch border-b border-slate-50 last:border-0"
+    <section className="space-y-8">
+      {groups.map((group) => (
+        <div key={group.date}>
+          <h3 className={`mb-3 text-sm font-semibold ${group.label === 'Overdue' ? 'text-red-600' : group.label === 'Tomorrow' ? 'text-orange-600' : 'text-slate-950'}`}>
+            {group.label}
+          </h3>
+          <div className="space-y-3">
+            {group.assignments.map((assignment) => {
+              const color = COLORS[colorByCourse[assignment.courseId]]
+              const isCheckingThis = checkingOff === assignment.id
+
+              return (
+                <div key={assignment.id} className={`flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${color.soft}`}>
+                  <Link
+                    href={`/course/${assignment.courseId}/assignment/${assignment.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-4 bg-white px-5 py-4 hover:bg-slate-50"
                   >
-                    <Link
-                      href={`/course/${a.courseId}/assignment/${a.id}`}
-                      className="flex flex-1 items-center gap-0 hover:bg-slate-50 transition"
-                    >
-                      <div className={`w-1 self-stretch flex-shrink-0 ${col.leftBar}`} />
-                      <div className="flex flex-1 items-center gap-3 px-3 py-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-0.5 flex items-center gap-1.5">
-                            <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${col.pill}`}>
-                              {codeByCourse[a.courseId]}
-                            </span>
-                            {a.status === 'in-progress' && (
-                              <span className="text-xs font-medium text-blue-600">In progress</span>
-                            )}
-                          </div>
-                          <p className="truncate text-sm font-semibold text-slate-800">{a.title}</p>
-                          <p className="text-xs text-slate-400">
-                            {a.due} · {a.points}pts
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                    <button
-                      onClick={(e) => handleCheckOff(e, a.id)}
-                      disabled={isPending}
-                      title="Mark as turned in (paper / in-class)"
-                      className="flex w-10 flex-shrink-0 items-center justify-center border-l border-slate-100 text-slate-300 transition hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {isCheckingThis ? (
-                        <span className="text-xs text-slate-400">…</span>
-                      ) : (
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 16 16">
-                          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+                    <span className={`h-7 rounded-md px-2 py-1 text-xs font-bold ${color.pill}`}>
+                      {codeByCourse[assignment.courseId]}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-slate-950">{assignment.title}</p>
+                      <p className="text-sm text-slate-600">{assignment.due} - {assignment.points}pts</p>
+                    </div>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(event) => handleCheckOff(event, assignment.id)}
+                    disabled={isPending}
+                    title="Mark as turned in (paper / in-class)"
+                    className="flex w-14 flex-shrink-0 items-center justify-center border-l border-slate-200 bg-white text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isCheckingThis ? (
+                      <span className="text-xs">...</span>
+                    ) : (
+                      <span className="material-symbols-outlined">check_circle</span>
+                    )}
+                  </button>
+                </div>
+              )
+            })}
           </div>
-        )
-      })}
-    </div>
+        </div>
+      ))}
+    </section>
   )
 }
 
-// ─── CompletedList (Strikethrough style — #23) ────────────────────────────────
-
-interface CompletedListProps {
+function CompletedChecklist({
+  assignments,
+  colorByCourse,
+  codeByCourse,
+}: {
   assignments: StudentDashboardAssignment[]
-  courses: StudentDashboardCourse[]
   colorByCourse: Record<string, PaletteColor>
   codeByCourse: Record<string, string>
-  courseFilter: string | null
-}
+}) {
+  const groups = groupOpenAssignments(assignments)
 
-function CompletedList({
-  assignments, courses, colorByCourse, codeByCourse, courseFilter,
-}: CompletedListProps) {
-  const completed = assignments
-    .filter((a) =>
-      (a.status === 'graded' || a.status === 'submitted')
-      && (!courseFilter || a.courseId === courseFilter),
-    )
-    .sort((a, b) => {
-      if (!a.due && !b.due) return 0
-      if (!a.due) return 1
-      if (!b.due) return -1
-      return new Date(b.due).getTime() - new Date(a.due).getTime()
-    })
-
-  if (completed.length === 0) {
+  if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-        Nothing completed yet.
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center text-sm text-slate-500">
+        Nothing completed yet. Finished and submitted Assignments will show up here.
       </div>
     )
   }
 
-  const visibleCourses = courses.filter(
-    (c) => !courseFilter || c.id === courseFilter,
-  )
-
   return (
-    <div className="space-y-5">
-      {visibleCourses.map((c) => {
-        const items = completed.filter((a) => a.courseId === c.id)
-        if (items.length === 0) return null
-        const col = COLORS[colorByCourse[c.id]]
-        const gradedItems = items.filter((a) => a.status === 'graded')
-        const earnedPts = gradedItems.reduce((s, a) => s + (a.grade ?? 0), 0)
-        const totalPts = gradedItems.reduce((s, a) => s + a.points, 0)
-        const pct = totalPts > 0 ? Math.round((earnedPts / totalPts) * 100) : null
+    <section className="space-y-8">
+      {groups.map((group) => (
+        <div key={group.date}>
+          <h3 className="mb-3 text-sm font-semibold text-slate-950">{group.label}</h3>
+          <div className="space-y-3">
+            {group.assignments.map((assignment) => {
+              const color = COLORS[colorByCourse[assignment.courseId]]
+              const isGraded = assignment.status === 'graded' && assignment.grade !== undefined
 
-        return (
-          <div key={c.id}>
-            <div className="mb-2 flex items-center gap-2">
-              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${col.pill}`}>
-                {codeByCourse[c.id]}
-              </span>
-              {pct !== null && (
-                <span className={`text-xs font-semibold ${gradeTextCls(pct)}`}>
-                  {earnedPts}/{totalPts} pts · {pct}%
-                </span>
-              )}
-              <div className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              {items.map((a) => {
-                const isGraded = a.status === 'graded'
-                const scorePct =
-                  isGraded && a.grade !== undefined
-                    ? Math.round((a.grade / a.points) * 100)
-                    : null
-
-                return (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-0 border-b border-slate-50 last:border-0 bg-slate-50/50"
-                  >
-                    <div className={`w-1 self-stretch flex-shrink-0 opacity-40 ${col.leftBar}`} />
-                    <div className="flex flex-1 items-center gap-3 px-3 py-2.5">
-                      {/* Status circle */}
-                      <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${isGraded ? 'bg-emerald-500' : 'bg-amber-400'}`}>
-                        {isGraded ? (
-                          <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 12 12">
-                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        ) : (
-                          <span className="text-xs leading-none text-white">…</span>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-400 line-through decoration-slate-300">
-                          {a.title}
-                        </p>
-                        <p className="text-xs text-slate-300">{a.due} · {a.points}pts</p>
-                      </div>
-
-                      {isGraded && scorePct !== null && a.grade !== undefined ? (
-                        <div className="flex-shrink-0 text-right">
-                          <p className={`text-sm font-bold ${gradeTextCls(scorePct)}`}>
-                            {a.grade}/{a.points}
-                          </p>
-                          <p className={`text-xs font-semibold ${gradeTextCls(scorePct)}`}>
-                            {scorePct}%
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="flex-shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-600">
-                          Awaiting grade
-                        </span>
-                      )}
+              return (
+                <div
+                  key={assignment.id}
+                  className={`flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm ${color.soft}`}
+                >
+                  <div className="flex min-w-0 items-center gap-4">
+                    <span className={`h-7 rounded-md px-2 py-1 text-xs font-bold ${color.pill}`}>
+                      {codeByCourse[assignment.courseId]}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-slate-950">{assignment.title}</p>
+                      <p className="text-sm text-slate-600">{assignment.due} - {assignment.points}pts</p>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+                  {isGraded ? (
+                    <p className="flex-shrink-0 text-sm font-bold text-emerald-600">
+                      {assignment.grade}/{assignment.points}
+                    </p>
+                  ) : (
+                    <span className="flex-shrink-0 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                      Awaiting grade
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
-        )
-      })}
+        </div>
+      ))}
+    </section>
+  )
+}
+
+function OverviewPanel({
+  courses,
+  assignments,
+  colorByCourse,
+  codeByCourse,
+  selectedCourseId,
+  setSelectedCourseId,
+  initialWorkView,
+}: {
+  courses: StudentDashboardCourse[]
+  assignments: StudentDashboardAssignment[]
+  colorByCourse: Record<string, PaletteColor>
+  codeByCourse: Record<string, string>
+  selectedCourseId: string | null
+  setSelectedCourseId: (courseId: string | null) => void
+  initialWorkView: WorkView
+}) {
+  const [dayFilter, setDayFilter] = useState<string | null>(null)
+  const [workView, setWorkView] = useState<WorkView>(initialWorkView)
+  const visibleAssignments = selectedCourseId
+    ? assignments.filter((assignment) => assignment.courseId === selectedCourseId)
+    : assignments
+  const openAssignments = filterOpenAssignments(visibleAssignments, null, dayFilter)
+  const completedAssignments = visibleAssignments.filter(
+    (assignment) =>
+      (assignment.status === 'graded' || assignment.status === 'submitted') &&
+      (!dayFilter || assignment.due === dayFilter),
+  )
+  const openCount = visibleAssignments.filter(isOpenAssignment).length
+  const completedCount = visibleAssignments.filter(
+    (assignment) => assignment.status === 'graded' || assignment.status === 'submitted',
+  ).length
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="text-xl font-semibold text-slate-950">Welcome back, Alex.</p>
+        <p className="mt-3 text-lg text-slate-700">Here is your academic compass for the week.</p>
+      </div>
+
+      <InsightBanner courses={courses} assignments={assignments} />
+
+      <div className="grid gap-8 xl:grid-cols-[370px_minmax(0,1fr)]">
+        <CourseCards
+          courses={courses}
+          assignments={assignments}
+          colorByCourse={colorByCourse}
+          codeByCourse={codeByCourse}
+          selectedCourseId={selectedCourseId}
+          setSelectedCourseId={setSelectedCourseId}
+        />
+
+        <div className="space-y-8">
+          <WeekStrip
+            assignments={visibleAssignments}
+            colorByCourse={colorByCourse}
+            dayFilter={dayFilter}
+            setDayFilter={setDayFilter}
+            workView={workView}
+            setWorkView={setWorkView}
+            openCount={openCount}
+            completedCount={completedCount}
+          />
+          {workView === 'todo' ? (
+            <AssignmentChecklist
+              assignments={openAssignments}
+              colorByCourse={colorByCourse}
+              codeByCourse={codeByCourse}
+            />
+          ) : (
+            <CompletedChecklist
+              assignments={completedAssignments}
+              colorByCourse={colorByCourse}
+              codeByCourse={codeByCourse}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
-// ─── StudentDashboard (main) ──────────────────────────────────────────────────
-
-interface Props {
+function GradesPanel({
+  courses,
+  assignments,
+  colorByCourse,
+  codeByCourse,
+  selectedCourseId,
+}: {
   courses: StudentDashboardCourse[]
   assignments: StudentDashboardAssignment[]
-}
-
-export function StudentDashboard({ courses, assignments }: Props) {
-  const [courseFilter, setCourseFilter] = useState<string | null>(null)
-  const [tab, setTab] = useState<'todo' | 'completed'>('todo')
-  const [dayFilter, setDayFilter] = useState<string | null>(null)
-
-  // Deterministic color + code per course
-  const colorByCourse: Record<string, PaletteColor> = Object.fromEntries(
-    courses.map((c, i) => [c.id, assignColor(i)]),
-  )
-  const codeByCourse: Record<string, string> = Object.fromEntries(
-    courses.map((c) => [c.id, courseCode(c.title)]),
-  )
-
-  const openCount = assignments.filter(
-    (a) =>
-      (a.status === 'not-started' || a.status === 'in-progress')
-      && (!courseFilter || a.courseId === courseFilter),
-  ).length
-  const completedCount = assignments.filter(
-    (a) =>
-      (a.status === 'graded' || a.status === 'submitted')
-      && (!courseFilter || a.courseId === courseFilter),
-  ).length
-
-  const streak = calcStreak(assignments.map((a) => a.submittedAt))
-
-  const today = new Date()
-  const dayName = today.toLocaleDateString('en-US', { weekday: 'long' })
-  const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+  colorByCourse: Record<string, PaletteColor>
+  codeByCourse: Record<string, string>
+  selectedCourseId: string | null
+}) {
+  const visibleCourses = selectedCourseId
+    ? courses.filter((course) => course.id === selectedCourseId)
+    : courses
 
   return (
-    <div className="mx-auto flex max-w-5xl gap-6 px-4 py-8">
-      {/* Left pane */}
-      <CourseGradeCards
-        courses={courses}
-        assignments={assignments}
-        colorByCourse={colorByCourse}
-        codeByCourse={codeByCourse}
-        filter={courseFilter}
-        setFilter={setCourseFilter}
-      />
+    <section className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-950">Grades</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Only Published Grades are shown here. Submitted work stays private until your teacher publishes the Final Grade.
+        </p>
+      </div>
 
-      {/* Right pane */}
-      <div className="min-w-0 flex-1">
-        {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400">{dayName}, {dateStr}</p>
-            <h1 className="text-lg font-bold text-slate-900">This Week</h1>
-          </div>
-          {streak > 0 && (
-            <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5">
-              <span>🔥</span>
-              <p className="text-xs font-bold text-orange-700">{streak} day streak</p>
+      {visibleCourses.map((course) => {
+        const color = COLORS[colorByCourse[course.id]]
+        const courseAssignments = assignments.filter((assignment) => assignment.courseId === course.id)
+        const completed = courseAssignments.filter(
+          (assignment) => assignment.status === 'graded' || assignment.status === 'submitted',
+        )
+        const stats = courseGradeStats(assignments, course.id)
+
+        return (
+          <article key={course.id} className={`rounded-xl border border-l-4 bg-white p-5 shadow-sm ${color.border}`}>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${color.pill}`}>
+                  {codeByCourse[course.id]}
+                </span>
+                <h2 className="mt-3 text-lg font-semibold text-slate-950">{course.title}</h2>
+                <p className="text-sm text-slate-600">{course.teacherName}</p>
+              </div>
+              {stats ? (
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-emerald-600">{letterGrade(stats.pct)}</p>
+                  <p className="text-sm text-slate-600">{stats.earned}/{stats.total} pts - {stats.pct}%</p>
+                </div>
+              ) : (
+                <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">No grades yet</p>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Tab bar */}
-        <div className="mb-4 flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-          <button
-            onClick={() => setTab('todo')}
-            className={`flex-1 rounded-lg py-1.5 text-sm font-semibold transition ${tab === 'todo' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            To-Do
-            {openCount > 0 && (
-              <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold ${tab === 'todo' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                {openCount}
-              </span>
+            {completed.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                No submitted or graded Assignments yet.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                {completed.map((assignment) => (
+                  <div key={assignment.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-950">{assignment.title}</p>
+                      <p className="text-xs text-slate-500">{assignment.due} - {assignment.points}pts</p>
+                    </div>
+                    {assignment.status === 'graded' && assignment.grade !== undefined ? (
+                      <p className="text-sm font-bold text-emerald-600">{assignment.grade}/{assignment.points}</p>
+                    ) : (
+                      <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                        Awaiting grade
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
-          </button>
-          <button
-            onClick={() => setTab('completed')}
-            className={`flex-1 rounded-lg py-1.5 text-sm font-semibold transition ${tab === 'completed' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            Completed
-            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold ${tab === 'completed' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
-              {completedCount}
-            </span>
-          </button>
-        </div>
+          </article>
+        )
+      })}
+    </section>
+  )
+}
 
-        {tab === 'todo' ? (
-          <>
-            <div className="mb-5">
-              <WeekStrip
-                assignments={courseFilter ? assignments.filter((a) => a.courseId === courseFilter) : assignments}
-                colorByCourse={colorByCourse}
-                dayFilter={dayFilter}
-                setDayFilter={setDayFilter}
-              />
-            </div>
-            <TodoAgenda
+function MessagesPanel() {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+        <span className="material-symbols-outlined">mail</span>
+      </div>
+      <h1 className="mt-5 text-2xl font-semibold text-slate-950">Messages are coming soon</h1>
+      <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">
+        Course messages will live here once messaging is connected. For now, keep using Assignments and AI Coach to stay oriented.
+      </p>
+      <button type="button" className="mt-6 rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+        Back to current work
+      </button>
+    </section>
+  )
+}
+
+export function StudentDashboard({
+  courses,
+  assignments,
+  initialTab = 'overview',
+  initialCourseId = null,
+  initialWorkView = 'todo',
+}: Props) {
+  const [activeTab, setActiveTab] = useState<StudentTab>(initialTab)
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(initialCourseId)
+
+  const colorByCourse = useMemo(
+    () => Object.fromEntries(courses.map((course, index) => [course.id, assignColor(index)])) as Record<string, PaletteColor>,
+    [courses],
+  )
+  const codeByCourse = useMemo(
+    () => Object.fromEntries(courses.map((course) => [course.id, courseCode(course.title)])) as Record<string, string>,
+    [courses],
+  )
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-950 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+      <StudentSidebar />
+
+      <div className="min-w-0">
+        <StudentTopBar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <main className="mx-auto max-w-[1280px] px-4 py-8 sm:px-8">
+          {activeTab === 'overview' && (
+            <OverviewPanel
+              courses={courses}
               assignments={assignments}
               colorByCourse={colorByCourse}
               codeByCourse={codeByCourse}
-              courseFilter={courseFilter}
-              dayFilter={dayFilter}
+              selectedCourseId={selectedCourseId}
+              setSelectedCourseId={setSelectedCourseId}
+              initialWorkView={initialWorkView}
             />
-          </>
-        ) : (
-          <CompletedList
-            assignments={assignments}
-            courses={courses}
-            colorByCourse={colorByCourse}
-            codeByCourse={codeByCourse}
-            courseFilter={courseFilter}
-          />
-        )}
+          )}
+
+          {activeTab === 'grades' && (
+            <GradesPanel
+              courses={courses}
+              assignments={assignments}
+              colorByCourse={colorByCourse}
+              codeByCourse={codeByCourse}
+              selectedCourseId={selectedCourseId}
+            />
+          )}
+
+          {activeTab === 'messages' && <MessagesPanel />}
+        </main>
       </div>
     </div>
   )

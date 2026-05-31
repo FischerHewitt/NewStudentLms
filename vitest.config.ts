@@ -11,7 +11,7 @@ export default defineConfig({
     // integration tests (require SUPABASE_SERVICE_ROLE_KEY from .env.local).
     // Run snapshots: npm run test:slow
     // Run real-DB tests: NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx vitest run lib/__tests__/integration/course-structure-persistence.integration.test.ts
-    exclude: ['**/node_modules/**', '**/snapshots/**', 'tests/e2e/**', '**/course-structure-persistence.integration.test.ts'],
+    exclude: ['**/node_modules/**', '**/snapshots/**', 'tests/e2e/**', '.claude/worktrees/**', '**/course-structure-persistence.integration.test.ts'],
   },
   resolve: {
     alias: {

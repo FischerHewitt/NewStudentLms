@@ -30,6 +30,23 @@ type FlowState = 'idle' | 'generating' | 'review' | 'saving' | 'error'
 type InputMode = 'upload' | 'paste' | 'manual'
 type DurationPart = 'weeks' | 'days'
 
+const LI = {
+  surfaceLow: '#f6f3f5',
+  outlineVariant: '#c6c6cd',
+  onSurface: '#1b1b1d',
+  onSurfaceVariant: '#45464d',
+  alumosPurple: '#7C3AED',
+}
+const AI_GRADIENT = 'linear-gradient(135deg, #F59E0B 0%, #EC4899 50%, #7C3AED 100%)'
+
+const SHORTCUTS = [
+  'Generate a complete syllabus first',
+  'Set the course start date',
+  'One module per week',
+  'Keep pages simple and visual',
+  'Course length is __ weeks and __ days',
+]
+
 interface Props {
   /** Pre-loaded draft from an explicit Resume action on the home page */
   draft?: { courseId: string; preview: CoursePreview; syllabus: string; metadata: CourseMetadataInput; draftKey: string | null } | null
@@ -464,119 +481,171 @@ export function GenerateFlow({ draft }: Props) {
         ? syllabus.trim().length > 0
         : uploadedFiles.length > 0 || aiInstructions.trim().length > 0
 
-  const aiInstructionShortcuts = [
-    'Generate a complete syllabus before creating modules and assignments.',
-    'Set the course start date to [YYYY-MM-DD].',
-    'My course is [number] weeks and [number] days long.',
-    'Create one module per week and keep module names consistent.',
-    'Keep pages simple: use clear headings, concise text, and 2-3 visuals where helpful.',
-  ]
-
   if (flowState === 'idle') {
     return (
       <>
         <TeacherCoachContextBridge context={{ syllabus }} />
-        <div className="mx-auto max-w-2xl pb-80">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            Create a course from your syllabus
-          </h1>
-          <p className="mt-2 text-slate-500">
-            Upload your documents or paste text. AI will generate modules,
-            assignments, due dates, and rubrics in seconds.
-          </p>
-        </div>
+        <div className="mx-auto max-w-[1280px]">
+          {/* Page header */}
+          <div className="mb-6">
+            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: LI.onSurfaceVariant }}>
+              ✦ New Course
+            </p>
+            <h1 className="mt-1 text-2xl font-bold" style={{ color: LI.onSurface, fontFamily: 'var(--font-hanken, system-ui)' }}>
+              Create from your syllabus
+            </h1>
+            <p className="mt-1 text-sm" style={{ color: LI.onSurfaceVariant }}>
+              Upload materials or paste text — AI generates modules, assignments, and rubrics in seconds.
+            </p>
+          </div>
 
-        {/* ── Input mode tabs ── */}
-        <div className="mb-5 flex gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
-          {(['upload', 'paste', 'manual'] as InputMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setInputMode(m)}
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition ${
-                inputMode === m
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {m === 'upload' ? 'Upload' : m === 'paste' ? 'Paste text' : 'Manual'}
-            </button>
-          ))}
-        </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* Left: main input (2/3) */}
+            <div className="space-y-4 lg:col-span-2">
+              {/* Course Materials card */}
+              <section className="rounded-2xl p-6" style={{ background: '#fff', border: '1px solid ' + LI.outlineVariant }}>
+                <h2 className="mb-4 text-[11px] font-bold uppercase tracking-widest" style={{ color: LI.onSurfaceVariant }}>
+                  Course Materials
+                </h2>
+                {/* Tabs */}
+                <div className="mb-4 flex gap-1 rounded-xl p-1" style={{ background: LI.surfaceLow, border: '1px solid ' + LI.outlineVariant }}>
+                  {(['upload', 'paste', 'manual'] as InputMode[]).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setInputMode(m)}
+                      className="flex-1 rounded-lg py-1.5 text-sm font-medium transition"
+                      style={
+                        inputMode === m
+                          ? { background: '#fff', color: LI.onSurface, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                          : { color: LI.onSurfaceVariant }
+                      }
+                    >
+                      {m === 'upload' ? 'Upload' : m === 'paste' ? 'Paste text' : 'Manual'}
+                    </button>
+                  ))}
+                </div>
 
-        {inputMode === 'upload' && (
-          <MultiDropzone files={uploadedFiles} onFiles={setUploadedFiles} />
-        )}
+                {inputMode === 'upload' && (
+                  <MultiDropzone files={uploadedFiles} onFiles={setUploadedFiles} />
+                )}
 
-        {inputMode === 'paste' && (
-          <RichTextarea
-            value={syllabus}
-            onChange={setSyllabus}
-            placeholder="Paste your syllabus here…"
-            rows={16}
-            autoFocus
-          />
-        )}
+                {inputMode === 'paste' && (
+                  <RichTextarea
+                    value={syllabus}
+                    onChange={setSyllabus}
+                    placeholder="Paste your syllabus here…"
+                    rows={12}
+                    autoFocus
+                  />
+                )}
 
-        {inputMode !== 'manual' && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-400">
-              AI instructions
-            </label>
-            <textarea
-              value={aiInstructions}
-              onChange={(e) => setAiInstructions(e.target.value)}
-              placeholder="Tell AI what to do with the uploaded or pasted material..."
-              rows={5}
-              className="w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
-            />
-            <div className="mt-3 flex flex-wrap gap-2">
-              {aiInstructionShortcuts.map((instruction) => (
+                {inputMode === 'manual' && (
+                  <div
+                    className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed p-10 text-center"
+                    style={{ borderColor: LI.outlineVariant, background: LI.surfaceLow }}
+                  >
+                    <span className="material-symbols-outlined text-[36px]" style={{ color: LI.alumosPurple }}>edit_note</span>
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: LI.onSurface }}>Build structure from scratch</p>
+                      <p className="mt-1 text-xs" style={{ color: LI.onSurfaceVariant }}>Add modules and assignments manually in the next step.</p>
+                    </div>
+                    <button
+                      onClick={handleStartManual}
+                      className="rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-90"
+                      style={{ background: AI_GRADIENT }}
+                    >
+                      Start Building →
+                    </button>
+                  </div>
+                )}
+
+                {parseError && <p className="mt-3 text-sm text-red-600">{parseError}</p>}
+              </section>
+
+              {/* AI Instructions card */}
+              {inputMode !== 'manual' && (
+                <section className="rounded-2xl p-6" style={{ background: '#fff', border: '1px solid ' + LI.outlineVariant }}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span
+                      className="text-sm font-bold"
+                      style={{ background: AI_GRADIENT, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                    >✦</span>
+                    <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: LI.onSurfaceVariant }}>
+                      AI Instructions
+                    </h2>
+                  </div>
+                  <textarea
+                    value={aiInstructions}
+                    onChange={(e) => setAiInstructions(e.target.value)}
+                    placeholder="Tell AI what to do with the uploaded or pasted material…"
+                    rows={4}
+                    className="w-full resize-y rounded-xl border p-4 text-sm leading-relaxed focus:outline-none focus:ring-2"
+                    style={{ borderColor: LI.outlineVariant, color: LI.onSurface, background: LI.surfaceLow }}
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {SHORTCUTS.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => appendAiInstruction(s)}
+                        className="rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-80"
+                        style={{ borderColor: LI.alumosPurple + '44', color: LI.alumosPurple, background: LI.alumosPurple + '0d' }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+
+            {/* Right: tips + actions (1/3) */}
+            <div className="space-y-4">
+              <section className="rounded-2xl p-6" style={{ background: '#fff', border: '1px solid ' + LI.outlineVariant }}>
+                <h2 className="mb-4 text-[11px] font-bold uppercase tracking-widest" style={{ color: LI.onSurfaceVariant }}>
+                  What AI will generate
+                </h2>
+                <ul className="space-y-3">
+                  {[
+                    { icon: 'menu_book', label: 'Course modules & structure' },
+                    { icon: 'assignment', label: 'Assignments with due dates' },
+                    { icon: 'grade', label: 'Rubrics & grading criteria' },
+                    { icon: 'calendar_today', label: 'Weekly schedule' },
+                  ].map(({ icon, label }) => (
+                    <li key={label} className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-[18px]" style={{ color: LI.alumosPurple }}>{icon}</span>
+                      <span className="text-sm" style={{ color: LI.onSurface }}>{label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section className="rounded-2xl p-5" style={{ background: LI.surfaceLow, border: '1px solid ' + LI.outlineVariant }}>
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest" style={{ color: LI.onSurfaceVariant }}>Tip</p>
+                <p className="text-xs leading-relaxed" style={{ color: LI.onSurfaceVariant }}>
+                  The more context you give AI — dates, learning goals, assessment types — the better the generated course structure.
+                </p>
+              </section>
+
+              <div className="space-y-2">
                 <button
-                  key={instruction}
-                  type="button"
-                  onClick={() => appendAiInstruction(instruction)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                  onClick={inputMode === 'manual' ? handleStartManual : handleGenerate}
+                  disabled={!canGenerate || isParsing}
+                  className="w-full rounded-xl py-3 text-sm font-bold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: AI_GRADIENT }}
                 >
-                  {instruction.split('.')[0]}
+                  {isParsing ? 'Reading file…' : inputMode === 'manual' ? 'Start Building →' : 'Generate Course →'}
                 </button>
-              ))}
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="w-full rounded-xl py-2 text-xs font-semibold transition hover:bg-slate-50"
+                  style={{ color: LI.onSurfaceVariant, border: '1px solid ' + LI.outlineVariant }}
+                >
+                  ← Back to Dashboard
+                </button>
+              </div>
             </div>
           </div>
-        )}
-
-        {inputMode === 'manual' && (
-          <div className="rounded-xl border-2 border-dashed border-slate-200 bg-white p-10 text-center">
-            <p className="text-sm font-medium text-slate-600">Build your course structure from scratch.</p>
-            <p className="mt-1 text-xs text-slate-400">Add modules and assignments manually in the next step — no syllabus needed.</p>
-          </div>
-        )}
-
-        {parseError && (
-          <p className="mt-3 text-sm text-red-600">{parseError}</p>
-        )}
-
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/')}
-            className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700"
-          >
-            ← Back
-          </button>
-          <button
-            onClick={
-              inputMode === 'manual'
-                ? handleStartManual
-                : handleGenerate
-            }
-            disabled={!canGenerate || isParsing || isGeneratingSyllabus}
-            className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {inputMode === 'manual'
-              ? 'Start Building →'
-              : isParsing ? 'Reading file…' : 'Generate Course →'}
-          </button>
-        </div>
         </div>
       </>
     )

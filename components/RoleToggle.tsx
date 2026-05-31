@@ -3,32 +3,28 @@
 import { useRole } from '@/context/RoleContext'
 
 /**
- * Prominent role toggle — the most important UI element in the demo.
- * Switches between the seeded Teacher and Student identities.
- * Persists selection to localStorage via RoleContext.
+ * Student-side role toggle — lives in the global <Header> on student pages.
+ * Hard-navigates to /dashboard for teacher view (teacher has its own layout shell).
  */
 export function RoleToggle() {
-  const { role, toggleRole, mounted } = useRole()
+  const { mounted } = useRole()
 
   if (!mounted) {
-    return (
-      <div className="h-8 w-32 animate-pulse rounded-full bg-slate-100" />
-    )
+    return <div className="h-8 w-32 animate-pulse rounded-full bg-slate-100" />
   }
 
-  const isTeacher = role === 'teacher'
+  function switchToTeacher() {
+    localStorage.setItem('lms_active_role', 'teacher')
+    window.location.href = '/dashboard'
+  }
 
   return (
     <button
-      onClick={toggleRole}
-      aria-label={`Switch to ${isTeacher ? 'student' : 'teacher'} view`}
-      className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold shadow-sm transition-all duration-150 ${
-        isTeacher
-          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-          : 'bg-emerald-600 text-white hover:bg-emerald-700'
-      }`}
+      onClick={switchToTeacher}
+      aria-label="Switch to teacher view"
+      className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-indigo-700"
     >
-      {isTeacher ? 'Teacher View' : 'Student View'}
+      Teacher View
       <span className="text-xs opacity-70">⇄</span>
     </button>
   )

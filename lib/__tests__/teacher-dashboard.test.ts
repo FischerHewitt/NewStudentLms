@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeCourseHealth,
+  computeClassAverage,
   aggregateTeacherStats,
   teacherCoachHint,
   type TeacherCourseRow,
@@ -18,6 +19,7 @@ function makeRow(overrides: Partial<TeacherCourseRow> = {}): TeacherCourseRow {
     gradedRate: 0,
     solutionStatus: 'uploaded',
     nextDue: null,
+    classAverage: null,
     ...overrides,
   }
 }
@@ -164,5 +166,36 @@ describe('teacherCoachHint', () => {
       makeSummary({ title: 'Algebra', pendingGrades: 0, health: 'steady' }),
     ])
     expect(hint).toMatch(/up to date/i)
+  })
+})
+
+// ─── computeClassAverage ──────────────────────────────────────────────────────
+
+describe('computeClassAverage', () => {
+  it('returns null when there are no approved submissions', () => {
+    expect(computeClassAverage([])).toBeNull()
+  })
+
+  it('returns the percentage for a single submission', () => {
+    expect(computeClassAverage([{ score: 80, pointsPossible: 100 }])).toBe(80)
+  })
+
+  it('returns the mean percentage across multiple submissions', () => {
+    expect(
+      computeClassAverage([
+        { score: 70, pointsPossible: 100 },
+        { score: 90, pointsPossible: 100 },
+      ]),
+    ).toBe(80)
+  })
+
+  it('handles non-100 pointsPossible correctly', () => {
+    // 75/150 = 50%
+    expect(computeClassAverage([{ score: 75, pointsPossible: 150 }])).toBe(50)
+  })
+
+  it('rounds to the nearest integer', () => {
+    // 1/3 = 33.33...%
+    expect(computeClassAverage([{ score: 1, pointsPossible: 3 }])).toBe(33)
   })
 })

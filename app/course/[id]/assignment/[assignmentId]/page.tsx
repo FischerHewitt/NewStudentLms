@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation'
 import { AssignmentRouter } from './AssignmentRouter'
+import { SetBreadcrumb } from '@/components/SetBreadcrumb'
 import {
   getAssignmentWithDetails,
   getStudentSubmission,
   getAllSubmissionsForAssignment,
 } from '@/app/actions/assignment'
 import { getPublishedGradeForSubmission } from '@/app/actions/speedgrader'
+import { getCourseWithModules } from '@/app/actions/dashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +18,8 @@ export default async function AssignmentPage({
 }) {
   const { id: courseId, assignmentId } = await params
 
-  const [assignment, studentSubmission, allSubmissions] = await Promise.all([
+  const [course, assignment, studentSubmission, allSubmissions] = await Promise.all([
+    getCourseWithModules(courseId),
     getAssignmentWithDetails(assignmentId),
     getStudentSubmission(assignmentId),
     getAllSubmissionsForAssignment(assignmentId),
@@ -24,13 +27,17 @@ export default async function AssignmentPage({
 
   if (!assignment) notFound()
 
-  // Fetch published grade for the student's submission (null if not yet approved)
   const publishedGrade = studentSubmission.id
     ? await getPublishedGradeForSubmission(studentSubmission.id)
     : null
 
   return (
-    <div className="px-4 py-8">
+    <>
+      <SetBreadcrumb items={[
+        { label: 'Courses', href: '/courses' },
+        { label: course?.title ?? 'Course', href: `/course/${courseId}` },
+        { label: assignment.title },
+      ]} />
       <AssignmentRouter
         courseId={courseId}
         assignment={assignment}
@@ -38,6 +45,6 @@ export default async function AssignmentPage({
         allSubmissions={allSubmissions}
         publishedGrade={publishedGrade}
       />
-    </div>
+    </>
   )
 }

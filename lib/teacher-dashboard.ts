@@ -27,6 +27,8 @@ export type TeacherCourseRow = {
   solutionStatus: SolutionStatus
   /** Human-readable label for the next upcoming assignment, e.g. "Problem Set 7, Monday" */
   nextDue: string | null
+  /** Mean of (final_score / points_possible * 100) across approved grades. null = no approved grades yet. */
+  classAverage: number | null
 }
 
 /** TeacherCourseRow with computed health and recent activity for the context panel */
@@ -47,9 +49,37 @@ export type TeacherStatSummary = {
   nextDue: string | null
 }
 
+/** Per-assignment grading progress for the Needs Grading widget */
+export type AssignmentGradingRow = {
+  id: string
+  title: string
+  courseName: string
+  courseId: string
+  dueAt: string | null
+  dueDateLabel: string
+  gradedCount: number
+  totalSubmissions: number
+  gradedPct: number
+}
+
 export type TeacherDashboardData = {
   courses: TeacherCourseSummary[]
   stats: TeacherStatSummary
+  gradingQueue: AssignmentGradingRow[]
+}
+
+/**
+ * Computes class average as a 0–100 integer from approved final scores.
+ * Returns null when no approved submissions exist.
+ */
+export function computeClassAverage(
+  submissions: { score: number; pointsPossible: number }[],
+): number | null {
+  if (submissions.length === 0) return null
+  const avg =
+    submissions.reduce((sum, s) => sum + (s.score / s.pointsPossible) * 100, 0) /
+    submissions.length
+  return Math.round(avg)
 }
 
 /**

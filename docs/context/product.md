@@ -1,12 +1,16 @@
 # Product Context
 
+## Pitch
+
+Alumos is a smarter LMS built around clarity. It reads the syllabus, assignments, grades, and course updates, then turns them into a simple command center for students and teachers. Instead of making people search through course pages, Alumos tells them what changed, what matters, and what to do next.
+
 ## Thesis
 
-A traditional LMS helps organize learning. An AI-native LMS actively creates, guides, and improves learning.
+A traditional LMS helps organize learning. Alumos actively surfaces what matters — removing the friction of hunting through course pages so students can act and teachers can decide.
 
 Canvas is the current incumbent — widely adopted but built before the AI era. Its recent security issues reinforce why schools need a more modern, secure, and trustworthy platform.
 
-Our positioning: Canvas has AI bolted on. We have AI built in from the start.
+Our positioning: Canvas makes you search. Alumos tells you.
 
 ## Target users (hackathon MVP)
 

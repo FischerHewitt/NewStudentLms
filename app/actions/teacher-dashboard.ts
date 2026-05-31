@@ -4,10 +4,15 @@ import { createServerClient } from '@/lib/supabase/server'
 import { TEACHER_ID } from '@/lib/constants'
 import {
   computeCourseHealth,
+  computeClassAverage,
   aggregateTeacherStats,
   type TeacherCourseRow,
   type TeacherDashboardData,
+  type AssignmentGradingRow,
 } from '@/lib/teacher-dashboard'
+import { filterAndSortDeadlines, type UpcomingDeadline } from '@/lib/deadlines'
+
+export type { UpcomingDeadline }
 
 /**
  * Formats a due date as a human-readable label relative to today.
@@ -37,6 +42,19 @@ function submissionRate(submittedCount: number, enrolledCount: number): number {
 }
 
 /**
+ * Returns a human-readable label for an assignment due date relative to today.
+ * e.g. "Due Yesterday", "Due Today", "Due 2 Days Ago"
+ */
+function formatDueDateLabel(dueDate: Date, today: Date): string {
+  const diffDays = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'Due Today'
+  if (diffDays === -1) return 'Due Yesterday'
+  if (diffDays < -1) return `Due ${Math.abs(diffDays)} Days Ago`
+  if (diffDays === 1) return 'Due Tomorrow'
+  return `Due in ${diffDays} Days`
+}
+
+/**
  * Fetches all data needed for the Teacher Home gallery + stat bar.
  * Runs 5 queries regardless of course count to avoid N+1.
  *
@@ -57,7 +75,7 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
     .order('created_at', { ascending: false })
 
   if (!courseRows || courseRows.length === 0) {
-    return { courses: [], stats: aggregateTeacherStats([]) }
+    return { courses: [], stats: aggregateTeacherStats([]), gradingQueue: [] }
   }
 
   const courseIds = courseRows.map((c) => c.id)
@@ -70,7 +88,7 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
       .in('course_id', courseIds),
     db
       .from('assignments')
-      .select('id, course_id, title, due_date')
+      .select('id, course_id, title, due_date, points_possible')
       .in('course_id', courseIds),
   ])
 
@@ -91,14 +109,30 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
 
   // Re-fetch grades scoped to actual submission IDs (avoid false positives)
   let pendingGradeRows: { submission_id: string }[] = []
+  let approvedGradeRows: { submission_id: string; final_score: number }[] = []
   if (submissionIds.length > 0) {
-    const { data } = await db
-      .from('grades')
-      .select('submission_id')
-      .in('submission_id', submissionIds)
-      .is('approved_at', null)
-    pendingGradeRows = data ?? []
+    const [pendingRes, approvedRes] = await Promise.all([
+      db
+        .from('grades')
+        .select('submission_id')
+        .in('submission_id', submissionIds)
+        .is('approved_at', null),
+      db
+        .from('grades')
+        .select('submission_id, final_score')
+        .in('submission_id', submissionIds)
+        .not('approved_at', 'is', null),
+    ])
+    pendingGradeRows = pendingRes.data ?? []
+    approvedGradeRows = (approvedRes.data ?? []).filter(
+      (g): g is { submission_id: string; final_score: number } => g.final_score !== null,
+    )
   }
+
+  // Map submission_id → final_score for approved grades
+  const approvedScoreBySubmission = new Map(
+    approvedGradeRows.map((g) => [g.submission_id, g.final_score]),
+  )
 
   // Build lookup sets for O(1) access
   const enrolledByCourse = new Map<string, number>()
@@ -175,6 +209,14 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
     const nextDue =
       upcoming.length > 0 ? formatNextDue(upcoming[0].title, upcoming[0].date, today) : null
 
+    // Class average: approved final scores only (Option A per ADR-0003)
+    const approvedScores = courseSubmissions.flatMap((s) => {
+      const score = approvedScoreBySubmission.get(s.id)
+      const assignment = assignmentById.get(s.assignment_id)
+      if (score === undefined || !assignment) return []
+      return [{ score, pointsPossible: assignment.points_possible }]
+    })
+
     return {
       id: course.id,
       title: course.title,
@@ -185,6 +227,7 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
       gradedRate: submissionRate(gradedCount, submittedCount),
       solutionStatus: 'missing', // v1 stub — solution-upload feature not yet shipped
       nextDue,
+      classAverage: computeClassAverage(approvedScores),
     }
   })
 
@@ -196,5 +239,71 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
 
   const stats = aggregateTeacherStats(rows)
 
-  return { courses, stats }
+  // Build per-assignment grading rows for the Needs Grading widget
+  const gradingQueue: AssignmentGradingRow[] = assignments
+    .flatMap((a) => {
+      const subs = submittedByAssignment.get(a.id) ?? []
+      if (subs.length === 0) return []
+      const gradedCount = subs.filter((s) => s.status === 'graded').length
+      const totalSubmissions = subs.length
+      const gradedPct = Math.round((gradedCount / totalSubmissions) * 100)
+      if (gradedPct >= 100) return []
+      const course = courseRows.find((c) => c.id === a.course_id)
+      const dueAt = a.due_date ?? null
+      const dueDateLabel = dueAt ? formatDueDateLabel(new Date(dueAt), today) : ''
+      return [
+        {
+          id: a.id,
+          title: a.title,
+          courseName: course?.title ?? '',
+          courseId: a.course_id,
+          dueAt,
+          dueDateLabel,
+          gradedCount,
+          totalSubmissions,
+          gradedPct,
+        } satisfies AssignmentGradingRow,
+      ]
+    })
+    .sort((a, b) => {
+      const aTime = a.dueAt ? new Date(a.dueAt).getTime() : Infinity
+      const bTime = b.dueAt ? new Date(b.dueAt).getTime() : Infinity
+      return aTime - bTime
+    })
+    .slice(0, 5)
+
+  return { courses, stats, gradingQueue }
+}
+
+/**
+ * Returns up to 5 upcoming assignment deadlines across all teacher courses,
+ * sorted ascending by due date. Used by the Deadlines widget.
+ */
+export async function getUpcomingDeadlines(): Promise<UpcomingDeadline[]> {
+  const db = createServerClient()
+
+  const { data: courseRows } = await db
+    .from('courses')
+    .select('id, title')
+    .eq('teacher_id', TEACHER_ID)
+    .is('generation_preview', null)
+
+  if (!courseRows || courseRows.length === 0) return []
+
+  const courseIds = courseRows.map((c) => c.id)
+  const courseNameById = new Map(courseRows.map((c) => [c.id, c.title]))
+
+  const { data: assignmentRows } = await db
+    .from('assignments')
+    .select('title, course_id, due_date')
+    .in('course_id', courseIds)
+    .not('due_date', 'is', null)
+
+  const assignments = (assignmentRows ?? []).map((a) => ({
+    title: a.title,
+    courseName: courseNameById.get(a.course_id) ?? '',
+    dueAt: a.due_date ? new Date(a.due_date).toISOString() : null,
+  }))
+
+  return filterAndSortDeadlines(assignments, new Date())
 }
