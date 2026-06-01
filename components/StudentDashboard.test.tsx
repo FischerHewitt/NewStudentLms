@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StudentDashboard } from './StudentDashboard'
 import type {
   StudentDashboardAssignment,
@@ -9,6 +9,10 @@ import type {
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }))
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 const courses: StudentDashboardCourse[] = [
   { id: 'bio-111', title: 'BIO 111 - General Biology', teacherName: 'Dr. Sarah Chen' },
@@ -35,6 +39,15 @@ const assignments: StudentDashboardAssignment[] = [
     submittedAt: null,
   },
   {
+    id: 'a-later',
+    courseId: 'coms-101',
+    title: 'Midterm 1 - Chemistry and Cells',
+    due: '2026-06-15',
+    points: 100,
+    status: 'not-started',
+    submittedAt: null,
+  },
+  {
     id: 'a-graded',
     courseId: 'bio-111',
     title: 'Connect Homework 1',
@@ -52,6 +65,16 @@ const assignments: StudentDashboardAssignment[] = [
     points: 25,
     status: 'submitted',
     submittedAt: '2026-05-24T12:00:00Z',
+  },
+  {
+    id: 'a-old-graded',
+    courseId: 'bio-111',
+    title: 'Lab Safety Contract',
+    due: '2026-04-01',
+    points: 5,
+    status: 'graded',
+    grade: 5,
+    submittedAt: '2026-04-01T12:00:00Z',
   },
 ]
 
@@ -99,7 +122,7 @@ describe('StudentDashboard redesign', () => {
 
     expect(allCoursesHtml).toContain('BIO 111 - General Biology')
     expect(allCoursesHtml).toContain('Dr. Sarah Chen')
-    expect(allCoursesHtml).toContain('A-')
+    expect(allCoursesHtml).toContain('93%')
     expect(allCoursesHtml).toContain('No grades')
     expect(allCoursesHtml).toContain('1 open')
 
@@ -117,12 +140,30 @@ describe('StudentDashboard redesign', () => {
     expect(html).toContain('This Week')
     expect(html).toContain('aria-label="Weekly assignment status"')
     expect(html).toContain('Overdue')
-    expect(html).toContain('Tuesday, Jun 2')
+    expect(html).toContain('Office Visit')
     expect(html).toContain('/course/bio-111/assignment/a-overdue')
     expect(html).toContain('/course/coms-101/assignment/a-upcoming')
     expect(html).toContain('20pts')
     expect(html).toContain('10pts')
     expect(html).toContain('Mark as turned in (paper / in-class)')
+    expect(html).toContain('later assignment')
+    expect(html).not.toContain('Midterm 1 - Chemistry and Cells')
+  })
+
+  it('places today in the second calendar column after yesterday', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T03:50:00Z'))
+
+    const html = renderToStaticMarkup(
+      <StudentDashboard courses={courses} assignments={assignments} />,
+    )
+    const weekdayLabels = [
+      ...html.matchAll(
+        /<span class="block text-xs font-medium">(Sun|Mon|Tue|Wed|Thu|Fri|Sat)<\/span>/g,
+      ),
+    ].map((match) => match[1])
+
+    expect(weekdayLabels.slice(0, 7)).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
   })
 
   it('switches the Overview weekly work area to completed assignments', () => {
@@ -138,8 +179,52 @@ describe('StudentDashboard redesign', () => {
     expect(html).toContain('Connect Homework 1')
     expect(html).toContain('9/10')
     expect(html).toContain('Speech Round 1')
-    expect(html).toContain('Awaiting grade')
+    expect(html).toContain('Grade pending')
+    expect(html).toContain('older completed assignment')
     expect(html).not.toContain('Office Visit')
+  })
+
+  it('caps the smart window at 9 To-Do rows and 9 Completed rows', () => {
+    const manyTodos: StudentDashboardAssignment[] = Array.from({ length: 10 }, (_, index) => ({
+      id: `todo-${index + 1}`,
+      courseId: 'bio-111',
+      title: `Visible To-Do ${index + 1}`,
+      due: `2026-06-${String(index + 1).padStart(2, '0')}`,
+      points: 5,
+      status: 'not-started',
+      submittedAt: null,
+    }))
+    const manyCompleted: StudentDashboardAssignment[] = Array.from({ length: 10 }, (_, index) => ({
+      id: `done-${index + 1}`,
+      courseId: 'bio-111',
+      title: `Completed Assignment ${index + 1}`,
+      due: `2026-05-${String(30 - index).padStart(2, '0')}`,
+      points: 5,
+      status: 'graded',
+      grade: 5,
+      submittedAt: `2026-05-${String(30 - index).padStart(2, '0')}T12:00:00Z`,
+    }))
+
+    const todoHtml = renderToStaticMarkup(
+      <StudentDashboard courses={courses} assignments={[...manyTodos, ...manyCompleted]} />,
+    )
+    const completedHtml = renderToStaticMarkup(
+      <StudentDashboard
+        courses={courses}
+        assignments={[...manyTodos, ...manyCompleted]}
+        initialWorkView="completed"
+      />,
+    )
+
+    expect(todoHtml).toContain('To-Do 9')
+    expect(todoHtml).toContain('Visible To-Do 9')
+    expect(todoHtml).not.toContain('Visible To-Do 10')
+    expect(todoHtml).toContain('1 later assignment summarized below the fold')
+
+    expect(completedHtml).toContain('Completed 9')
+    expect(completedHtml).toContain('Completed Assignment 9')
+    expect(completedHtml).not.toContain('Completed Assignment 10')
+    expect(completedHtml).toContain('1 older completed assignment tucked away')
   })
 
   it('renders the Grades tab with Published Grades and awaiting-grade states only', () => {

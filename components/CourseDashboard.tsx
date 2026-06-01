@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useRole } from '@/context/RoleContext'
 import { MarkdownContent } from '@/components/MarkdownContent'
 import { TeacherCourseDashboard } from '@/components/TeacherCourseDashboard'
@@ -22,11 +23,16 @@ interface Props {
 
 export function CourseDashboard({ course, studentSubmissions, allSubmissions, enrolledStudents = [] }: Props) {
   const { role } = useRole()
+  const searchParams = useSearchParams()
+  const requestedView = searchParams.get('view')
+  const routeRole =
+    requestedView === 'student' || requestedView === 'teacher' ? requestedView : null
+  const effectiveRole = routeRole ?? role
   const [studentTab, setStudentTab] = useState<StudentTab>('modules')
 
   const studentSubMap = Object.fromEntries(studentSubmissions.map((s) => [s.assignment_id, s]))
 
-  if (role === 'teacher') {
+  if (effectiveRole === 'teacher') {
     return (
       <TeacherCourseDashboard
         course={course}
@@ -85,7 +91,7 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, en
                   {mod.assignments.map((a) => (
                     <div key={a.id} className="flex items-center justify-between px-5 py-3">
                       <Link
-                        href={`/course/${course.id}/assignment/${a.id}`}
+                        href={`/course/${course.id}/assignment/${a.id}?view=student`}
                         className="text-sm font-medium text-slate-800 hover:text-emerald-600"
                       >
                         {a.title}

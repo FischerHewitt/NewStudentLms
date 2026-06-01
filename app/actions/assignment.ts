@@ -242,6 +242,69 @@ export async function submitAssignment(
  * outside the LMS. Creates an empty submission with status 'submitted' so the
  * teacher can record a manual grade via SpeedGrader.
  */
+export type NewAssignmentInput = {
+  courseId: string
+  moduleId: string
+  title: string
+  instructions: string
+  dueDate: string | null
+  pointsPossible: number
+  criteria: { description: string; points: number }[]
+}
+
+export async function createAssignment(input: NewAssignmentInput): Promise<{ id: string }> {
+  const db = createServerClient()
+
+  const { data: assignment, error: aErr } = await db
+    .from('assignments')
+    .insert({
+      course_id: input.courseId,
+      module_id: input.moduleId,
+      title: input.title,
+      instructions: input.instructions,
+      due_date: input.dueDate || null,
+      points_possible: input.pointsPossible,
+    })
+    .select('id')
+    .single()
+
+  if (aErr || !assignment) throw new Error(aErr?.message ?? 'Failed to create assignment')
+
+  if (input.criteria.length > 0) {
+    await db
+      .from('rubrics')
+      .insert({ assignment_id: assignment.id, criteria: input.criteria })
+      .throwOnError()
+  }
+
+  return { id: assignment.id }
+}
+
+export async function publishAssignment(assignmentId: string): Promise<void> {
+  const db = createServerClient()
+
+  const { data: assignment } = await db
+    .from('assignments')
+    .select('instructions, due_date, points_possible, rubrics(criteria)')
+    .eq('id', assignmentId)
+    .single()
+
+  if (!assignment) throw new Error('Assignment not found')
+
+  const rubric = Array.isArray(assignment.rubrics) ? assignment.rubrics[0] : assignment.rubrics
+
+  await db
+    .from('assignment_versions')
+    .insert({
+      assignment_id: assignmentId,
+      instructions: assignment.instructions,
+      due_date: assignment.due_date,
+      points_possible: assignment.points_possible,
+      rubric_snapshot: rubric?.criteria ?? null,
+    })
+    .throwOnError()
+}
+
 export async function checkOffAssignment(
   assignmentId: string,
 ): Promise<{ error?: string }> {

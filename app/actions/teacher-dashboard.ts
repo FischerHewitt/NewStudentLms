@@ -251,12 +251,14 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
       const course = courseRows.find((c) => c.id === a.course_id)
       const dueAt = a.due_date ?? null
       const dueDateLabel = dueAt ? formatDueDateLabel(new Date(dueAt), today) : ''
+      const firstPending = subs.find((s) => s.status === 'submitted') ?? null
       return [
         {
           id: a.id,
           title: a.title,
           courseName: course?.title ?? '',
           courseId: a.course_id,
+          firstPendingSubmissionId: firstPending?.id ?? null,
           dueAt,
           dueDateLabel,
           gradedCount,

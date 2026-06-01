@@ -1,9 +1,9 @@
 'use client'
 
-// Throwaway prototype: three variants of the student To-Do and Completed lists,
-// switchable via `?variant=`, on `/todo-completed-prototype`.
+// Throwaway prototype: preserve the current student dashboard work-list structure,
+// but vary how far ahead/behind students see and how Completed rows communicate status.
 
-import { Suspense, useMemo } from 'react'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PrototypeSwitcher } from '@/components/PrototypeSwitcher'
 
@@ -13,105 +13,240 @@ type WorkStatus = 'not-started' | 'in-progress' | 'submitted' | 'graded'
 interface WorkItem {
   id: string
   course: CourseKey
-  courseTitle: string
   title: string
-  due: string
+  date: string
+  label: string
+  daysFromToday: number
   points: number
   status: WorkStatus
   grade?: string
 }
 
+interface WindowConfig {
+  aheadDays: number
+  behindDays: number
+  description: string
+  todoHint: string
+  completedHint: string
+}
+
 const variants = [
-  { key: 'A', name: 'Focused Week' },
-  { key: 'B', name: 'Today First' },
-  { key: 'C', name: 'Course Buckets' },
+  { key: 'A', name: '7 / 7 Window' },
+  { key: 'B', name: '14 / 14 Window' },
+  { key: 'C', name: 'Smart Window' },
 ]
 
-const nextWeek: WorkItem[] = [
+const configs: Record<string, WindowConfig> = {
+  A: {
+    aheadDays: 7,
+    behindDays: 7,
+    description: 'Smallest version: next 7 days of work, last 7 days of completed work.',
+    todoHint: 'Good if the dashboard should feel calm and immediate.',
+    completedHint: 'Shows only recent wins so Completed stays reassuring.',
+  },
+  B: {
+    aheadDays: 14,
+    behindDays: 14,
+    description: 'Medium version: next 2 weeks visible, last 2 weeks completed.',
+    todoHint: 'Good if students need more planning context without seeing the whole course.',
+    completedHint: 'Shows enough history to answer “what did I just turn in?”',
+  },
+  C: {
+    aheadDays: 10,
+    behindDays: 21,
+    description: 'Smart version: next 10 days, plus a compact later-work summary and 3 weeks completed.',
+    todoHint: 'Good if you want a focused list with a hint of what is coming later.',
+    completedHint: 'Keeps more history, but groups older work so it does not feel like a second task list.',
+  },
+}
+
+const workItems: WorkItem[] = [
   {
-    id: 'w1',
+    id: 'todo-0',
+    course: 'PH',
+    title: 'Assignment 6: Logarithm Exit Reflection',
+    date: '2026-05-30',
+    label: 'Overdue',
+    daysFromToday: -1,
+    points: 20,
+    status: 'not-started',
+  },
+  {
+    id: 'todo-1',
     course: 'BIO111',
-    courseTitle: 'General Biology',
     title: 'Connect Homework 2 - Macromolecules',
-    due: 'Mon, Jun 1',
+    date: '2026-06-01',
+    label: 'Tomorrow',
+    daysFromToday: 1,
     points: 5,
     status: 'not-started',
   },
   {
-    id: 'w2',
+    id: 'todo-2',
     course: 'COMS101',
-    courseTitle: 'Public Speaking',
     title: 'Office Visit',
-    due: 'Tue, Jun 2',
+    date: '2026-06-02',
+    label: 'Tuesday, Jun 2',
+    daysFromToday: 2,
     points: 10,
     status: 'in-progress',
   },
   {
-    id: 'w3',
+    id: 'todo-3',
     course: 'BIO111',
-    courseTitle: 'General Biology',
     title: 'Lab Notebook - Microscopy',
-    due: 'Thu, Jun 4',
+    date: '2026-06-04',
+    label: 'Thursday, Jun 4',
+    daysFromToday: 4,
     points: 10,
     status: 'not-started',
   },
   {
-    id: 'w4',
+    id: 'todo-4',
     course: 'COMS101',
-    courseTitle: 'Public Speaking',
     title: 'Quiz 1 - Speech Structure',
-    due: 'Sat, Jun 6',
+    date: '2026-06-06',
+    label: 'Saturday, Jun 6',
+    daysFromToday: 6,
     points: 15,
+    status: 'not-started',
+  },
+  {
+    id: 'todo-5',
+    course: 'BIO111',
+    title: 'Lab Notebook - Macromolecule Identification',
+    date: '2026-06-08',
+    label: 'Monday, Jun 8',
+    daysFromToday: 8,
+    points: 10,
+    status: 'not-started',
+  },
+  {
+    id: 'todo-6',
+    course: 'COMS101',
+    title: 'Quiz 2 - Delivery',
+    date: '2026-06-09',
+    label: 'Tuesday, Jun 9',
+    daysFromToday: 9,
+    points: 15,
+    status: 'not-started',
+  },
+  {
+    id: 'todo-7',
+    course: 'BIO111',
+    title: 'Quiz 1 - Cells and Chemistry',
+    date: '2026-06-11',
+    label: 'Thursday, Jun 11',
+    daysFromToday: 11,
+    points: 25,
+    status: 'not-started',
+  },
+  {
+    id: 'todo-8',
+    course: 'COMS101',
+    title: 'Specific Purpose & Central Idea - Round 1',
+    date: '2026-06-13',
+    label: 'Saturday, Jun 13',
+    daysFromToday: 13,
+    points: 0,
+    status: 'not-started',
+  },
+  {
+    id: 'todo-9',
+    course: 'BIO111',
+    title: 'Midterm 1 - Chemistry and Cells',
+    date: '2026-06-15',
+    label: 'Monday, Jun 15',
+    daysFromToday: 15,
+    points: 100,
     status: 'not-started',
   },
 ]
 
-const completed: WorkItem[] = [
+const completedItems: WorkItem[] = [
   {
-    id: 'c1',
-    course: 'PH',
-    courseTitle: 'Pre-Calculus Honors',
-    title: 'Assignment 6: Logarithm Exit Reflection',
-    due: 'Mar 27',
-    points: 20,
-    status: 'submitted',
-  },
-  {
-    id: 'c2',
+    id: 'done-1',
     course: 'COMS101',
-    courseTitle: 'Public Speaking',
     title: 'Creating Classroom Community',
-    due: 'May 30',
+    date: '2026-05-30',
+    label: 'Yesterday',
+    daysFromToday: -1,
     points: 15,
     status: 'graded',
     grade: '14/15',
   },
   {
-    id: 'c3',
+    id: 'done-2',
     course: 'BIO111',
-    courseTitle: 'General Biology',
     title: 'Connect Homework 1 - Chemistry Review',
-    due: 'May 28',
+    date: '2026-05-28',
+    label: 'Wednesday, May 28',
+    daysFromToday: -3,
     points: 5,
     status: 'graded',
     grade: '5/5',
   },
+  {
+    id: 'done-3',
+    course: 'PH',
+    title: 'Assignment 5: Trig Exit Reflection',
+    date: '2026-05-26',
+    label: 'Monday, May 26',
+    daysFromToday: -5,
+    points: 20,
+    status: 'submitted',
+  },
+  {
+    id: 'done-4',
+    course: 'COMS101',
+    title: 'Speech Outline Checkpoint',
+    date: '2026-05-21',
+    label: 'Wednesday, May 21',
+    daysFromToday: -10,
+    points: 10,
+    status: 'submitted',
+  },
+  {
+    id: 'done-5',
+    course: 'BIO111',
+    title: 'Lab Safety Contract',
+    date: '2026-05-17',
+    label: 'Saturday, May 17',
+    daysFromToday: -14,
+    points: 5,
+    status: 'graded',
+    grade: '5/5',
+  },
+  {
+    id: 'done-6',
+    course: 'PH',
+    title: 'Assignment 4: Exponential Practice',
+    date: '2026-05-10',
+    label: 'Saturday, May 10',
+    daysFromToday: -21,
+    points: 20,
+    status: 'graded',
+    grade: '18/20',
+  },
 ]
 
-const courseStyle: Record<CourseKey, { pill: string; bar: string; soft: string }> = {
+const courseStyle: Record<CourseKey, { pill: string; bar: string; dot: string; soft: string }> = {
   BIO111: {
     pill: 'bg-emerald-100 text-emerald-700',
     bar: 'bg-emerald-500',
+    dot: 'bg-emerald-500',
     soft: 'bg-emerald-50',
   },
   COMS101: {
     pill: 'bg-orange-100 text-orange-700',
     bar: 'bg-orange-500',
+    dot: 'bg-orange-500',
     soft: 'bg-orange-50',
   },
   PH: {
     pill: 'bg-violet-100 text-violet-700',
     bar: 'bg-violet-500',
+    dot: 'bg-violet-500',
     soft: 'bg-violet-50',
   },
 }
@@ -126,9 +261,15 @@ function CoursePill({ course }: { course: CourseKey }) {
 
 function PrototypeShell({
   current,
+  config,
+  visibleTodoCount,
+  visibleCompletedCount,
   children,
 }: {
   current: string
+  config: WindowConfig
+  visibleTodoCount: number
+  visibleCompletedCount: number
   children: React.ReactNode
 }) {
   return (
@@ -140,17 +281,16 @@ function PrototypeShell({
               Throwaway prototype
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-              To-Do and Completed list directions
+              Existing work-list style, different windows
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              State: showing the next 7 days only, {nextWeek.length} upcoming assignments,
-              {completed.length} completed assignments, current variant {current}.
+              Variant {current}: {config.description}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm">
-            <p className="font-semibold text-slate-950">Design rule being tested</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+            <p className="font-semibold text-slate-950">Visible state</p>
             <p className="mt-1 text-slate-600">
-              To-Do should feel small and current. Completed should feel crossed off and reassuring.
+              To-Do: {visibleTodoCount} rows. Completed: {visibleCompletedCount} rows.
             </p>
           </div>
         </div>
@@ -161,279 +301,270 @@ function PrototypeShell({
   )
 }
 
-function MiniWeekRail() {
+function WeekStrip({ todoItems }: { todoItems: WorkItem[] }) {
   const days = [
-    ['Sun', '31', ''],
-    ['Mon', '1', '5pt'],
-    ['Tue', '2', '10pt'],
-    ['Wed', '3', ''],
-    ['Thu', '4', '10pt'],
-    ['Fri', '5', ''],
-    ['Sat', '6', '15pt'],
-  ]
+    ['Sun', '31', 0],
+    ['Mon', '1', 1],
+    ['Tue', '2', 2],
+    ['Wed', '3', 3],
+    ['Thu', '4', 4],
+    ['Fri', '5', 5],
+    ['Sat', '6', 6],
+  ] as const
 
   return (
-    <div className="grid grid-cols-7 gap-1 rounded-xl border border-slate-200 bg-white p-2">
-      {days.map(([label, date, points]) => (
-        <div
-          key={`${label}-${date}`}
-          className={`min-h-20 rounded-lg px-2 py-3 text-center ${
-            label === 'Mon' ? 'bg-violet-600 text-white' : 'bg-slate-50 text-slate-600'
-          }`}
-        >
-          <p className="text-xs font-semibold">{label}</p>
-          <p className="mt-1 text-lg font-bold">{date}</p>
-          {points && <p className="mt-2 text-xs font-semibold">{points}</p>}
-        </div>
-      ))}
+    <div className="grid grid-cols-7 gap-1">
+      {days.map(([label, date, offset]) => {
+        const items = todoItems.filter((item) => item.daysFromToday === offset)
+        const totalPoints = items.reduce((sum, item) => sum + item.points, 0)
+        const isToday = offset === 0
+
+        return (
+          <button
+            key={`${label}-${date}`}
+            type="button"
+            className={`min-h-24 rounded-lg px-2 py-3 text-center transition ${
+              isToday
+                ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-200'
+                : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="block text-xs font-medium">{label}</span>
+            <span className="mt-1 block text-xl font-semibold">{date}</span>
+            <span className="mt-3 flex justify-center gap-1">
+              {items.slice(0, 3).map((item) => (
+                <span key={item.id} className={`h-1.5 w-1.5 rounded-full ${courseStyle[item.course].dot}`} />
+              ))}
+            </span>
+            {totalPoints > 0 && (
+              <span className="mt-1 block text-xs font-semibold text-emerald-600">
+                {totalPoints}pt
+              </span>
+            )}
+          </button>
+        )
+      })}
     </div>
   )
 }
 
-function CompactTodoRow({ item, index }: { item: WorkItem; index: number }) {
+function WorkTabs({
+  todoCount,
+  completedCount,
+}: {
+  todoCount: number
+  completedCount: number
+}) {
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white">
-        {index + 1}
-      </div>
-      <div className="min-w-0">
-        <div className="mb-1 flex flex-wrap items-center gap-2">
-          <CoursePill course={item.course} />
-          {item.status === 'in-progress' && (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              In progress
-            </span>
-          )}
-        </div>
-        <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
-        <p className="text-xs text-slate-500">{item.due} - {item.points}pts</p>
-      </div>
-      <button
-        type="button"
-        aria-label={`Mark ${item.title} complete`}
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"
-      >
-        <span className="material-symbols-outlined text-[20px]">check</span>
+    <div aria-label="Weekly assignment status" className="mb-5 grid grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      <button type="button" className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white shadow-sm">
+        To-Do
+        <span className="ml-2 rounded-md bg-white/20 px-2 py-0.5 text-xs text-white">{todoCount}</span>
+      </button>
+      <button type="button" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-950">
+        Completed
+        <span className="ml-2 rounded-md bg-slate-200 px-2 py-0.5 text-xs text-slate-700">{completedCount}</span>
       </button>
     </div>
   )
 }
 
-function CompletedCrossOffRow({ item }: { item: WorkItem }) {
+function groupByLabel(items: WorkItem[]) {
+  return items.reduce<Array<{ label: string; items: WorkItem[] }>>((groups, item) => {
+    const existing = groups.find((group) => group.label === item.label)
+    if (existing) existing.items.push(item)
+    else groups.push({ label: item.label, items: [item] })
+    return groups
+  }, [])
+}
+
+function TodoList({
+  items,
+  hiddenCount,
+  variant,
+}: {
+  items: WorkItem[]
+  hiddenCount: number
+  variant: string
+}) {
+  const groups = groupByLabel(items)
+
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-500">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-        <span className="material-symbols-outlined text-[18px]">done</span>
+    <section className="space-y-6">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <h3 className={`mb-3 text-sm font-semibold ${group.label === 'Overdue' ? 'text-red-600' : group.label === 'Tomorrow' ? 'text-orange-600' : 'text-slate-950'}`}>
+            {group.label}
+          </h3>
+          <div className="space-y-3">
+            {group.items.map((item) => (
+              <TodoRow key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          {variant === 'C'
+            ? `${hiddenCount} later assignments summarized below the fold`
+            : `Show ${hiddenCount} more later assignments`}
+        </button>
+      )}
+    </section>
+  )
+}
+
+function TodoRow({ item }: { item: WorkItem }) {
+  return (
+    <div className={`flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${courseStyle[item.course].soft}`}>
+      <div className="flex min-w-0 flex-1 items-center gap-4 bg-white px-5 py-4 hover:bg-slate-50">
+        <span className={`h-7 rounded-md px-2 py-1 text-xs font-bold ${courseStyle[item.course].pill}`}>
+          {item.course}
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-base font-semibold text-slate-950">{item.title}</p>
+            {item.status === 'in-progress' && (
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                In progress
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">{item.date} - {item.points}pts</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        aria-label={`Mark ${item.title} complete`}
+        className="flex w-14 flex-shrink-0 items-center justify-center border-l border-slate-200 bg-white text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+      >
+        <span className="material-symbols-outlined">check_circle</span>
+      </button>
+    </div>
+  )
+}
+
+function CompletedList({
+  items,
+  hiddenCount,
+  compactOlder,
+}: {
+  items: WorkItem[]
+  hiddenCount: number
+  compactOlder: boolean
+}) {
+  const recent = compactOlder ? items.slice(0, 4) : items
+  const compacted = compactOlder ? items.slice(4) : []
+
+  return (
+    <section className="space-y-3">
+      {recent.map((item) => (
+        <CompletedRow key={item.id} item={item} />
+      ))}
+      {compacted.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          {compacted.length} older completed assignment{compacted.length === 1 ? '' : 's'} tucked away.
+        </div>
+      )}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          Show {hiddenCount} older completed assignments
+        </button>
+      )}
+    </section>
+  )
+}
+
+function CompletedRow({ item }: { item: WorkItem }) {
+  const isGraded = item.status === 'graded'
+
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 text-slate-500 shadow-sm">
+      <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${isGraded ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+        <span className="material-symbols-outlined text-[18px]">{isGraded ? 'done' : 'hourglass_top'}</span>
       </span>
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center gap-2">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
           <CoursePill course={item.course} />
-          <span className="text-xs text-slate-400">{item.due}</span>
+          <span className="text-xs text-slate-400">{item.label}</span>
         </div>
         <p className="truncate text-sm font-semibold line-through decoration-slate-400 decoration-2">
           {item.title}
         </p>
       </div>
-      <p className="text-xs font-semibold text-slate-500">
-        {item.grade ?? 'Awaiting grade'}
-      </p>
+      <span className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${isGraded ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'}`}>
+        {isGraded ? `Completed - ${item.grade}` : 'Grade pending'}
+      </span>
     </div>
   )
 }
 
-function VariantA() {
-  return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">This week only</h2>
-              <p className="mt-1 text-sm text-slate-500">Four assignments visible, ordered by urgency.</p>
-            </div>
-            <button className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">
-              View full calendar
-            </button>
-          </div>
-          <MiniWeekRail />
-        </div>
-
-        <div className="space-y-3">
-          {nextWeek.map((item, index) => (
-            <CompactTodoRow key={item.id} item={item} index={index} />
-          ))}
-        </div>
-      </section>
-
-      <aside className="space-y-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Completed</h2>
-          <p className="mt-1 text-sm text-slate-500">Recent finished work, crossed off.</p>
-        </div>
-        {completed.map((item) => (
-          <CompletedCrossOffRow key={item.id} item={item} />
-        ))}
-      </aside>
-    </div>
-  )
-}
-
-function VariantB() {
-  const now = nextWeek.slice(0, 1)
-  const next = nextWeek.slice(1, 3)
-  const later = nextWeek.slice(3)
+function DashboardWorkPrototype({ current }: { current: string }) {
+  const config = configs[current] ?? configs.A
+  const isSmart = current === 'C'
+  const visibleTodos = workItems.filter((item) => item.daysFromToday <= config.aheadDays)
+  const visibleCompleted = completedItems.filter((item) => Math.abs(item.daysFromToday) <= config.behindDays)
+  const hiddenTodoCount = workItems.length - visibleTodos.length
+  const hiddenCompletedCount = completedItems.length - visibleCompleted.length
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr_0.8fr]">
-        <PriorityColumn title="Do first" tone="bg-red-50 text-red-700" items={now} />
-        <PriorityColumn title="Next few days" tone="bg-orange-50 text-orange-700" items={next} />
-        <PriorityColumn title="Later this week" tone="bg-slate-100 text-slate-700" items={later} />
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">Crossed off this week</h2>
-            <p className="mt-1 text-sm text-slate-500">A receipt-style list so Completed feels done, not like more work.</p>
-          </div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            {completed.length} finished
-          </span>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {completed.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 py-3">
-              <span className="material-symbols-outlined text-[20px] text-emerald-600">task_alt</span>
-              <CoursePill course={item.course} />
-              <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-500 line-through decoration-slate-400 decoration-2">
-                {item.title}
-              </p>
-              <span className="text-xs font-semibold text-slate-500">{item.grade ?? 'Awaiting grade'}</span>
+    <PrototypeShell
+      current={current}
+      config={config}
+      visibleTodoCount={visibleTodos.length}
+      visibleCompletedCount={visibleCompleted.length}
+    >
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="space-y-6">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">This Week</p>
+                <p className="mt-1 text-xs text-slate-500">{config.todoHint}</p>
+              </div>
+              <button type="button" className="rounded-full px-3 py-1 text-xs font-semibold text-violet-600 hover:bg-violet-50">
+                Today
+              </button>
             </div>
-          ))}
+            <WorkTabs todoCount={visibleTodos.length} completedCount={visibleCompleted.length} />
+            <WeekStrip todoItems={visibleTodos} />
+          </section>
+          <TodoList items={visibleTodos} hiddenCount={hiddenTodoCount} variant={current} />
         </div>
-      </section>
-    </div>
-  )
-}
 
-function PriorityColumn({
-  title,
-  tone,
-  items,
-}: {
-  title: string
-  tone: string
-  items: WorkItem[]
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className={`mb-4 rounded-xl px-3 py-2 text-sm font-bold ${tone}`}>{title}</div>
-      <div className="space-y-3">
-        {items.map((item) => (
-          <div key={item.id} className="rounded-xl border border-slate-200 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <CoursePill course={item.course} />
-              <span className="text-xs font-semibold text-slate-500">{item.points}pts</span>
-            </div>
-            <p className="text-sm font-semibold leading-5 text-slate-950">{item.title}</p>
-            <p className="mt-2 text-xs text-slate-500">{item.due}</p>
-          </div>
-        ))}
+        <aside className="space-y-4">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-semibold text-slate-950">Completed preview</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">{config.completedHint}</p>
+          </section>
+          <CompletedList
+            items={visibleCompleted}
+            hiddenCount={hiddenCompletedCount}
+            compactOlder={isSmart}
+          />
+        </aside>
       </div>
-    </div>
-  )
-}
-
-function VariantC() {
-  const grouped = useMemo(() => {
-    return nextWeek.reduce<Record<CourseKey, WorkItem[]>>(
-      (acc, item) => {
-        acc[item.course] = [...(acc[item.course] ?? []), item]
-        return acc
-      },
-      { BIO111: [], COMS101: [], PH: [] },
-    )
-  }, [])
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-950">Next week by course</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Keeps the list short by showing each course as one bucket with its next visible tasks.
-          </p>
-        </div>
-        {Object.entries(grouped)
-          .filter(([, items]) => items.length > 0)
-          .map(([course, items]) => (
-            <div key={course} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className={`h-10 w-1 rounded-full ${courseStyle[course as CourseKey].bar}`} />
-                  <div>
-                    <CoursePill course={course as CourseKey} />
-                    <p className="mt-1 text-sm font-semibold text-slate-950">{items[0].courseTitle}</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                  {items.length} this week
-                </span>
-              </div>
-              <div className="space-y-2">
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
-                    <span className="material-symbols-outlined text-[20px] text-slate-400">radio_button_unchecked</span>
-                    <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">{item.title}</p>
-                    <p className="text-xs font-semibold text-slate-500">{item.due}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-      </section>
-
-      <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Done list</h2>
-        <p className="mt-1 text-sm text-slate-500">Simple crossed-off checklist with grades pushed to the edge.</p>
-        <div className="mt-5 space-y-3">
-          {completed.map((item) => (
-            <div key={item.id} className="rounded-xl bg-slate-50 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <CoursePill course={item.course} />
-                <span className="text-xs font-bold text-slate-500">{item.grade ?? 'Pending'}</span>
-              </div>
-              <p className="text-sm font-semibold text-slate-500 line-through decoration-slate-400 decoration-2">
-                {item.title}
-              </p>
-            </div>
-          ))}
-        </div>
-      </aside>
-    </div>
-  )
-}
-
-function TodoCompletedPrototypeContent() {
-  const searchParams = useSearchParams()
-  const requested = searchParams.get('variant')?.toUpperCase() ?? 'A'
-  const current = variants.some((variant) => variant.key === requested) ? requested : 'A'
-
-  return (
-    <PrototypeShell current={current}>
-      {current === 'A' && <VariantA />}
-      {current === 'B' && <VariantB />}
-      {current === 'C' && <VariantC />}
     </PrototypeShell>
   )
 }
 
+function TodoCompletedPrototypeInner() {
+  const searchParams = useSearchParams()
+  const requested = searchParams.get('variant')?.toUpperCase() ?? 'A'
+  const current = variants.some((variant) => variant.key === requested) ? requested : 'A'
+  return <DashboardWorkPrototype current={current} />
+}
+
 export default function TodoCompletedPrototypePage() {
   return (
-    <Suspense>
-      <TodoCompletedPrototypeContent />
+    <Suspense fallback={null}>
+      <TodoCompletedPrototypeInner />
     </Suspense>
   )
 }

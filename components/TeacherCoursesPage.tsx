@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { courseHref } from '@/lib/routes'
+import { courseHref, speedgraderHref } from '@/lib/routes'
 import type { TeacherCourseSummary } from '@/lib/teacher-dashboard'
 
 const LI = {
@@ -138,7 +138,11 @@ function Row({ course, i }: { course: TeacherCourseSummary; i: number }) {
           </Link>
           {course.pendingGrades > 0 && (
             <Link
-              href={courseHref(course.id)}
+              href={
+                course.recentSubmissions[0]?.submissionId
+                  ? speedgraderHref(course.id, course.recentSubmissions[0].submissionId)
+                  : courseHref(course.id)
+              }
               className="rounded-md px-2.5 py-1 text-xs font-bold text-white"
               style={{ background: LI.alumosPurple }}
             >

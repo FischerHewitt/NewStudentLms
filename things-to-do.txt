@@ -1,6 +1,33 @@
 Deferred items — not in scope for current sprint
 ==================================================
 
+## SpeedGrader version mismatch warning
+When the teacher grades a Submission, SpeedGrader should display the Assignment Version
+that was live at the time of submission (the snapshot whose `published_at` is closest to
+and before `submitted_at`). If this snapshot differs from the current published version,
+show a banner in SpeedGrader: "This student submitted against an earlier version of the
+instructions. You are grading based on what they were asked to do."
+
+## Student notification: instructions updated after submission
+When a student views an Assignment they have already submitted, and the current published
+Assignment Version is newer than the one that was live at their `submitted_at`, show a
+banner on their assignment view: "The instructions for this assignment have been updated
+since you submitted. Your submission was recorded under the original instructions."
+The banner should be informational only — it does not prompt re-submission (that is a
+separate policy decision covered in "Resubmission policy" in ideas.txt).
+
+## Assignment "published with pending edits" indicator
+Currently the teacher Assignment view shows two states: Draft (no snapshot) and Published
+(at least one snapshot exists). A useful third state would indicate when the teacher has
+made edits to the live assignment row since the last published snapshot — i.e. students are
+looking at an older version.
+
+Implementing this requires diffing the live `assignments` row against the latest
+`assignment_versions` snapshot (comparing instructions, due_date, points_possible, and
+rubric criteria). If a diff is detected, show a badge like "Published · edits pending"
+and a nudge to re-publish. Useful so teachers don't forget that students haven't seen
+their revisions yet.
+
 ## Assignment 2 test data (Final Analysis Report) — DONE
 Fixture: lib/__tests__/fixtures/final-analysis-report.ts
 7 scenarios (A / B1–B4 / D / E), mock AI payloads, expected scores.

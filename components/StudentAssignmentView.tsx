@@ -4,8 +4,15 @@ import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitAssignment } from '@/app/actions/assignment'
+import { MarkdownContent } from '@/components/MarkdownContent'
+import { RichTextarea } from '@/components/RichTextarea'
+import {
+  formatAttachmentBytes,
+  SUBMISSION_ATTACHMENT_ACCEPT,
+} from '@/lib/submission-attachment'
 import type {
   AssignmentWithDetails,
+  FileAttachment,
   StudentSubmissionData,
 } from '@/app/actions/assignment'
 import type { PublishedGrade } from '@/app/actions/speedgrader'
@@ -18,7 +25,7 @@ interface StudentAssignmentViewProps {
 }
 
 export function StudentAssignmentView({
-  courseId,
+  courseId: _courseId,
   assignment,
   studentSubmission,
   publishedGrade,
@@ -26,7 +33,12 @@ export function StudentAssignmentView({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [body, setBody] = useState(studentSubmission.body)
+  const [attachment, setAttachment] = useState<FileAttachment | null>(
+    studentSubmission.attachment,
+  )
   const [submitError, setSubmitError] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
 
   const isSubmitted =
     studentSubmission.status === 'submitted' ||
@@ -35,7 +47,7 @@ export function StudentAssignmentView({
   const handleSubmit = () => {
     setSubmitError('')
     startTransition(async () => {
-      const result = await submitAssignment(assignment.id, body)
+      const result = await submitAssignment(assignment.id, body, attachment ?? undefined)
       if (result.error) {
         setSubmitError(result.error)
       } else {
@@ -44,14 +56,50 @@ export function StudentAssignmentView({
     })
   }
 
+  const handleUpload = async (file: File | null) => {
+    if (!file) return
+
+    setUploadError('')
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = (await response.json()) as FileAttachment & { error?: string }
+
+      if (!response.ok || result.error) {
+        setUploadError(result.error ?? 'Upload failed. Please try again.')
+        return
+      }
+
+      setAttachment({
+        url: result.url,
+        fileName: result.fileName,
+        fileType: result.fileType,
+        fileSize: result.fileSize,
+      })
+    } catch {
+      setUploadError('Upload failed. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const canSubmitResponse = body.trim().length > 0 || Boolean(attachment)
+
   return (
     <div className="mx-auto max-w-3xl">
       {/* Back link */}
       <Link
-        href={`/course/${courseId}`}
+        href="/"
         className="mb-6 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600"
       >
-        ← Back to course
+        ← Back to dashboard
       </Link>
 
       {/* ── Assignment header ────────────────────────────── */}
@@ -118,29 +166,78 @@ export function StudentAssignmentView({
               )}
             </div>
             <div className="whitespace-pre-wrap rounded-lg bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
-              {studentSubmission.body}
+              {studentSubmission.body.trim() ? (
+                <MarkdownContent>{studentSubmission.body}</MarkdownContent>
+              ) : (
+                <span className="text-slate-400">No written response.</span>
+              )}
             </div>
+            {studentSubmission.attachment && (
+              <div className="mt-3">
+                <SubmissionAttachmentCard attachment={studentSubmission.attachment} />
+              </div>
+            )}
           </div>
         ) : (
           /* Draft / first-time submission */
           <div>
-            <textarea
+            <RichTextarea
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
               placeholder="Write your response here…"
               rows={10}
-              className="w-full resize-none rounded-lg border border-slate-300 bg-white p-3 text-sm leading-relaxed text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              disabled={isPending}
             />
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">Attach work</p>
+                  <p className="text-xs text-slate-500">
+                    Upload images, PDFs, docs, spreadsheets, code, or archives up to 50 MB.
+                  </p>
+                </div>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100">
+                  <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                  {isUploading ? 'Uploading...' : 'Upload a file'}
+                  <input
+                    type="file"
+                    accept={SUBMISSION_ATTACHMENT_ACCEPT}
+                    disabled={isUploading || isPending}
+                    onChange={(event) => {
+                      void handleUpload(event.currentTarget.files?.[0] ?? null)
+                      event.currentTarget.value = ''
+                    }}
+                    className="sr-only"
+                  />
+                </label>
+              </div>
+              {attachment && (
+                <div className="mt-3 flex items-center gap-2">
+                  <SubmissionAttachmentCard attachment={attachment} />
+                  <button
+                    type="button"
+                    onClick={() => setAttachment(null)}
+                    disabled={isPending || isUploading}
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+              {uploadError && (
+                <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+              )}
+            </div>
             {submitError && (
               <p className="mt-2 text-sm text-red-600">{submitError}</p>
             )}
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleSubmit}
-                disabled={!body.trim() || isPending}
+                disabled={!canSubmitResponse || isPending || isUploading}
                 className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isPending ? 'Submitting…' : 'Submit →'}
+                {isPending ? 'Submitting...' : 'Submit ->'}
               </button>
             </div>
           </div>
@@ -167,5 +264,22 @@ export function StudentAssignmentView({
         </div>
       )}
     </div>
+  )
+}
+
+function SubmissionAttachmentCard({ attachment }: { attachment: FileAttachment }) {
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition hover:border-indigo-200 hover:text-indigo-700"
+    >
+      <span className="material-symbols-outlined text-[20px] text-slate-500">attach_file</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{attachment.fileName}</span>
+      <span className="flex-shrink-0 text-xs text-slate-400">
+        {formatAttachmentBytes(attachment.fileSize)}
+      </span>
+    </a>
   )
 }

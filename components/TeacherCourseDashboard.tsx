@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { publishCourse, unpublishCourse } from '@/app/actions/course'
-import { assignmentHref, courseHref, speedgraderHref } from '@/lib/routes'
+import { assignmentHref, speedgraderHref } from '@/lib/routes'
 import type { CourseWithModules, SubmissionSummary } from '@/app/actions/dashboard'
 import type { EnrolledStudent } from '@/app/actions/enrollment'
 
@@ -59,6 +59,9 @@ export function TeacherCourseDashboard({ course, allSubmissions, enrolledStudent
     }
   }
 
+  // First pending submission across all assignments (for the hero "Grade N Now" button)
+  const firstPendingSubId = allSubmissions.find((s) => s.status === 'submitted')?.id ?? null
+
   // Recent activity feed
   const recentActivity = allSubmissions.slice(0, 5).map((sub, i) => {
     const student = enrolledStudents[i % Math.max(enrolledStudents.length, 1)]
@@ -96,9 +99,9 @@ export function TeacherCourseDashboard({ course, allSubmissions, enrolledStudent
           </div>
 
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {pendingCount > 0 && (
+            {pendingCount > 0 && firstPendingSubId && (
               <Link
-                href={courseHref(course.id)}
+                href={speedgraderHref(course.id, firstPendingSubId)}
                 className="rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg"
                 style={{ background: AI_GRADIENT }}
               >
@@ -220,6 +223,18 @@ export function TeacherCourseDashboard({ course, allSubmissions, enrolledStudent
                             </div>
                           )
                         })}
+
+                        {/* Add Assignment button */}
+                        <div className="px-5 py-2" style={{ borderTop: '1px solid ' + LI.surfaceLow }}>
+                          <Link
+                            href={`/course/${course.id}/assignment/new?moduleId=${mod.id}`}
+                            className="flex items-center gap-1 text-xs font-semibold transition hover:opacity-70"
+                            style={{ color: LI.alumosPurple }}
+                          >
+                            <span className="material-symbols-outlined text-[15px]">add</span>
+                            Add Assignment
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRole } from '@/context/RoleContext'
+import { useSearchParams } from 'next/navigation'
 import { StudentAssignmentView } from '@/components/StudentAssignmentView'
 import { TeacherAssignmentView } from '@/components/TeacherAssignmentView'
 import type {
@@ -25,9 +26,22 @@ export function AssignmentRouter({
   allSubmissions,
   publishedGrade,
 }: AssignmentRouterProps) {
-  const { role } = useRole()
+  const { role, mounted } = useRole()
+  const searchParams = useSearchParams()
+  const requestedView = searchParams.get('view')
+  const routeRole =
+    requestedView === 'student' || requestedView === 'teacher' ? requestedView : null
+  const effectiveRole = routeRole ?? role
 
-  if (role === 'student') {
+  if (!mounted && !routeRole) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm">
+        Loading assignment...
+      </div>
+    )
+  }
+
+  if (effectiveRole === 'student') {
     return (
       <StudentAssignmentView
         courseId={courseId}

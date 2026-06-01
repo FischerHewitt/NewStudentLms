@@ -18,9 +18,19 @@ A unit within a course — typically a week or topic. Generated from the syllabu
 Key fields: `id`, `course_id`, `title`, `description`, `order`, `week_number`
 
 ### Assignment
-A piece of work within a module. Has instructions, a due date, point value, and an attached Rubric.
+A piece of work within a Module. Has instructions, a due date, point value, and an attached Rubric. The teacher edits the live Assignment row freely; students always read from the latest **Assignment Version** (published snapshot). An Assignment with no published snapshot is invisible to students even inside a Published Course.
+
+- **Draft Assignment** — no published snapshot exists; invisible to students
+- **Published Assignment** — at least one snapshot exists; students see the latest snapshot
 
 Key fields: `id`, `module_id`, `course_id`, `title`, `instructions`, `due_date`, `points_possible`, `rubric_id`
+
+### Assignment Version
+An immutable published snapshot of an Assignment at a point in time. Created when a teacher explicitly publishes an Assignment, or automatically for all Assignments when a Course is first published. Students always read from the latest Assignment Version for a given Assignment — never from the live Assignment row. The teacher's subsequent edits to the live Assignment row do not affect what students see until a new snapshot is published.
+
+Key fields: `id`, `assignment_id`, `instructions`, `due_date`, `points_possible`, `rubric_snapshot` (JSONB), `published_at`
+
+The AI SpeedGrader always uses the Assignment Version that was live at the moment of Submission (`published_at ≤ submitted_at`, latest match). If a newer snapshot has since been published, SpeedGrader shows a warning to the teacher, and the student's assignment view shows a notice that instructions changed after they submitted.
 
 ### Rubric
 The grading criteria for an Assignment. Defines what a good submission looks like and how points are allocated. Used by the AI SpeedGrader to evaluate Submissions.
@@ -89,7 +99,9 @@ User → Grade.approved_by (teacher approves)
 | **Syllabus** | Raw text pasted by a teacher, used to generate a Course structure |
 | **Course structure** | AI-generated set of Modules, Assignments, and due dates derived from a Syllabus |
 | **Module** | A course unit (week/topic) containing Assignments |
-| **Assignment** | A task given to students with instructions, due date, and a Rubric |
+| **Draft Assignment** | An Assignment with no published snapshot; invisible to students even inside a Published Course |
+| **Published Assignment** | An Assignment with at least one snapshot; students see the latest Assignment Version |
+| **Assignment Version** | An immutable published snapshot of an Assignment; created on explicit publish or automatically when a Course is first published |
 | **Rubric** | Grading criteria attached to an Assignment, used by AI SpeedGrader to evaluate Submissions |
 | **Submission** | A student's text response to an Assignment |
 | **AI Suggested Grade** | Draft score produced by the AI SpeedGrader; read-only after creation; never visible to the student |

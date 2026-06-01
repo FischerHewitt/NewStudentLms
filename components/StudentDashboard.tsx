@@ -14,6 +14,11 @@ import type {
 type StudentTab = 'overview' | 'grades' | 'messages'
 type WorkView = 'todo' | 'completed'
 
+const TODO_AHEAD_DAYS = 10
+const TODO_VISIBLE_LIMIT = 9
+const COMPLETED_LOOKBACK_DAYS = 21
+const COMPLETED_VISIBLE_LIMIT = 9
+
 interface Props {
   courses: StudentDashboardCourse[]
   assignments: StudentDashboardAssignment[]
@@ -142,16 +147,16 @@ function dateLabel(due: string): string {
 }
 
 function getWeekDates(dayOffset: number): { date: string; label: string }[] {
-  const center = new Date()
-  center.setDate(center.getDate() + dayOffset)
+  const start = new Date(`${todayStr()}T00:00:00Z`)
+  start.setUTCDate(start.getUTCDate() + dayOffset - 1)
   const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(center)
-    date.setDate(center.getDate() - 3 + index)
+    const date = new Date(start)
+    date.setUTCDate(start.getUTCDate() + index)
     return {
       date: date.toISOString().slice(0, 10),
-      label: labels[date.getDay()],
+      label: labels[date.getUTCDay()],
     }
   })
 }
@@ -186,6 +191,23 @@ function groupOpenAssignments(assignments: StudentDashboardAssignment[]) {
   return Object.keys(groups)
     .sort()
     .map((date) => ({ date, label: dateLabel(date), assignments: groups[date] }))
+}
+
+function isInTodoWindow(assignment: StudentDashboardAssignment): boolean {
+  if (!assignment.due) return false
+  return daysUntil(assignment.due) <= TODO_AHEAD_DAYS
+}
+
+function completedReferenceDate(assignment: StudentDashboardAssignment): string | null {
+  return assignment.submittedAt?.slice(0, 10) ?? assignment.due
+}
+
+function isInCompletedWindow(assignment: StudentDashboardAssignment): boolean {
+  const date = completedReferenceDate(assignment)
+  if (!date) return false
+
+  const daysAgo = -daysUntil(date)
+  return daysAgo >= 0 && daysAgo <= COMPLETED_LOOKBACK_DAYS
 }
 
 function switchToTeacher() {
@@ -559,10 +581,12 @@ function AssignmentChecklist({
   assignments,
   colorByCourse,
   codeByCourse,
+  hiddenCount,
 }: {
   assignments: StudentDashboardAssignment[]
   colorByCourse: Record<string, PaletteColor>
   codeByCourse: Record<string, string>
+  hiddenCount: number
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -603,7 +627,7 @@ function AssignmentChecklist({
               return (
                 <div key={assignment.id} className={`flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${color.soft}`}>
                   <Link
-                    href={`/course/${assignment.courseId}/assignment/${assignment.id}`}
+                    href={`/course/${assignment.courseId}/assignment/${assignment.id}?view=student`}
                     className="flex min-w-0 flex-1 items-center gap-4 bg-white px-5 py-4 hover:bg-slate-50"
                   >
                     <span className={`h-7 rounded-md px-2 py-1 text-xs font-bold ${color.pill}`}>
@@ -633,6 +657,14 @@ function AssignmentChecklist({
           </div>
         </div>
       ))}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          {hiddenCount} later assignment{hiddenCount === 1 ? '' : 's'} summarized below the fold
+        </button>
+      )}
     </section>
   )
 }
@@ -641,12 +673,16 @@ function CompletedChecklist({
   assignments,
   colorByCourse,
   codeByCourse,
+  hiddenCount,
 }: {
   assignments: StudentDashboardAssignment[]
   colorByCourse: Record<string, PaletteColor>
   codeByCourse: Record<string, string>
+  hiddenCount: number
 }) {
-  const groups = groupOpenAssignments(assignments)
+  const visibleAssignments = assignments.slice(0, COMPLETED_VISIBLE_LIMIT)
+  const tuckedCount = Math.max(0, assignments.length - visibleAssignments.length)
+  const groups = groupOpenAssignments(visibleAssignments)
 
   if (groups.length === 0) {
     return (
@@ -669,24 +705,27 @@ function CompletedChecklist({
               return (
                 <div
                   key={assignment.id}
-                  className={`flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm ${color.soft}`}
+                  className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 text-slate-500 shadow-sm"
                 >
-                  <div className="flex min-w-0 items-center gap-4">
+                  <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${isGraded ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+                    <span className="material-symbols-outlined text-[18px]">{isGraded ? 'done' : 'hourglass_top'}</span>
+                  </span>
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
                     <span className={`h-7 rounded-md px-2 py-1 text-xs font-bold ${color.pill}`}>
                       {codeByCourse[assignment.courseId]}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-base font-semibold text-slate-950">{assignment.title}</p>
+                      <p className="truncate text-base font-semibold text-slate-500 line-through decoration-slate-400 decoration-2">{assignment.title}</p>
                       <p className="text-sm text-slate-600">{assignment.due} - {assignment.points}pts</p>
                     </div>
                   </div>
                   {isGraded ? (
-                    <p className="flex-shrink-0 text-sm font-bold text-emerald-600">
-                      {assignment.grade}/{assignment.points}
-                    </p>
+                    <span className="flex-shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      Completed - {assignment.grade}/{assignment.points}
+                    </span>
                   ) : (
                     <span className="flex-shrink-0 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                      Awaiting grade
+                      Grade pending
                     </span>
                   )}
                 </div>
@@ -695,6 +734,19 @@ function CompletedChecklist({
           </div>
         </div>
       ))}
+      {tuckedCount > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+          {tuckedCount} older completed assignment{tuckedCount === 1 ? '' : 's'} tucked away.
+        </div>
+      )}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-4 py-4 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          Show {hiddenCount} older completed assignment{hiddenCount === 1 ? '' : 's'}
+        </button>
+      )}
     </section>
   )
 }
@@ -721,16 +773,26 @@ function OverviewPanel({
   const visibleAssignments = selectedCourseId
     ? assignments.filter((assignment) => assignment.courseId === selectedCourseId)
     : assignments
-  const openAssignments = filterOpenAssignments(visibleAssignments, null, dayFilter)
-  const completedAssignments = visibleAssignments.filter(
+  const allOpenAssignments = filterOpenAssignments(visibleAssignments, null, dayFilter)
+  const openWindowAssignments = allOpenAssignments.filter(isInTodoWindow)
+  const openAssignments = openWindowAssignments.slice(0, TODO_VISIBLE_LIMIT)
+  const allCompletedAssignments = visibleAssignments
+    .filter(
+      (assignment) => assignment.status === 'graded' || assignment.status === 'submitted',
+    )
+    .sort((a, b) => {
+      const aDate = completedReferenceDate(a) ?? ''
+      const bDate = completedReferenceDate(b) ?? ''
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
+  const completedAssignments = allCompletedAssignments.filter(
     (assignment) =>
-      (assignment.status === 'graded' || assignment.status === 'submitted') &&
-      (!dayFilter || assignment.due === dayFilter),
+      isInCompletedWindow(assignment) && (!dayFilter || assignment.due === dayFilter),
   )
-  const openCount = visibleAssignments.filter(isOpenAssignment).length
-  const completedCount = visibleAssignments.filter(
-    (assignment) => assignment.status === 'graded' || assignment.status === 'submitted',
-  ).length
+  const hiddenOpenCount = allOpenAssignments.length - openAssignments.length
+  const hiddenCompletedCount = allCompletedAssignments.length - completedAssignments.length
+  const openCount = openAssignments.length
+  const completedCount = Math.min(completedAssignments.length, COMPLETED_VISIBLE_LIMIT)
 
   return (
     <div className="space-y-8">
@@ -767,12 +829,14 @@ function OverviewPanel({
               assignments={openAssignments}
               colorByCourse={colorByCourse}
               codeByCourse={codeByCourse}
+              hiddenCount={hiddenOpenCount}
             />
           ) : (
             <CompletedChecklist
               assignments={completedAssignments}
               colorByCourse={colorByCourse}
               codeByCourse={codeByCourse}
+              hiddenCount={hiddenCompletedCount}
             />
           )}
         </div>

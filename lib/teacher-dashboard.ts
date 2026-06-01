@@ -55,6 +55,7 @@ export type AssignmentGradingRow = {
   title: string
   courseName: string
   courseId: string
+  firstPendingSubmissionId: string | null
   dueAt: string | null
   dueDateLabel: string
   gradedCount: number

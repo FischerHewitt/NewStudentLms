@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { courseHref } from '@/lib/routes'
+import { courseHref, speedgraderHref } from '@/lib/routes'
 import type { TeacherDashboardData, TeacherCourseSummary, AssignmentGradingRow } from '@/lib/teacher-dashboard'
 import { teacherCoachHint } from '@/lib/teacher-dashboard'
 import type { UpcomingDeadline } from '@/lib/deadlines'
@@ -431,7 +431,11 @@ function GradingRow({ row }: { row: AssignmentGradingRow }) {
       </div>
 
       <Link
-        href={`/course/${row.courseId}`}
+        href={
+          row.firstPendingSubmissionId
+            ? speedgraderHref(row.courseId, row.firstPendingSubmissionId)
+            : courseHref(row.courseId)
+        }
         className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition hover:opacity-90"
         style={
           isStarted

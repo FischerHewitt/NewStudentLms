@@ -37,7 +37,7 @@ export function ModuleDetail({
     <div className="mx-auto max-w-3xl">
       {/* Back link */}
       <Link
-        href={`/course/${courseId}`}
+        href={role === 'student' ? `/course/${courseId}?view=student` : `/course/${courseId}`}
         className="mb-6 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600"
       >
         ← Back to course
@@ -73,7 +73,11 @@ export function ModuleDetail({
             {mod.assignments.map((a) => (
               <Link
                 key={a.id}
-                href={`/course/${courseId}/assignment/${a.id}`}
+                href={
+                  role === 'student'
+                    ? `/course/${courseId}/assignment/${a.id}?view=student`
+                    : `/course/${courseId}/assignment/${a.id}`
+                }
                 className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
               >
                 <div>

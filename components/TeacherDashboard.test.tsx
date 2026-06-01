@@ -48,6 +48,7 @@ function makeGradingRow(overrides: Partial<AssignmentGradingRow> = {}): Assignme
     title: 'Lab Report: Kinematics',
     courseName: 'AP Physics C',
     courseId: 'course-1',
+    firstPendingSubmissionId: null,
     dueAt: '2026-05-28T17:00:00Z',
     dueDateLabel: 'Due Yesterday',
     gradedCount: 12,

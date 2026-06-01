@@ -1,6 +1,36 @@
 Future ideas — not in scope for hackathon MVP
 
 
+## Wire up broken buttons in Quick Edit / AI Co-Pilot panel
+Several buttons in the Quick Edit form and AI Co-Pilot sidebar are UI-only with no handlers:
+
+- **Publish Assignment** — most critical. Teachers cannot publish a draft assignment to students.
+  Needs a server action that sets the assignment status to published and makes it visible
+  to enrolled students. Should confirm before publishing (can't easily un-expose to students).
+
+- **Refine with AI** — button next to Description & Prompt in Quick Edit. Should open a
+  streaming AI flow that rewrites or improves the assignment instructions based on the rubric
+  and course context, with the teacher able to accept or reject the result inline.
+
+- **Text formatting toolbar** (bold, italic, underline, list, link) — buttons in the description
+  editor are decorative. Need to wire up to a rich text editor (e.g. Tiptap or the existing
+  RichTextarea component) so teachers can format assignment instructions.
+
+- **Add rubric criterion** — the "+ Add" button in the Evaluation Rubric section of Quick Edit
+  should append a new empty criterion row that the teacher can fill in, then save back to the
+  rubric JSONB column via a server action.
+
+- **View Full AI Analysis** — should navigate to or expand a detailed breakdown of AI-predicted
+  scores, class trends, and flagged student work for this assignment.
+
+- **Accept / Dismiss AI suggestions** in the Co-Pilot chat bubble — Accept should apply the
+  suggestion text into the assignment instructions; Dismiss should remove the bubble.
+
+- **Send button in AI Co-Pilot chat** — entire chat is UI-only. Needs to call the teacher-coach
+  API route (or a new assignment-specific route) with the assignment context so the AI can
+  answer questions about this specific assignment, suggest rubric changes, etc.
+
+
 ## Course materials — upload, organize, and interweave
 Teachers upload supplementary materials (PowerPoint slides, PDFs, readings, etc.) alongside
 or after course generation. The AI parses the content and suggests which Module each material
@@ -188,6 +218,18 @@ assignment instructions and a student writing a submission should have the same 
 capabilities. Audit every component that renders a <textarea> or plain text input and
 replace with <RichTextarea> where multi-line rich content makes sense. Skip single-line
 inputs (titles, names, URLs) — those stay as plain <input> fields.
+
+
+## AI agent that creates assignments
+An AI agent that a teacher can prompt (e.g. "create a 500-word essay on photosynthesis due
+next Friday worth 20 points") and it generates a complete Assignment — title, instructions,
+rubric criteria, point values, and due date — and saves it directly to the course without the
+teacher going through the manual creation flow. The agent would ask clarifying questions if
+the prompt is ambiguous (e.g. missing due date or unclear point total) and let the teacher
+review before publishing. Could live as a chat interface on the course dashboard or as a
+slash-command-style input in the course editor. Builds on the existing SpeedGrader rubric
+schema and publish_course_structure DB function so the generated assignment lands in the
+same normalized structure as AI-generated ones.
 
 
 ## Email Intelligence widget (teacher dashboard)

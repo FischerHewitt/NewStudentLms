@@ -35,6 +35,7 @@ type FormatAction =
 const fonts = [
   { label: 'Sans', value: 'Arial, Helvetica, sans-serif' },
   { label: 'Serif', value: 'Georgia, Times New Roman, serif' },
+  { label: 'Times New Roman', value: 'Times New Roman, Times, serif' },
   { label: 'Mono', value: 'Menlo, Monaco, Consolas, monospace' },
   { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
 ]

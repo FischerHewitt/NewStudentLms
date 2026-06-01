@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { SpeedGrader } from '@/components/SpeedGrader'
 import { getSpeedGraderData } from '@/app/actions/speedgrader'
 import { getTeacherAutorunSetting } from '@/app/actions/settings'
+import { SetBreadcrumb } from '@/components/SetBreadcrumb'
 
 export const dynamic = 'force-dynamic'
 // Give the AI call enough headroom on Vercel
@@ -22,8 +23,15 @@ export default async function SpeedGraderPage({
   if (!data) notFound()
 
   return (
-    <div className="px-4 py-8">
-      <SpeedGrader courseId={courseId} data={data} autorun={autorun} />
-    </div>
+    <>
+      <SetBreadcrumb items={[
+        { label: 'Courses', href: '/courses' },
+        { label: data.assignment.title, href: `/course/${courseId}/assignment/${data.assignment.id}` },
+        { label: 'Grading' },
+      ]} />
+      <div className="px-4 py-8">
+        <SpeedGrader courseId={courseId} data={data} autorun={autorun} />
+      </div>
+    </>
   )
 }
