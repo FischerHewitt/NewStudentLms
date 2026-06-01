@@ -3,7 +3,7 @@
 // Throwaway prototype: three variants of the student To-Do and Completed lists,
 // switchable via `?variant=`, on `/todo-completed-prototype`.
 
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { PrototypeSwitcher } from '@/components/PrototypeSwitcher'
 
@@ -416,7 +416,7 @@ function VariantC() {
   )
 }
 
-export default function TodoCompletedPrototypePage() {
+function TodoCompletedPrototypeContent() {
   const searchParams = useSearchParams()
   const requested = searchParams.get('variant')?.toUpperCase() ?? 'A'
   const current = variants.some((variant) => variant.key === requested) ? requested : 'A'
@@ -427,5 +427,13 @@ export default function TodoCompletedPrototypePage() {
       {current === 'B' && <VariantB />}
       {current === 'C' && <VariantC />}
     </PrototypeShell>
+  )
+}
+
+export default function TodoCompletedPrototypePage() {
+  return (
+    <Suspense>
+      <TodoCompletedPrototypeContent />
+    </Suspense>
   )
 }
