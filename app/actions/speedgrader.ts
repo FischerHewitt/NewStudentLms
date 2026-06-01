@@ -25,6 +25,10 @@ export type SpeedGraderData = {
     points_possible: number
     rubric: { criteria: { description: string; points: number }[] } | null
   }
+  course: {
+    id: string
+    title: string
+  }
   grade: Grade | null
 }
 
@@ -55,7 +59,7 @@ export async function getSpeedGraderData(
     db.from('users').select('name').eq('id', submission.student_id).single(),
     db
       .from('assignments')
-      .select('id, title, instructions, points_possible')
+      .select('id, title, instructions, points_possible, course_id')
       .eq('id', submission.assignment_id)
       .single(),
     db
@@ -69,12 +73,13 @@ export async function getSpeedGraderData(
 
   if (!assignmentResult.data) return null
 
-  // Fetch rubric separately
-  const { data: rubric } = await db
-    .from('rubrics')
-    .select('criteria')
-    .eq('assignment_id', submission.assignment_id)
-    .single()
+  // Fetch rubric and course in parallel
+  const [rubricResult, courseResult] = await Promise.all([
+    db.from('rubrics').select('criteria').eq('assignment_id', submission.assignment_id).single(),
+    db.from('courses').select('id, title').eq('id', assignmentResult.data.course_id).single(),
+  ])
+  const rubric = rubricResult.data
+  const course = courseResult.data
 
   return {
     submission: {
@@ -92,6 +97,10 @@ export async function getSpeedGraderData(
       rubric: rubric
         ? (rubric as { criteria: { description: string; points: number }[] })
         : null,
+    },
+    course: {
+      id: course?.id ?? assignmentResult.data.course_id,
+      title: course?.title ?? 'Course',
     },
     grade: gradeResult.data
       ? {

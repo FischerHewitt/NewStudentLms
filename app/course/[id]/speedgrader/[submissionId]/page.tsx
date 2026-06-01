@@ -25,7 +25,7 @@ export default async function SpeedGraderPage({
   return (
     <>
       <SetBreadcrumb items={[
-        { label: 'Courses', href: '/courses' },
+        { label: data.course.title, href: `/course/${courseId}` },
         { label: data.assignment.title, href: `/course/${courseId}/assignment/${data.assignment.id}` },
         { label: 'Grading' },
       ]} />
