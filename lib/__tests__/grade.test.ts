@@ -10,6 +10,7 @@ const approvedGrade: Grade = {
   final_feedback: 'Excellent work with minor gaps.',
   approved_at: '2026-05-30T12:00:00.000Z',
   approved_by: 'teacher-uuid',
+  ai_criterion_scores: null,
 }
 
 const pendingGrade: Grade = {
@@ -21,6 +22,7 @@ const pendingGrade: Grade = {
   final_feedback: null,
   approved_at: null,
   approved_by: null,
+  ai_criterion_scores: null,
 }
 
 describe('toTeacherPanel', () => {

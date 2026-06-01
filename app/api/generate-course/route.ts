@@ -20,6 +20,11 @@ Guidelines:
 - Points per assignment: typically 10–100 depending on weight in syllabus
 - Week numbers start at 1
 
+Rubric criterion language — method vs. outcome:
+- If the syllabus or assignment instructions name a specific method, technique, structure, or tool as the means of completing the work (e.g. "apply the power rule", "use MLA citation", "implement recursion"), write the criterion in method-specific terms that name that requirement (e.g. "uses the power rule to differentiate the function").
+- If no specific method is named, write the criterion in outcome-based terms (e.g. "correctly differentiates the function"). This signals that any demonstrably correct approach will earn full credit.
+- Mirror the teacher's stated intent — do not add or remove method requirements that are not present in the source material.
+
 Combined document format:
 - If the input contains a "## Assignments" section, treat everything after it as the authoritative list of assignments (use their titles, instructions, and point values directly)
 - Content before "## Assignments" is the course overview — use it to build the module structure and extract any additional context

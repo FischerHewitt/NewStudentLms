@@ -6,6 +6,7 @@ import { createPendingGradeFromAiSpeedGrader, type AiSpeedGraderDb } from '@/lib
 import { canApprove, isGradeVisibleToStudent } from '@/lib/grade-lifecycle'
 import { submissionAttachmentFromRow, type FileAttachment } from '@/lib/submission-attachment'
 import type { Grade, StudentGradeView } from '@/lib/grade'
+import type { CriterionScore } from '@/lib/grade-computation'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export async function getSpeedGraderData(
     db
       .from('grades')
       .select(
-        'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by',
+        'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by, ai_criterion_scores',
       )
       .eq('submission_id', submissionId)
       .single(),
@@ -102,6 +103,7 @@ export async function getSpeedGraderData(
           final_feedback: gradeResult.data.final_feedback,
           approved_at: gradeResult.data.approved_at,
           approved_by: gradeResult.data.approved_by ?? null,
+          ai_criterion_scores: (gradeResult.data.ai_criterion_scores as CriterionScore[] | null) ?? null,
         }
       : null,
   }
@@ -181,7 +183,7 @@ export async function publishManualGrade(
 
   const { data: existing } = await db
     .from('grades')
-    .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by')
+    .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by, ai_criterion_scores')
     .eq('submission_id', submissionId)
     .single()
 
@@ -198,6 +200,7 @@ export async function publishManualGrade(
         final_feedback: feedback,
         approved_at: new Date().toISOString(),
         approved_by: TEACHER_ID,
+        ai_criterion_scores: (existing.ai_criterion_scores as CriterionScore[] | null) ?? null,
       },
     }
   }
@@ -230,6 +233,7 @@ export async function publishManualGrade(
       final_feedback: newGrade.final_feedback,
       approved_at: newGrade.approved_at,
       approved_by: newGrade.approved_by ?? null,
+      ai_criterion_scores: null,
     },
   }
 }

@@ -49,8 +49,8 @@ describe('buildPendingGrade', () => {
       { points_possible: 100 },
       {
         criterion_scores: [
-          { description: 'Argument', points_possible: 60, points_awarded: 50, evidence: 'Clear.' },
-          { description: 'Evidence', points_possible: 40, points_awarded: 30, evidence: 'Good.' },
+          { description: 'Argument', points_possible: 60, points_awarded: 50, evidence: 'Clear.', anomaly_flag: null },
+          { description: 'Evidence', points_possible: 40, points_awarded: 30, evidence: 'Good.', anomaly_flag: null },
         ],
         feedback_draft: 'Well done.',
       },
@@ -65,8 +65,8 @@ describe('buildPendingGrade', () => {
       { points_possible: 100 },
       {
         criterion_scores: [
-          { description: 'Argument', points_possible: 60, points_awarded: 80, evidence: 'Inflated.' },
-          { description: 'Evidence', points_possible: 40, points_awarded: 40, evidence: 'Full.' },
+          { description: 'Argument', points_possible: 60, points_awarded: 80, evidence: 'Inflated.', anomaly_flag: null },
+          { description: 'Evidence', points_possible: 40, points_awarded: 40, evidence: 'Full.', anomaly_flag: null },
         ],
         feedback_draft: 'Too high.',
       },
@@ -81,7 +81,7 @@ describe('buildPendingGrade', () => {
       { points_possible: 50 },
       {
         criterion_scores: [
-          { description: 'Quality', points_possible: 50, points_awarded: -10, evidence: 'Penalty.' },
+          { description: 'Quality', points_possible: 50, points_awarded: -10, evidence: 'Penalty.', anomaly_flag: null },
         ],
         feedback_draft: 'Poor.',
       },
@@ -96,8 +96,8 @@ describe('buildPendingGrade', () => {
       { points_possible: 100 },
       {
         criterion_scores: [
-          { description: 'Argument', points_possible: 60, points_awarded: 45, evidence: 'Strong claim.' },
-          { description: 'Evidence', points_possible: 40, points_awarded: 30, evidence: 'Some support.' },
+          { description: 'Argument', points_possible: 60, points_awarded: 45, evidence: 'Strong claim.', anomaly_flag: null },
+          { description: 'Evidence', points_possible: 40, points_awarded: 30, evidence: 'Some support.', anomaly_flag: null },
         ],
         feedback_draft: 'Good start.',
       },
@@ -113,12 +113,56 @@ describe('buildPendingGrade', () => {
       { points_possible: 100 },
       {
         criterion_scores: [
-          { description: 'Quality', points_possible: 100, points_awarded: 75, evidence: 'Fine.' },
+          { description: 'Quality', points_possible: 100, points_awarded: 75, evidence: 'Fine.', anomaly_flag: null },
         ],
         feedback_draft: 'Nice work overall.',
       },
     )
 
     expect(draft.final_feedback).toBe('Nice work overall.')
+  })
+
+  it('AI path: preserves structured criterion scores including anomaly_flag on ai_criterion_scores', () => {
+    const draft = buildPendingGrade(
+      { body: 'My essay', file_url: null },
+      { points_possible: 100 },
+      {
+        criterion_scores: [
+          {
+            description: 'Argument',
+            points_possible: 60,
+            points_awarded: 60,
+            evidence: 'Strong claim.',
+            anomaly_flag: 'Student used a method not yet covered in the course — teacher may want to verify understanding.',
+          },
+          {
+            description: 'Evidence',
+            points_possible: 40,
+            points_awarded: 30,
+            evidence: 'Some support.',
+            anomaly_flag: null,
+          },
+        ],
+        feedback_draft: 'Good work.',
+      },
+    )
+
+    expect(draft.ai_criterion_scores).toHaveLength(2)
+    expect(draft.ai_criterion_scores![0].anomaly_flag).toBe(
+      'Student used a method not yet covered in the course — teacher may want to verify understanding.',
+    )
+    expect(draft.ai_criterion_scores![1].anomaly_flag).toBeNull()
+    expect(draft.ai_criterion_scores![0].points_awarded).toBe(60)
+    expect(draft.ai_criterion_scores![1].evidence).toBe('Some support.')
+  })
+
+  it('short-circuit path: ai_criterion_scores is null when aiResult is null', () => {
+    const draft = buildPendingGrade(
+      { body: '', file_url: null },
+      { points_possible: 100 },
+      null,
+    )
+
+    expect(draft.ai_criterion_scores).toBeNull()
   })
 })

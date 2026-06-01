@@ -238,3 +238,25 @@ email previews (sender, subject, snippet) with AI-generated tags like "Needs Rep
 "AI Draft Ready". The AI pre-drafts replies based on the email content and course context.
 Requires an email provider integration (Gmail/Outlook OAuth), a new data source, and likely a
 background job for polling/classifying emails. Came from the Luminous Intelligence design mockup.
+
+
+## Explicit method_required flag on rubric criteria
+Add an optional boolean field `method_required: true` to each rubric criterion. When set,
+the SpeedGrader treats the named technique/structure/tool as required — not just one valid
+path to the criterion's goal. Useful for assignments where the method itself is the learning
+objective (e.g. "use recursion", "cite primary sources", "apply the power rule"). Currently
+the AI infers this from the criterion description text (Option A). Option B would make it
+explicit and auditable, and would also signal to the syllabus generator to write the criterion
+in a way that names the required method. Worth revisiting if teachers report misclassification
+from the inference approach.
+
+
+## Revisit method-vs-outcome rubric rule
+The current rule encoded in both the generator and SpeedGrader prompts is:
+"If the assignment instructions name a specific method/technique/structure/tool, treat it as
+required. If no method is named, write/score in terms of outcome — award full credit for any
+approach that demonstrably achieves it."
+This is a first-pass heuristic. Revisit after seeing real teacher syllabi and real student
+submissions to check whether the AI is classifying method-required vs outcome-based correctly,
+and whether the rule needs more nuance (e.g. partial credit for wrong method but right answer,
+or subject-specific overrides for STEM vs humanities).

@@ -1,7 +1,7 @@
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { getDefaultAiModel } from '@/lib/ai-model'
-import { needsAiGrading, buildPendingGrade, type PendingGradeDraft } from '@/lib/grade-computation'
+import { needsAiGrading, buildPendingGrade, type PendingGradeDraft, type CriterionScore } from '@/lib/grade-computation'
 import type { Grade } from '@/lib/grade'
 
 const gradeOutputSchema = z.object({
@@ -18,6 +18,12 @@ const gradeOutputSchema = z.object({
         evidence: z
           .string()
           .describe('One sentence: what in the submission earned or lost points'),
+        anomaly_flag: z
+          .string()
+          .nullable()
+          .describe(
+            'Set to a one-sentence teacher note when the student used a valid but unexpectedly advanced method not yet covered in the course. Null otherwise.',
+          ),
       }),
     )
     .describe('One entry per rubric criterion, in order'),
@@ -72,6 +78,7 @@ function toGrade(row: Record<string, unknown>): Grade {
     final_feedback: (row.final_feedback as string | null) ?? null,
     approved_at: (row.approved_at as string | null) ?? null,
     approved_by: (row.approved_by as string | null) ?? null,
+    ai_criterion_scores: (row.ai_criterion_scores as CriterionScore[] | null) ?? null,
   }
 }
 
@@ -99,7 +106,17 @@ Rules:
 - Award 0 for any criterion with no evidence in the submission.
 - Award partial credit only when partial work is clearly visible.
 - Award full credit only when the criterion is fully and clearly met.
-- A very short or minimal submission should score very low.`,
+- A very short or minimal submission should score very low.
+
+Method vs. outcome:
+- If a rubric criterion names a specific method, technique, structure, or tool (e.g. "uses the power rule", "applies MLA citation", "implements recursion"), that method is REQUIRED. The student must demonstrate it to earn credit — a correct answer via a different method does not satisfy the criterion.
+- If a rubric criterion does not name a specific method (e.g. "correctly differentiates the function", "supports the argument with evidence"), award full credit for ANY approach that is demonstrably correct. Do not penalise a student for using a valid alternative method.
+- "Demonstrably correct" means the work is clearly right, not merely plausible or vaguely gesturing at the concept.
+
+Anomaly flag:
+- If a student uses a valid but unexpectedly advanced method — one that appears beyond the scope of the course based on the assignment context — award full credit for the criterion but set anomaly_flag to a one-sentence note for the teacher (e.g. "Student used L'Hôpital's rule, which is not covered until later in the course — teacher may want to verify understanding.").
+- Do NOT dock points for advanced methods. The flag is informational only.
+- Set anomaly_flag to null for all other criteria.`,
     prompt: `Assignment: ${input.assignment.title}
 
 Instructions:
@@ -131,9 +148,10 @@ async function insertPendingGrade(
       ai_suggested_score: draft.ai_suggested_score,
       ai_suggested_feedback: draft.ai_suggested_feedback,
       final_feedback: draft.final_feedback,
+      ai_criterion_scores: draft.ai_criterion_scores ?? null,
     })
     .select(
-      'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by',
+      'id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by, ai_criterion_scores',
     )
     .single()
 

@@ -1,3 +1,5 @@
+import type { CriterionScore } from '@/lib/grade-computation'
+
 /**
  * Canonical Grade type and projection functions.
  *
@@ -17,6 +19,7 @@ export type Grade = {
   final_feedback: string | null
   approved_at: string | null
   approved_by: string | null
+  ai_criterion_scores: CriterionScore[] | null
 }
 
 // ── View projections ──────────────────────────────────────────────────────────

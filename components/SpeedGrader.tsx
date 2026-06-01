@@ -71,6 +71,11 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
   // Per-criterion scores — initialised from AI suggestion if available
   const [criteriaScores, setCriteriaScores] = useState<number[]>(() => {
     if (criteria.length === 0) return []
+    // Use exact per-criterion scores from structured AI output if available
+    if (data.grade?.ai_criterion_scores && data.grade.ai_criterion_scores.length === criteria.length) {
+      return data.grade.ai_criterion_scores.map((c) => c.points_awarded)
+    }
+    // Fallback: distribute total proportionally (grades before this feature, or short-circuit grades)
     const aiTotal = data.grade?.ai_suggested_score ?? 0
     return distributeAiScore(aiTotal, criteria, assignment.points_possible)
   })
@@ -106,9 +111,14 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
         setGrade(result.grade)
         setFeedback(result.grade.final_feedback ?? result.grade.ai_suggested_feedback)
         if (criteria.length > 0) {
-          setCriteriaScores(
-            distributeAiScore(result.grade.ai_suggested_score, criteria, assignment.points_possible),
-          )
+          // Use exact per-criterion scores if available, otherwise distribute proportionally
+          if (result.grade.ai_criterion_scores && result.grade.ai_criterion_scores.length === criteria.length) {
+            setCriteriaScores(result.grade.ai_criterion_scores.map((c) => c.points_awarded))
+          } else {
+            setCriteriaScores(
+              distributeAiScore(result.grade.ai_suggested_score, criteria, assignment.points_possible),
+            )
+          }
         } else {
           setSingleScore(result.grade.ai_suggested_score)
         }
@@ -206,7 +216,9 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
                     <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, margin: 0 }}>Rubric Scoring</p>
                     <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{totalScore}/{assignment.points_possible}</span>
                   </div>
-                  {criteria.map((c, i) => (
+                  {criteria.map((c, i) => {
+                    const aiCriterion = grade?.ai_criterion_scores?.[i] ?? null
+                    return (
                     <div key={i} style={{ borderBottom: i < criteria.length - 1 ? `1px solid ${C.border}` : undefined, padding: '14px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                         <div style={{ flex: 1 }}>
@@ -230,9 +242,22 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
                         </div>
                       </div>
                       {/* Progress bar */}
-                      <div style={{ height: 4, background: C.border, borderRadius: 99, marginBottom: 10, overflow: 'hidden' }}>
+                      <div style={{ height: 4, background: C.border, borderRadius: 99, marginBottom: aiCriterion ? 8 : 10, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${((criteriaScores[i] ?? 0) / c.points) * 100}%`, background: GRADIENT, borderRadius: 99 }} />
                       </div>
+                      {/* AI evidence note */}
+                      {aiCriterion?.evidence && (
+                        <p style={{ fontSize: 11, color: C.muted, margin: '0 0 8px', lineHeight: 1.5, fontStyle: 'italic' }}>
+                          AI: {aiCriterion.evidence}
+                        </p>
+                      )}
+                      {/* Anomaly flag */}
+                      {aiCriterion?.anomaly_flag && (
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 6, padding: '6px 10px', marginBottom: 8 }}>
+                          <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
+                          <p style={{ fontSize: 11, color: '#92400E', margin: 0, lineHeight: 1.5 }}>{aiCriterion.anomaly_flag}</p>
+                        </div>
+                      )}
                       {/* Quick chips */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {getChips(c.description).map((chip) => (
@@ -247,7 +272,8 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
                         ))}
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 /* No rubric — single score input */

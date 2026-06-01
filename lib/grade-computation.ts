@@ -1,8 +1,9 @@
-type CriterionScore = {
+export type CriterionScore = {
   description: string
   points_possible: number
   points_awarded: number
   evidence: string
+  anomaly_flag: string | null
 }
 
 type AiGradeResult = {
@@ -14,6 +15,7 @@ export type PendingGradeDraft = {
   ai_suggested_score: number
   ai_suggested_feedback: string
   final_feedback: string
+  ai_criterion_scores: CriterionScore[] | null
 }
 
 export function needsAiGrading(body: string | null): boolean {
@@ -35,6 +37,7 @@ export function buildPendingGrade(
       final_feedback: isFileOnly
         ? 'This submission appears empty - a file was attached but no written response was provided. If you experienced a technical difficulty, please contact your instructor and resubmit.'
         : 'No submission content was provided. A score of 0 has been recorded.',
+      ai_criterion_scores: null,
     }
   }
 
@@ -49,5 +52,6 @@ export function buildPendingGrade(
       .map((c) => `${c.description} (${c.points_awarded}/${c.points_possible}): ${c.evidence}`)
       .join('\n'),
     final_feedback: aiResult.feedback_draft,
+    ai_criterion_scores: aiResult.criterion_scores,
   }
 }

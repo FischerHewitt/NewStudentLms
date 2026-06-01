@@ -36,6 +36,7 @@ const RUBRIC_DATA = {
     final_feedback: null,
     approved_at: null,
     approved_by: null,
+    ai_criterion_scores: null,
   },
 }
 
