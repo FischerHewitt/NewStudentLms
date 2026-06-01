@@ -1,5 +1,5 @@
 MATH 143 – Calculus III
-Instructor: Prof. Montserrat Dabkowski
+Instructor: Dr. Fischer Hewitt
 Lectures: Monday, Tuesday, Thursday, Friday 10:10–11:00am
 Textbook: James Stewart, Calculus, 8th Edition
 
@@ -68,3 +68,88 @@ Week 10: Polar Coordinates
 Week 11: Review and Final Exam
   - Review session Monday
   - Final Exam Thursday (comprehensive, covers all units, in class, no calculator)
+
+## Assignments
+
+Homework 1
+Description: Practice problems on sequences, limits of sequences, and the squeeze theorem.
+Points: 5
+
+Homework 2
+Description: Practice problems on geometric series, telescoping series, divergence test, and integral test.
+Points: 5
+
+Homework 3
+Description: Practice problems on comparison test, limit comparison, ratio test, and root test.
+Points: 5
+
+Homework 4
+Description: Practice problems on radius of convergence, interval of convergence, Taylor and Maclaurin series.
+Points: 5
+
+Homework 5
+Description: Practice problems on vector operations, magnitude, unit vectors, dot product, and projections.
+Points: 5
+
+Homework 6
+Description: Practice problems on cross product, equations of lines and planes in 3D, and distance formulas.
+Points: 5
+
+Homework 7
+Description: Practice problems on parametric equations, derivatives and tangent lines, and arc length.
+Points: 5
+
+Homework 8
+Description: Practice problems on polar coordinate system, converting between polar and Cartesian, and area in polar.
+Points: 5
+
+Quiz 1
+Description: Covers sequences — limits, squeeze theorem, and convergence of sequences.
+Points: 10
+
+Quiz 2
+Description: Covers series basics — geometric series, telescoping series, and the divergence test.
+Points: 10
+
+Quiz 3
+Description: Covers convergence tests — comparison, limit comparison, ratio, and root tests.
+Points: 10
+
+Quiz 4
+Description: Covers vector basics — operations, magnitude, unit vectors, dot product, and projections.
+Points: 10
+
+Quiz 5
+Description: Covers vectors and dot product — projections, angles between vectors, and applications.
+Points: 10
+
+Quiz 6
+Description: Covers parametric curves — derivatives, tangent lines, and arc length.
+Points: 10
+
+Quiz 7 – Polar Tangent Lines
+Instructions: Find the slope of the tangent line to the polar curve r = 1 + cosθ at θ = π/2. Show all steps in order: (1) convert to parametric form using x = r cosθ and y = r sinθ with r = 1 + cosθ substituted in; (2) apply the product rule to differentiate y with respect to θ to find dy/dθ; (3) apply the product rule to differentiate x with respect to θ to find dx/dθ; (4) form the ratio dy/dθ ÷ dx/dθ; (5) substitute θ = π/2 into the ratio and state the final numerical slope. Label each step clearly.
+Points: 10
+Rubric:
+  - Sets up parametric form x = r cosθ, y = r sinθ with r = 1+cosθ substituted in: 2 pts
+  - Applies product rule to find dy/dθ — structure correct regardless of sign: 2 pts
+  - Applies product rule to find dx/dθ — structure correct regardless of sign: 2 pts
+  - Forms the ratio dy/dθ ÷ dx/dθ correctly from their expressions: 2 pts
+  - Substitutes θ = π/2 and states a final numerical slope: 1 pt
+  - Work is clearly organized and steps are labeled: 1 pt
+
+Midterm 1
+Description: In-class exam covering Weeks 1–4: sequences, series, and convergence tests. No calculator. 50 minutes.
+Points: 100
+
+Midterm 1 Reflection
+Description: Written reflection (250+ words) on Midterm 1 performance — what you understood, what you missed, and how you will prepare differently going forward.
+Points: 10
+
+Midterm 2
+Description: In-class exam covering Weeks 6–7: vectors, dot product, cross product, lines and planes in 3D. No calculator. 50 minutes.
+Points: 100
+
+Final Exam
+Description: Comprehensive in-class exam covering all units (sequences and series, vectors, parametric and polar curves). No calculator. Mandatory.
+Points: 200

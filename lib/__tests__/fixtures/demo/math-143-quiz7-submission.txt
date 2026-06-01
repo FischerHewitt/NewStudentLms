@@ -1,0 +1,59 @@
+============================================================
+PRESENTER INSTRUCTIONS — do not paste this block
+============================================================
+Paste everything below the dashed line into the submission box.
+Then, at the very end, type this final line live:
+
+    $\frac{-1}{-1} = -1$
+
+The correct answer is = 1, but you write = -1 intentionally.
+This produces the 9/10 demo score: method is fully correct,
+only the final arithmetic has a sign error.
+------------------------------------------------------------
+
+**Quiz 7 – Polar Tangent Lines**
+
+Find the slope of the tangent line to $r = 1 + \cos\theta$ at $\theta = \frac{\pi}{2}$, showing all steps.
+
+---
+
+**Step 1: Parametric Setup**
+
+Convert to parametric form using $x = r\cos\theta$ and $y = r\sin\theta$ with $r = 1 + \cos\theta$:
+
+$$x = (1 + \cos\theta)\cos\theta$$
+$$y = (1 + \cos\theta)\sin\theta$$
+
+---
+
+**Step 2: Find $\frac{dy}{d\theta}$ using the Product Rule**
+
+$$\frac{dy}{d\theta} = \frac{d}{d\theta}\left[(1 + \cos\theta)\sin\theta\right]$$
+
+$$= (-\sin\theta)(\sin\theta) + (1 + \cos\theta)(\cos\theta)$$
+
+$$= -\sin^2\theta + \cos\theta + \cos^2\theta$$
+
+---
+
+**Step 3: Find $\frac{dx}{d\theta}$ using the Product Rule**
+
+$$\frac{dx}{d\theta} = \frac{d}{d\theta}\left[(1 + \cos\theta)\cos\theta\right]$$
+
+$$= (-\sin\theta)(\cos\theta) + (1 + \cos\theta)(-\sin\theta)$$
+
+$$= -\sin\theta\cos\theta - \sin\theta - \sin\theta\cos\theta$$
+
+$$= -2\sin\theta\cos\theta - \sin\theta$$
+
+---
+
+**Step 4: Substitute $\theta = \frac{\pi}{2}$ and find the slope**
+
+At $\theta = \frac{\pi}{2}$: $\sin\tfrac{\pi}{2} = 1$, $\cos\tfrac{\pi}{2} = 0$.
+
+$$\frac{dy}{d\theta}\bigg|_{\theta=\pi/2} = -(1)^2 + 0 + 0 = -1$$
+
+$$\frac{dx}{d\theta}\bigg|_{\theta=\pi/2} = -2(1)(0) - 1 = -1$$
+
+Therefore $\dfrac{dy}{dx} = \dfrac{dy/d\theta}{dx/d\theta} =$
