@@ -31,15 +31,12 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
 
   const criteria = assignment.rubric?.criteria ?? []
   const submitted = allSubmissions.filter((s) => s.status === 'submitted' || s.status === 'graded')
-  const scoredSubs = allSubmissions.filter(
-    (s) => (s.finalScore ?? s.grade?.ai_suggested_score) != null,
-  )
+  const scoredSubs = allSubmissions.filter((s) => s.finalScore != null)
   const classAvgPct =
     scoredSubs.length > 0 && assignment.points_possible > 0
       ? Math.round(
           scoredSubs.reduce((acc, s) => {
-            const score = s.finalScore ?? s.grade?.ai_suggested_score ?? 0
-            return acc + (score / assignment.points_possible) * 100
+            return acc + ((s.finalScore ?? 0) / assignment.points_possible) * 100
           }, 0) / scoredSubs.length,
         )
       : null
@@ -58,14 +55,12 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
   const isOverdue = assignment.due_date ? new Date(assignment.due_date) < new Date() : false
   const isActive = !isOverdue && !!assignment.due_date
 
-  const aiScoreLabel = (sub: SubmissionData): string => {
-    if (sub.status === 'draft') return 'Calc...'
-    const score = sub.finalScore ?? sub.grade?.ai_suggested_score
-    if (score == null) return '—'
+  const scoreLabel = (sub: SubmissionData): string => {
+    if (sub.finalScore == null) return '—'
     if (assignment.points_possible > 0) {
-      return `${Math.round((score / assignment.points_possible) * 100)}%`
+      return `${Math.round((sub.finalScore / assignment.points_possible) * 100)}%`
     }
-    return `${score} pts`
+    return `${sub.finalScore} pts`
   }
 
   const getInitials = (name: string) =>
@@ -79,8 +74,7 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
   const getAvatarColor = (name: string) => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
 
   const lowScorers = allSubmissions.filter((s) => {
-    const score = s.finalScore ?? s.grade?.ai_suggested_score
-    return score != null && assignment.points_possible > 0 && score / assignment.points_possible < 0.6
+    return s.finalScore != null && assignment.points_possible > 0 && s.finalScore / assignment.points_possible < 0.6
   })
 
   const dueDateLabel = assignment.due_date
@@ -314,10 +308,10 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
                 iconColor={C.muted}
               />
               <StatCard
-                label="Class Avg (Est.)"
+                label="Class Avg"
                 value={classAvgPct != null ? `${classAvgPct}%` : '—'}
-                icon="auto_awesome"
-                iconGradient={GRADIENT}
+                icon="bar_chart"
+                iconColor={C.purple}
               />
               <StatCard
                 label="Time Remaining"
@@ -411,7 +405,7 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
                 padding: '8px 20px', borderBottom: `1px solid ${C.border}`,
                 background: '#fafafa',
               }}>
-                {['Student', 'Status', 'AI Est. Score', 'Action'].map((h) => (
+                {['Student', 'Status', 'Score', 'Action'].map((h) => (
                   <p key={h} style={{ fontSize: 11, fontWeight: 600, color: C.muted, margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</p>
                 ))}
               </div>
@@ -422,7 +416,7 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
                 </div>
               ) : (
                 allSubmissions.map((sub, i) => {
-                  const score = aiScoreLabel(sub)
+                  const score = scoreLabel(sub)
                   const isLast = i === allSubmissions.length - 1
                   return (
                     <div key={sub.id} style={{
@@ -446,16 +440,14 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
                       {/* Status */}
                       <StatusPill status={sub.status} />
 
-                      {/* Score */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {sub.status !== 'draft' && <GradientIcon icon="auto_awesome" size={13} />}
-                        <span style={{
-                          fontSize: 14, fontWeight: sub.status !== 'draft' ? 600 : 400,
-                          color: sub.status !== 'draft' ? C.text : C.muted,
-                        }}>
-                          {score}
-                        </span>
-                      </div>
+                      {/* Score — only show if actually graded */}
+                      <span style={{
+                        fontSize: 14,
+                        fontWeight: sub.finalScore != null ? 600 : 400,
+                        color: sub.finalScore != null ? C.text : C.muted,
+                      }}>
+                        {score}
+                      </span>
 
                       {/* Action */}
                       {sub.status === 'draft' ? (
