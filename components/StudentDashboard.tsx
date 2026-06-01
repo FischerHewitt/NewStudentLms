@@ -397,7 +397,7 @@ function CourseCards({
   setSelectedCourseId: (courseId: string | null) => void
 }) {
   return (
-    <section>
+    <section className="min-w-0">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Courses</h2>
         {selectedCourseId && (
@@ -421,7 +421,7 @@ function CourseCards({
               key={course.id}
               type="button"
               onClick={() => setSelectedCourseId(selected ? null : course.id)}
-              className={`rounded-xl border border-l-4 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${color.border} ${
+              className={`min-w-0 rounded-xl border border-l-4 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${color.border} ${
                 selected ? 'ring-2 ring-violet-300' : ''
               }`}
             >
@@ -803,7 +803,7 @@ function OverviewPanel({
 
       <InsightBanner courses={courses} assignments={assignments} />
 
-      <div className="grid gap-8 xl:grid-cols-[370px_minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-8 xl:grid-cols-[370px_minmax(0,1fr)]">
         <CourseCards
           courses={courses}
           assignments={assignments}
@@ -813,7 +813,7 @@ function OverviewPanel({
           setSelectedCourseId={setSelectedCourseId}
         />
 
-        <div className="space-y-8">
+        <div className="min-w-0 space-y-8">
           <WeekStrip
             assignments={visibleAssignments}
             colorByCourse={colorByCourse}

@@ -243,6 +243,22 @@ describe('StudentDashboard redesign', () => {
     expect(html).toContain('Awaiting grade')
   })
 
+  it('filters the Grades tab by the selected course', () => {
+    const html = renderToStaticMarkup(
+      <StudentDashboard
+        courses={courses}
+        assignments={assignments}
+        initialTab="grades"
+        initialCourseId="bio-111"
+      />,
+    )
+
+    expect(html).toContain('BIO 111 - General Biology')
+    expect(html).toContain('Connect Homework 1')
+    expect(html).not.toContain('COMS 101 - Public Speaking')
+    expect(html).not.toContain('Speech Round 1')
+  })
+
   it('renders the Messages tab as a polished non-functional empty state', () => {
     const html = renderToStaticMarkup(
       <StudentDashboard
