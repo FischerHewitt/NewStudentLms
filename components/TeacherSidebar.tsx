@@ -34,19 +34,27 @@ export function TeacherSidebar({ collapsed, onToggle }: TeacherSidebarProps) {
     <nav
       className="fixed left-0 top-0 hidden h-full flex-col py-6 md:flex transition-[width] duration-300 ease-in-out overflow-hidden"
       style={{
-        width: collapsed ? 64 : 280,
+        width: collapsed ? 64 : 220,
         background: SURFACE,
         borderRight: `1px solid ${OUTLINE_VARIANT}`,
       }}
     >
       {/* Logo + collapse toggle */}
-      <div className={`mb-8 flex items-center px-4 ${collapsed ? 'flex-col gap-3' : 'gap-3'}`}>
-        <Image src="/alumos-icon.png" alt="Alumos" width={32} height={32} className="shrink-0 object-contain" />
+      <div className={`mb-8 flex items-center px-4 ${collapsed ? 'flex-col gap-3' : 'gap-1.5'}`}>
+        <Image src="/alumos-icon.png" alt="Alumos" width={26} height={26} className="shrink-0 object-contain" />
         {!collapsed && (
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-bold" style={{ color: '#000000', fontFamily: 'var(--font-syne, system-ui)' }}>Alumos</h1>
-            <p className="text-xs" style={{ color: ON_SURFACE_VARIANT }}>Teacher Command Center</p>
-          </div>
+          <h1
+            className="text-lg font-bold leading-none"
+            style={{
+              fontFamily: 'var(--font-syne, system-ui)',
+              background: 'linear-gradient(135deg, #F59E0B 0%, #EC4899 50%, #7C3AED 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            lumos
+          </h1>
         )}
         <button
           onClick={onToggle}

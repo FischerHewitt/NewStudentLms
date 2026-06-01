@@ -11,7 +11,7 @@ export function TeacherShell({ children, initialCollapsed = false }: { children:
       <TeacherSidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
       <div
         className="flex flex-1 flex-col overflow-hidden transition-[margin] duration-300 ease-in-out"
-        style={{ marginLeft: collapsed ? 64 : 280 }}
+        style={{ marginLeft: collapsed ? 64 : 220 }}
       >
         {children}
       </div>
