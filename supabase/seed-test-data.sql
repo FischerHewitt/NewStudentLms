@@ -89,17 +89,29 @@ INSERT INTO modules (id, course_id, title, description, "order", week_number) VA
   ('00000000-0000-0000-0002-000000000009', '00000000-0000-0000-0001-000000000002',
    'Final Exam', 'Comprehensive final exam covering all three units.', 4, 11),
 
-  -- COMS 101
+  -- COMS 101 — one module per week (Weeks 1–11)
   ('00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000003',
-   'Foundations', 'Speech structure, delivery techniques, community building.', 1, 1),
+   'Week 1 – Community Building', 'Introductions, course objectives, syllabus review, community agreements.', 1, 1),
+  ('00000000-0000-0000-0002-000000000015', '00000000-0000-0000-0001-000000000003',
+   'Week 2 – Speech Structure', 'Introduction, body, conclusion; organizational patterns (chronological, topical, problem-solution). Quiz 1.', 2, 2),
+  ('00000000-0000-0000-0002-000000000016', '00000000-0000-0000-0001-000000000003',
+   'Week 3 – Delivery', 'Eye contact, vocal variety, pacing, gestures, managing anxiety. Office Visit due. Quiz 2.', 3, 3),
   ('00000000-0000-0000-0002-000000000011', '00000000-0000-0000-0001-000000000003',
-   'Round 1 – Introductory Speeches', 'Planning and delivering introductory speeches. Peer verbal and written evaluations.', 2, 4),
+   'Week 4 – Round 1 Prep', 'Specific Purpose & Central Idea Statement due. Tips for introductory speeches.', 4, 4),
+  ('00000000-0000-0000-0002-000000000017', '00000000-0000-0000-0001-000000000003',
+   'Week 5 – Round 1 Speeches (Part 1)', 'In-class introductory speeches. Verbal evaluations. Written Evaluation Round 1 due Sunday.', 5, 5),
+  ('00000000-0000-0000-0002-000000000018', '00000000-0000-0000-0001-000000000003',
+   'Week 6 – Round 1 Speeches (Part 2) & Research', 'Remaining Round 1 speeches. Finding credible sources, integrating evidence, avoiding plagiarism.', 6, 6),
   ('00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000003',
-   'Round 2 – Informative Speeches', 'Research, visual aids, informative speech delivery. Delivery style analysis.', 3, 7),
+   'Week 7 – Visual Aids & Round 2 Prep', 'Designing effective slides and visual aids. Quiz 3. Specific Purpose & Central Idea – Round 2 due.', 7, 7),
+  ('00000000-0000-0000-0002-000000000019', '00000000-0000-0000-0001-000000000003',
+   'Week 8 – Round 2 Speeches', 'In-class informative speeches. Verbal evaluations. Analyzing Delivery Style due Sunday.', 8, 8),
   ('00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
-   'Round 3 – Persuasive Speeches', 'Persuasive techniques, Monroe''s Motivated Sequence, final speech round.', 4, 9),
+   'Week 9 – Persuasive Speaking & Round 3 Prep', 'Aristotle''s appeals, Monroe''s Motivated Sequence. Quiz 4. Written Evaluation Round 2 & Reflection 2 due.', 9, 9),
+  ('00000000-0000-0000-0002-000000000020', '00000000-0000-0000-0001-000000000003',
+   'Week 10 – Round 3 Speeches', 'In-class persuasive speeches. Verbal evaluations. Written Evaluation Round 3 due Sunday.', 10, 10),
   ('00000000-0000-0000-0002-000000000014', '00000000-0000-0000-0001-000000000003',
-   'Finals', 'Final course reflection.', 5, 11)
+   'Week 11 – Finals', 'Final course reflection due. No final exam.', 11, 11)
 
 ON CONFLICT (id) DO NOTHING;
 
@@ -156,7 +168,7 @@ INSERT INTO rubrics (id, assignment_id, criteria) VALUES
    '[{"description": "Quiz performance (score recorded automatically)", "points": 25}]'),
   ('00000000-0000-0000-0004-000000000020', '00000000-0000-0000-0003-000000000020',
    '[{"description": "Exam performance (score entered by instructor)", "points": 100}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
 -- ---------------- BIO 111 · Module 2: Genetics and Heredity ----------------
 
@@ -203,7 +215,7 @@ INSERT INTO rubrics (id, assignment_id, criteria) VALUES
    '[{"description": "Lab exam performance (score entered by instructor)", "points": 50}]'),
   ('00000000-0000-0000-0004-000000000026', '00000000-0000-0000-0003-000000000026',
    '[{"description": "Exam performance (score entered by instructor)", "points": 100}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
 -- ---------------- BIO 111 · Module 3: Evolution and Ecology ----------------
 
@@ -247,7 +259,7 @@ INSERT INTO rubrics (id, assignment_id, criteria) VALUES
      {"description": "Makes a genuine attempt (300+ words, organized writing)", "points": 2}]'),
   ('00000000-0000-0000-0004-000000000031', '00000000-0000-0000-0003-000000000031',
    '[{"description": "Lab exam performance (score entered by instructor)", "points": 60}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
 -- ---------------- BIO 111 · Module 4: Final Exam ----------------
 
@@ -261,90 +273,139 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
   ('00000000-0000-0000-0004-000000000032', '00000000-0000-0000-0003-000000000032',
    '[{"description": "Exam performance (score entered by instructor)", "points": 200}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
--- ---------------- COMS 101 · Module 1: Foundations ----------------
+-- ---------------- COMS 101 · Week 1: Community Building ----------------
 
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
   ('00000000-0000-0000-0003-000000000033', '00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000003',
    'Creating Classroom Community',
    'In-class activity: introduce yourself and share one communication challenge you hope to work on this quarter. Participation recorded in class. Score entered by instructor.',
-   15),
-  ('00000000-0000-0000-0003-000000000034', '00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000003',
+   15)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000033', '00000000-0000-0000-0003-000000000033',
+   '[{"description": "Participation recorded by instructor", "points": 15}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 2: Speech Structure ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000035', '00000000-0000-0000-0002-000000000015', '00000000-0000-0000-0001-000000000003',
+   'Quiz 1 – Speech Structure',
+   'Online quiz on introduction, body, conclusion structure and organizational patterns. Score recorded automatically.',
+   15)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000035', '00000000-0000-0000-0003-000000000035',
+   '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 3: Delivery ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000034', '00000000-0000-0000-0002-000000000016', '00000000-0000-0000-0001-000000000003',
    'Office Visit',
    'Schedule and attend a 10-minute office visit with the instructor. Come prepared with one question about the course or your speaking goals. Score entered by instructor after your visit.',
    10),
-  ('00000000-0000-0000-0003-000000000035', '00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000003',
-   'Quiz 1 – Speech Structure',
-   'Online quiz on introduction, body, conclusion structure and organizational patterns. Score recorded automatically.',
-   15),
-  ('00000000-0000-0000-0003-000000000036', '00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000003',
+  ('00000000-0000-0000-0003-000000000036', '00000000-0000-0000-0002-000000000016', '00000000-0000-0000-0001-000000000003',
    'Quiz 2 – Delivery',
    'Online quiz on eye contact, vocal variety, pacing, gestures, and managing anxiety. Score recorded automatically.',
    15)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
-  ('00000000-0000-0000-0004-000000000033', '00000000-0000-0000-0003-000000000033',
-   '[{"description": "Participation recorded by instructor", "points": 15}]'),
   ('00000000-0000-0000-0004-000000000034', '00000000-0000-0000-0003-000000000034',
    '[{"description": "Office visit completed and confirmed by instructor", "points": 10}]'),
-  ('00000000-0000-0000-0004-000000000035', '00000000-0000-0000-0003-000000000035',
-   '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]'),
   ('00000000-0000-0000-0004-000000000036', '00000000-0000-0000-0003-000000000036',
    '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
--- ---------------- COMS 101 · Module 2: Round 1 – Introductory Speeches ----------------
+-- ---------------- COMS 101 · Week 4: Round 1 Prep ----------------
 
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
   ('00000000-0000-0000-0003-000000000037', '00000000-0000-0000-0002-000000000011', '00000000-0000-0000-0001-000000000003',
    'Specific Purpose & Central Idea – Round 1',
    'Submit your speech planning document before your Round 1 speech. Include: (1) Specific purpose — one sentence using a measurable verb (explain, describe, list). No conjunctions. (2) Central idea — one sentence stating what you will accomplish. (3) Preview of 2–4 main points. (4) One personal speaking goal for this round.',
-   0),
-  ('00000000-0000-0000-0003-000000000038', '00000000-0000-0000-0002-000000000011', '00000000-0000-0000-0001-000000000003',
+   0)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000037', '00000000-0000-0000-0003-000000000037',
+   '[{"description": "Checkpoint completed (0 pts — planning document submitted before speech)", "points": 0}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 5: Round 1 Speeches (Part 1) ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000038', '00000000-0000-0000-0002-000000000017', '00000000-0000-0000-0001-000000000003',
    'Written Evaluation – Round 1',
    'Write a constructive evaluation of a classmate''s Round 1 introductory speech. Address all five areas: (1) organization, (2) delivery, (3) eye contact, (4) vocal variety, and (5) content. Be specific — cite actual moments from the speech, not generalizations. 400+ words.',
    15)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
-  ('00000000-0000-0000-0004-000000000037', '00000000-0000-0000-0003-000000000037',
-   '[{"description": "Checkpoint completed (0 pts — planning document submitted before speech)", "points": 0}]'),
   ('00000000-0000-0000-0004-000000000038', '00000000-0000-0000-0003-000000000038',
    '[{"description": "Addresses all five evaluation criteria (organization, delivery, eye contact, vocal variety, content)", "points": 6},
      {"description": "Cites specific moments from the speech rather than speaking in generalities", "points": 6},
      {"description": "Tone is constructive and writing is organized (400+ words)", "points": 3}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
--- ---------------- COMS 101 · Module 3: Round 2 – Informative Speeches ----------------
+-- ---------------- COMS 101 · Week 6: Round 1 Speeches (Part 2) & Research ----------------
+-- (no graded assignments this week — lecture on research and sources)
+
+-- ---------------- COMS 101 · Week 7: Visual Aids & Round 2 Prep ----------------
 
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
   ('00000000-0000-0000-0003-000000000039', '00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000003',
    'Quiz 3 – Research and Visual Aids',
    'Online quiz on finding credible sources, integrating evidence, avoiding plagiarism, and designing effective visual aids. Score recorded automatically.',
-   15),
-  ('00000000-0000-0000-0003-000000000040', '00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000003',
+   15)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000039', '00000000-0000-0000-0003-000000000039',
+   '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 8: Round 2 Speeches ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000040', '00000000-0000-0000-0002-000000000019', '00000000-0000-0000-0001-000000000003',
    'Analyzing Delivery Style',
    'Watch the assigned speech video. In 400+ words, analyze the speaker''s delivery using at least three specific concepts from course material (e.g. eye contact, vocal variety, pacing, gestures, structure). For each concept: describe what the speaker did, evaluate whether it was effective, and explain what you would coach them to improve.',
+   30)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000040', '00000000-0000-0000-0003-000000000040',
+   '[{"description": "Applies at least three distinct course concepts correctly", "points": 15},
+     {"description": "Supports each claim with specific evidence from the video", "points": 10},
+     {"description": "Writing is organized and professional (400+ words)", "points": 5}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 9: Persuasive Speaking & Round 3 Prep ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000043', '00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
+   'Quiz 4 – Persuasive Speaking',
+   'Online quiz on Aristotle''s appeals (logos, ethos, pathos) and Monroe''s Motivated Sequence. Score recorded automatically.',
    30),
-  ('00000000-0000-0000-0003-000000000041', '00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000003',
+  ('00000000-0000-0000-0003-000000000041', '00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
    'Written Evaluation – Round 2',
    'Write a constructive evaluation of a classmate''s Round 2 informative speech. Address organization, delivery, eye contact, vocal variety, content, and use of visual aids. Cite specific moments. 400+ words.',
    15),
-  ('00000000-0000-0000-0003-000000000042', '00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000003',
+  ('00000000-0000-0000-0003-000000000042', '00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
    'Reflection 2',
    'Three-part reflection on your Round 2 speech: (1) One sentence — your specific goal for Round 3, drawn from feedback you received. (2) One paragraph — your concrete plan for achieving that goal. (3) 1–2 paragraphs — honest reflection on how Round 2 went and what you would do differently.',
    10)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
-  ('00000000-0000-0000-0004-000000000039', '00000000-0000-0000-0003-000000000039',
-   '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]'),
-  ('00000000-0000-0000-0004-000000000040', '00000000-0000-0000-0003-000000000040',
-   '[{"description": "Applies at least three distinct course concepts correctly", "points": 15},
-     {"description": "Supports each claim with specific evidence from the video", "points": 10},
-     {"description": "Writing is organized and professional (400+ words)", "points": 5}]'),
+  ('00000000-0000-0000-0004-000000000043', '00000000-0000-0000-0003-000000000043',
+   '[{"description": "Quiz performance (score recorded automatically)", "points": 30}]'),
   ('00000000-0000-0000-0004-000000000041', '00000000-0000-0000-0003-000000000041',
    '[{"description": "Addresses all six evaluation criteria including visual aids", "points": 6},
      {"description": "Cites specific moments from the speech", "points": 6},
@@ -353,31 +414,25 @@ INSERT INTO rubrics (id, assignment_id, criteria) VALUES
    '[{"description": "Round 3 goal is specific and measurable (one sentence)", "points": 3},
      {"description": "Implementation plan is concrete and actionable (one paragraph)", "points": 4},
      {"description": "Reflection on Round 2 shows genuine self-assessment (1–2 paragraphs)", "points": 3}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
--- ---------------- COMS 101 · Module 4: Round 3 – Persuasive Speeches ----------------
+-- ---------------- COMS 101 · Week 10: Round 3 Speeches ----------------
 
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
-  ('00000000-0000-0000-0003-000000000043', '00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
-   'Quiz 4 – Persuasive Speaking',
-   'Online quiz on Aristotle''s appeals (logos, ethos, pathos) and Monroe''s Motivated Sequence. Score recorded automatically.',
-   30),
-  ('00000000-0000-0000-0003-000000000044', '00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
+  ('00000000-0000-0000-0003-000000000044', '00000000-0000-0000-0002-000000000020', '00000000-0000-0000-0001-000000000003',
    'Written Evaluation – Round 3',
    'Write a constructive evaluation of a classmate''s Round 3 persuasive speech. Address organization, delivery, use of persuasive appeals (logos/ethos/pathos), evidence, and call to action. Cite specific moments. 400+ words.',
    15)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
-  ('00000000-0000-0000-0004-000000000043', '00000000-0000-0000-0003-000000000043',
-   '[{"description": "Quiz performance (score recorded automatically)", "points": 30}]'),
   ('00000000-0000-0000-0004-000000000044', '00000000-0000-0000-0003-000000000044',
    '[{"description": "Addresses organization, delivery, and all three persuasive appeals", "points": 7},
      {"description": "Cites specific moments from the speech", "points": 5},
      {"description": "Tone is constructive and writing is organized (400+ words)", "points": 3}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
--- ---------------- COMS 101 · Module 5: Finals ----------------
+-- ---------------- COMS 101 · Week 11: Finals ----------------
 
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
   ('00000000-0000-0000-0003-000000000045', '00000000-0000-0000-0002-000000000014', '00000000-0000-0000-0001-000000000003',
@@ -391,7 +446,7 @@ INSERT INTO rubrics (id, assignment_id, criteria) VALUES
    '[{"description": "Describes specific growth from Round 1 to Round 3 with examples", "points": 4},
      {"description": "Identifies one skill developed with genuine reflection", "points": 3},
      {"description": "Writing is organized and genuine (400+ words)", "points": 3}]')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id) DO NOTHING;
 
 
 -- =============================================================================
@@ -436,7 +491,7 @@ INSERT INTO enrollments (id, course_id, student_id, enrolled_at) VALUES
   ('00000000-0000-0000-0005-000000000028', '00000000-0000-0000-0001-000000000003', '00000000-0000-0000-0000-000000000014', NOW()),
   ('00000000-0000-0000-0005-000000000029', '00000000-0000-0000-0001-000000000003', '00000000-0000-0000-0000-000000000015', NOW()),
   ('00000000-0000-0000-0005-000000000030', '00000000-0000-0000-0001-000000000003', '00000000-0000-0000-0000-000000000016', NOW())
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (course_id, student_id) DO NOTHING;
 
 
 -- =============================================================================
@@ -504,7 +559,7 @@ From Unit 2, meiosis and genetic recombination were the most relevant concepts t
 In Unit 3, the concept of ecological succession was the most surprising. I did not know that ecosystems follow predictable patterns of change over time, from pioneer species to climax communities. Learning about primary and secondary succession made me think about the empty lot near my house differently — it is not just an abandoned space, it is an ecosystem in an early stage of succession.',
    NOW() - INTERVAL '3 days', 'graded')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -541,7 +596,7 @@ From Unit 2, the concept of epigenetics came up briefly in lecture and I found i
 In Unit 3, I found the section on invasive species and their ecological impact most relevant. There are several invasive species in my region and understanding why they are so disruptive — because they lack natural predators and can outcompete native species — gave me a much better framework for thinking about conservation.',
    NOW() - INTERVAL '3 days', 'submitted')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -566,7 +621,7 @@ INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, stat
    'From Unit 1 the most surprising concept was how enzymes work and how they can be denatured. From Unit 2 I found DNA replication interesting. From Unit 3 natural selection was the most relevant concept to my life because I see examples of it in nature around me.',
    NOW() - INTERVAL '2 days', 'submitted')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -586,7 +641,7 @@ INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, stat
 
   -- 013 Diego Flores, 014 Hannah Okafor, 015 Liam Patel: BLANK — no row
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- A038: COMS 101 Written Evaluation – Round 1  (submissions 013–024)
@@ -662,7 +717,7 @@ Vocal Variety: Vocal variety was good overall. The speaker used changes in pace 
 Content: The content was engaging and personal. The speaker shared specific stories that made the speech memorable. The main weakness was the lack of a third main point — the speech felt like it ended before fully developing the topic. Adding one more supporting point would make the argument more complete.',
    NOW() - INTERVAL '5 days', 'graded')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -713,7 +768,7 @@ Vocal variety: The speaker used good volume but limited pitch variation. The spe
 Content: The content was relevant and specific. The speaker used a personal story effectively in the introduction. The third main point was the weakest — it felt less developed than the first two and could use more supporting detail.',
    NOW() - INTERVAL '5 days', 'submitted')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -738,7 +793,7 @@ INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, stat
    'The speaker did a good job with organization and had a clear structure. Their eye contact was strong and they seemed comfortable in front of the audience. Delivery was good overall. Content was relevant. Vocal variety could be improved with more changes in pitch and pace.',
    NOW() - INTERVAL '2 days', 'submitted')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -758,7 +813,7 @@ INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, stat
 
   -- 014 Diego Flores, 015 Hannah Okafor, 016 Liam Patel: BLANK — no row
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- A040: COMS 101 Analyzing Delivery Style  (submissions 025–036)
@@ -818,7 +873,7 @@ Eye Contact: Eye contact was strong overall. The speaker made deliberate contact
 Managing Anxiety: The speaker showed visible signs of anxiety in the first two minutes — slightly faster pace, occasional voice tremor, and fidgeting with their notes. However, they settled into the speech by the third minute and the anxiety became much less apparent. This is a pattern we discussed in class: anxiety is often highest at the start and decreases as the speaker gets into their material. I would coach this speaker to use a deliberate pause and breath at the very beginning of the speech before saying their first word, which can help reset the nervous system and project calm from the start.',
    NOW() - INTERVAL '6 days', 'graded')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -861,7 +916,7 @@ Use of space: The speaker stayed mostly in one spot throughout the speech, which
 Managing anxiety: The speaker appeared comfortable and confident throughout the speech. There were no visible signs of anxiety — no fidgeting, voice tremors, or rushed pacing. This is a real strength and suggests good preparation. The one suggestion I have is to use more deliberate pauses, which would add gravitas to the delivery and make the speaker appear even more in control.',
    NOW() - INTERVAL '4 days', 'submitted')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -886,7 +941,7 @@ INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, stat
    'The speaker demonstrated strong vocal variety and good use of eye contact. Their pacing was well-controlled and they used pauses effectively. One area for improvement is gestures — they were limited and could be more expressive. The structure of the speech was clear and easy to follow.',
    NOW() - INTERVAL '2 days', 'submitted')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
@@ -906,7 +961,7 @@ INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, stat
 
   -- 014 Diego Flores, 015 Hannah Okafor, 016 Liam Patel: BLANK — no row
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 
 -- =============================================================================
@@ -976,7 +1031,7 @@ Genuine attempt: 1/2 — well over 300 words, organized, minor deduction for sli
    '00000000-0000-0000-0000-000000000001',
    NOW() - INTERVAL '2 days')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
@@ -1010,7 +1065,7 @@ Unit 3 concept (invasive species): 2/2 — accurate, regional connection is a st
 Genuine attempt: 1/2 — adequate length, writing is organized but the epigenetics paragraph needs more precision.',
    NULL, NULL, NULL, NULL)
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
@@ -1064,7 +1119,7 @@ Constructive tone and writing quality: 3/3 — professional, organized, well ove
    '00000000-0000-0000-0000-000000000001',
    NOW() - INTERVAL '4 days')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
@@ -1095,7 +1150,7 @@ Cites specific moments: 3/6 — "looked at the floor when thinking" and "strong 
 Constructive tone and writing quality: 2/3 — tone is appropriate and constructive, writing is organized but slightly under 400 words.',
    NULL, NULL, NULL, NULL)
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
@@ -1149,7 +1204,7 @@ Writing is organized and professional: 4/5 — well over 400 words, clear struct
    '00000000-0000-0000-0000-000000000001',
    NOW() - INTERVAL '5 days')
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
@@ -1180,7 +1235,7 @@ Supports each claim with specific evidence: 7/10 — good specificity for vocal 
 Writing is organized and professional: 3/5 — adequate length, organized, writing is clear but the use of space section needs more development.',
    NULL, NULL, NULL, NULL)
 
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (submission_id) DO NOTHING;
 
 
 -- ── Assignment due dates ──────────────────────────────────────────────────────
