@@ -65,6 +65,16 @@ describe('SpeedGrader rubric scoring', () => {
   })
 })
 
+describe('SpeedGrader student view link', () => {
+  it('renders a Student View link in the submission panel that points to the assignment page', () => {
+    const html = renderToStaticMarkup(
+      <SpeedGrader courseId="c-1" autorun={false} data={RUBRIC_DATA} />,
+    )
+    expect(html).toContain('Student View')
+    expect(html).toContain('/course/c-1/assignment/asgn-1')
+  })
+})
+
 describe('SpeedGrader Teacher Coach context', () => {
   it('announces the current Submission to the global Teacher Coach', () => {
     const html = renderToStaticMarkup(

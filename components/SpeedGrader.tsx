@@ -159,9 +159,19 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
         {/* LEFT: Submission */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, margin: '0 0 2px' }}>Student Submission</p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: 0 }}>{submission.studentName}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, margin: '0 0 2px' }}>Student Submission</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: C.text, margin: 0 }}>{submission.studentName}</p>
+              </div>
+              <Link
+                href={assignmentHref(courseId, assignment.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ padding: '4px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.muted, textDecoration: 'none', whiteSpace: 'nowrap', background: C.surface }}
+              >
+                Student View ↗
+              </Link>
             </div>
             <Link
               href={assignmentHref(courseId, assignment.id)}
@@ -214,7 +224,16 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
                 <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.muted, margin: 0 }}>Rubric Scoring</p>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{totalScore}/{assignment.points_possible}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button
+                        onClick={handleRunSpeedGrader}
+                        disabled={isRunning || panelState === 'running'}
+                        style={{ padding: '4px 12px', border: `1px solid ${C.purple}`, background: 'transparent', borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.purple, cursor: 'pointer', opacity: isRunning || panelState === 'running' ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                      >
+                        {isRunning || panelState === 'running' ? 'Analyzing…' : '✦ AI Suggest'}
+                      </button>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{totalScore}/{assignment.points_possible}</span>
+                    </div>
                   </div>
                   {criteria.map((c, i) => {
                     const aiCriterion = grade?.ai_criterion_scores?.[i] ?? null
