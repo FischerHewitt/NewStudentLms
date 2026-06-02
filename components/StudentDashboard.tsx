@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
@@ -688,7 +687,6 @@ function CourseCard({
   course,
   color,
   activeColorKey,
-  defaultColorKey,
   stats,
   openCount,
   selected,
@@ -700,7 +698,6 @@ function CourseCard({
   course: StudentDashboardCourse
   color: ColorTokens
   activeColorKey: PaletteColor
-  defaultColorKey: PaletteColor
   stats: { pct: number } | null
   openCount: number
   selected: boolean
@@ -840,7 +837,6 @@ function CourseCards({
               course={course}
               color={color}
               activeColorKey={activeColorKey}
-              defaultColorKey={defaultColorKey}
               stats={stats}
               openCount={openCount}
               selected={selected}
@@ -1268,90 +1264,6 @@ function OverviewPanel({
         </div>
       </div>
     </div>
-  )
-}
-
-function GradesPanel({
-  courses,
-  assignments,
-  colorByCourse,
-  codeByCourse,
-  selectedCourseId,
-}: {
-  courses: StudentDashboardCourse[]
-  assignments: StudentDashboardAssignment[]
-  colorByCourse: Record<string, PaletteColor>
-  codeByCourse: Record<string, string>
-  selectedCourseId: string | null
-}) {
-  const visibleCourses = selectedCourseId
-    ? courses.filter((course) => course.id === selectedCourseId)
-    : courses
-
-  return (
-    <section className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-950">Grades</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Only Published Grades are shown here. Submitted work stays private until your teacher publishes the Final Grade.
-        </p>
-      </div>
-
-      {visibleCourses.map((course) => {
-        const color = COLORS[colorByCourse[course.id]]
-        const courseAssignments = assignments.filter((assignment) => assignment.courseId === course.id)
-        const completed = courseAssignments.filter(
-          (assignment) => assignment.status === 'graded' || assignment.status === 'submitted',
-        )
-        const stats = courseGradeStats(assignments, course.id)
-
-        return (
-          <article key={course.id} className={`rounded-xl border border-l-4 bg-white p-5 shadow-sm ${color.border}`}>
-            <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${color.pill}`}>
-                  {codeByCourse[course.id]}
-                </span>
-                <h2 className="mt-3 text-lg font-semibold text-slate-950">{course.title}</h2>
-                <p className="text-sm text-slate-600">{course.teacherName}</p>
-              </div>
-              {stats ? (
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-emerald-600">{letterGrade(stats.pct)}</p>
-                  <p className="text-sm text-slate-600">{stats.earned}/{stats.total} pts - {stats.pct}%</p>
-                </div>
-              ) : (
-                <p className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">No grades yet</p>
-              )}
-            </div>
-
-            {completed.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-                No submitted or graded Assignments yet.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                {completed.map((assignment) => (
-                  <div key={assignment.id} className="flex items-center justify-between gap-4 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-950">{assignment.title}</p>
-                      <p className="text-xs text-slate-500">{assignment.due} - {assignment.points}pts</p>
-                    </div>
-                    {assignment.status === 'graded' && assignment.grade !== undefined ? (
-                      <p className="text-sm font-bold text-emerald-600">{assignment.grade}/{assignment.points}</p>
-                    ) : (
-                      <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                        Awaiting grade
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </article>
-        )
-      })}
-    </section>
   )
 }
 
