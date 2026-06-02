@@ -411,8 +411,34 @@ function NeedsGradingSection({ gradingQueue }: { gradingQueue: AssignmentGrading
 function GradingRow({ row }: { row: AssignmentGradingRow }) {
   const isStarted = row.gradedCount > 0
 
+  const healthColor =
+    row.health === 'urgent'
+      ? LI.errorRed
+      : row.health === 'watch'
+        ? LI.alumosOrange
+        : LI.successGreen
+
+  const btnStyle = isStarted
+    ? {
+        background: LI.surfaceLow,
+        border: '1px solid ' + LI.outlineVariant,
+        color: LI.onSurfaceVariant,
+      }
+    : row.health === 'urgent'
+      ? { background: LI.errorRed, color: '#fff' }
+      : row.health === 'watch'
+        ? { background: LI.alumosOrange, color: '#fff' }
+        : { background: LI.alumosPurple, color: '#fff' }
+
   return (
     <div className="flex items-center gap-3 py-3">
+      {/* Health indicator dot */}
+      <span
+        className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
+        style={{ background: healthColor }}
+        title={`Health: ${row.health}`}
+      />
+
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold" style={{ color: LI.onSurface }}>
           {row.title}
@@ -427,7 +453,7 @@ function GradingRow({ row }: { row: AssignmentGradingRow }) {
         <p className="font-semibold" style={{ color: LI.onSurface }}>
           {row.gradedCount}/{row.totalSubmissions} Graded
         </p>
-        <p style={{ color: LI.onSurfaceVariant }}>{row.gradedPct}%</p>
+        <p style={{ color: healthColor }}>{row.gradedPct}%</p>
       </div>
 
       <Link
@@ -437,18 +463,7 @@ function GradingRow({ row }: { row: AssignmentGradingRow }) {
             : courseHref(row.courseId)
         }
         className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold transition hover:opacity-90"
-        style={
-          isStarted
-            ? {
-                background: LI.surfaceLow,
-                border: '1px solid ' + LI.outlineVariant,
-                color: LI.onSurfaceVariant,
-              }
-            : {
-                background: LI.secondary,
-                color: '#fff',
-              }
-        }
+        style={btnStyle}
       >
         {isStarted ? 'Resume' : 'Grade Now'}
       </Link>

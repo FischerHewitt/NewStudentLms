@@ -61,6 +61,8 @@ export type AssignmentGradingRow = {
   gradedCount: number
   totalSubmissions: number
   gradedPct: number
+  /** Health signal based on days overdue + ungraded volume */
+  health: 'urgent' | 'watch' | 'ok'
 }
 
 export type TeacherDashboardData = {

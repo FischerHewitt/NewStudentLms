@@ -54,6 +54,7 @@ function makeGradingRow(overrides: Partial<AssignmentGradingRow> = {}): Assignme
     gradedCount: 12,
     totalSubmissions: 28,
     gradedPct: 43,
+    health: 'watch',
     ...overrides,
   }
 }

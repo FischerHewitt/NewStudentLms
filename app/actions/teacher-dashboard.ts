@@ -252,6 +252,17 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
       const dueAt = a.due_date ?? null
       const dueDateLabel = dueAt ? formatDueDateLabel(new Date(dueAt), today) : ''
       const firstPending = subs.find((s) => s.status === 'submitted') ?? null
+
+      // Health signal: based on days overdue and ungraded volume
+      const daysOverdue = dueAt
+        ? Math.floor((today.getTime() - new Date(dueAt).getTime()) / 86_400_000)
+        : 0
+      const health: AssignmentGradingRow['health'] =
+        (daysOverdue >= 3 && gradedPct < 50) || (daysOverdue >= 1 && gradedPct === 0)
+          ? 'urgent'
+          : daysOverdue >= 1 || (daysOverdue === 0 && gradedPct < 30)
+            ? 'watch'
+            : 'ok'
       return [
         {
           id: a.id,
@@ -264,6 +275,7 @@ export async function getTeacherDashboardData(): Promise<TeacherDashboardData> {
           gradedCount,
           totalSubmissions,
           gradedPct,
+          health,
         } satisfies AssignmentGradingRow,
       ]
     })
