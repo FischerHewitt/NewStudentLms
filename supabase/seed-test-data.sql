@@ -55,11 +55,12 @@ ON CONFLICT (id) DO NOTHING;
 -- COURSES  (BIO 111 and COMS 101 only — MATH 143 is generated live during demo)
 -- =============================================================================
 
-INSERT INTO courses (id, title, teacher_id, raw_syllabus, generation_preview) VALUES
+INSERT INTO courses (id, title, teacher_id, status, raw_syllabus, generation_preview) VALUES
   (
     '00000000-0000-0000-0001-000000000002',
     'BIO 111 – General Biology',
     '00000000-0000-0000-0000-000000000001',
+    'published',
     'BIO 111 – General Biology. Instructor: Dr. Fischer Hewitt. Three units: Chemistry/Cells/Energy, Genetics/Heredity, Evolution/Ecology. Connect homework, lab notebooks, quizzes, two midterms, final.',
     NULL
   ),
@@ -67,10 +68,11 @@ INSERT INTO courses (id, title, teacher_id, raw_syllabus, generation_preview) VA
     '00000000-0000-0000-0001-000000000003',
     'COMS 101 – Public Speaking',
     '00000000-0000-0000-0000-000000000001',
+    'published',
     'COMS 101 – Public Speaking. Instructor: Dr. Fischer Hewitt. Three speech rounds. Quizzes, written and verbal evaluations, reflections, delivery analysis.',
     NULL
   )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET status = 'published';
 
 
 -- =============================================================================
@@ -279,14 +281,14 @@ ON CONFLICT (assignment_id) DO NOTHING;
 
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
   ('00000000-0000-0000-0003-000000000033', '00000000-0000-0000-0002-000000000010', '00000000-0000-0000-0001-000000000003',
-   'Creating Classroom Community',
-   'In-class activity: introduce yourself and share one communication challenge you hope to work on this quarter. Participation recorded in class. Score entered by instructor.',
+   'Introduction',
+   'Write a brief introduction of yourself: your name, your major, and one communication challenge you want to work on this quarter. 2–3 sentences is fine.',
    15)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
   ('00000000-0000-0000-0004-000000000033', '00000000-0000-0000-0003-000000000033',
-   '[{"description": "Participation recorded by instructor", "points": 15}]')
+   '[{"description": "Introduces themselves with name, major, and a specific communication challenge", "points": 10}, {"description": "Writing is complete and genuine (2–3 sentences minimum)", "points": 5}]')
 ON CONFLICT (assignment_id) DO NOTHING;
 
 -- ---------------- COMS 101 · Week 2: Speech Structure ----------------
@@ -294,13 +296,13 @@ ON CONFLICT (assignment_id) DO NOTHING;
 INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
   ('00000000-0000-0000-0003-000000000035', '00000000-0000-0000-0002-000000000015', '00000000-0000-0000-0001-000000000003',
    'Quiz 1 – Speech Structure',
-   'Online quiz on introduction, body, conclusion structure and organizational patterns. Score recorded automatically.',
+   'In your own words, describe the three-part speech structure (introduction, body, conclusion) and explain what each part should accomplish. Write 2–3 sentences for each part. Submit your answer in the text box.',
    15)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO rubrics (id, assignment_id, criteria) VALUES
   ('00000000-0000-0000-0004-000000000035', '00000000-0000-0000-0003-000000000035',
-   '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]')
+   '[{"description": "Accurately describes the introduction — purpose and what it should accomplish", "points": 5}, {"description": "Accurately describes the body — purpose and what it should accomplish", "points": 5}, {"description": "Accurately describes the conclusion — purpose and what it should accomplish", "points": 5}]')
 ON CONFLICT (assignment_id) DO NOTHING;
 
 -- ---------------- COMS 101 · Week 3: Delivery ----------------
@@ -496,470 +498,422 @@ ON CONFLICT (course_id, student_id) DO NOTHING;
 
 -- =============================================================================
 -- SUBMISSIONS
--- Only for the 3 AI-gradeable text assignments:
---   A030 = BIO 111 Course Reflection        (10 pts)  — subs 001–012
---   A038 = COMS 101 Written Evaluation Round 1 (15 pts) — subs 013–024
---   A040 = COMS 101 Analyzing Delivery Style   (30 pts) — subs 025–036
+-- Week 1 assignments for BIO 111 and COMS 101:
+--   A015 = BIO 111 Connect Homework 1 – Scientific Method and Cell Basics (5 pts)
+--   A033 = COMS 101 Introduction (15 pts)
+--   A035 = COMS 101 Quiz 1 – Speech Structure (15 pts)
 --
 -- State distribution per assignment (same students each time):
---   final        (4): 002 Alex Rivera, 003 Jordan Lee, 004 Maya Patel, 005 Tyler Brooks
---   ai_suggested (3): 006 Sam Nguyen, 007 Priya Sharma, 008 Marcus Johnson
---   pending      (3): 009 Sofia Reyes, 010 Ethan Kim, 011 Aaliyah Washington
---   draft        (2): 012 Connor Murphy, 013 Zoe Chen
---   blank        (3): 014 Diego Flores, 015 Hannah Okafor, 016 Liam Patel — no row
+--   final        (6): 002 Alex Rivera, 003 Jordan Lee, 004 Maya Patel, 005 Tyler Brooks, 006 Sam Nguyen, 007 Priya Sharma
+--   ai_suggested (3): 008 Marcus Johnson, 009 Sofia Reyes, 010 Ethan Kim
+--   pending      (3): 011 Aaliyah Washington, 012 Connor Murphy, 013 Zoe Chen
+--   draft        (2): 014 Diego Flores, 015 Hannah Okafor
+--   blank        (1): 016 Liam Patel — no row
 -- =============================================================================
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- A030: BIO 111 Course Reflection  (submissions 001–012)
+-- A015: BIO 111 Connect Homework 1 – Scientific Method and Cell Basics  (submissions 001–014)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
   -- 001 · Alex Rivera · FINAL
   ('00000000-0000-0000-0006-000000000001',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000002',
-   'The concept from Unit 1 that surprised me most was how enzymes work. Before this class I thought of enzymes as chemicals that just speed things up, but learning about the active site and how temperature and pH can denature an enzyme made me realize how fragile and precise cellular processes really are. It completely changed the way I think about why we get sick when we have a high fever — our enzymes are literally losing their shape and stopping work.
+   'The scientific method is a systematic process scientists use to investigate natural phenomena. It begins with an observation, which leads to a question, then a hypothesis — a testable, falsifiable prediction about what we expect to find. To test a hypothesis, scientists design a controlled experiment. For example, to investigate whether light intensity affects plant growth, I could grow two sets of bean seedlings under identical conditions except for the amount of light they receive. The group receiving more light is the experimental group; the group with minimal light is the control. After measuring stem height and leaf size over two weeks, I could analyze whether my results support or refute the hypothesis. If results are not consistent, the hypothesis is revised and the cycle continues.
 
-From Unit 2, Mendelian genetics genuinely fascinated me even though I had heard of it before. What I did not realize is how much the same basic principles apply to inheritance of disease risk. When we worked through pedigree problems it became clear that patterns of inheritance are actually useful tools for real medical decision-making, not just textbook exercises. I found myself thinking about my own family history in a completely different way.
-
-The concept from Unit 3 that felt most relevant to my life was Hardy-Weinberg equilibrium. I had always thought evolution was something that happened over millions of years and was invisible on any human timescale. Learning that we can actually measure whether a population is evolving right now using allele frequencies made the whole idea feel concrete and measurable rather than abstract. The idea that a population in Hardy-Weinberg equilibrium is not evolving — and that real populations almost never meet all five conditions — was genuinely surprising to me.',
-   NOW() - INTERVAL '5 days', 'graded'),
+The second part of this assignment asks about prokaryotic versus eukaryotic cells. Prokaryotic cells lack a membrane-bound nucleus and other membrane-enclosed organelles. Bacteria and archaea are the two domains of prokaryotic life. Their genetic material floats freely in the cytoplasm in a region called the nucleoid. Eukaryotic cells, by contrast, contain a true nucleus housing their DNA, as well as specialized organelles such as mitochondria and the endoplasmic reticulum. Animal cells and plant cells are classic examples of eukaryotes. A key structural difference is that plant cells also contain chloroplasts and a rigid cell wall made of cellulose, which animal cells lack.',
+   NOW() - INTERVAL '3 days', 'submitted'),
 
   -- 002 · Jordan Lee · FINAL
   ('00000000-0000-0000-0006-000000000002',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000003',
-   'From Unit 1, cellular respiration was the most interesting concept to me. I never thought about how our bodies convert food into usable energy at a chemical level. Learning about ATP synthesis and the electron transport chain made me appreciate the complexity of what happens every time I eat something. The fact that glucose goes through glycolysis, the Krebs cycle, and oxidative phosphorylation before producing usable energy was genuinely mind-blowing.
+   'The scientific method provides a reliable framework for answering questions about the natural world. After making an initial observation, a scientist forms a hypothesis — a proposed explanation that must be testable. A controlled experiment is then designed to isolate the variable of interest. Consider testing whether temperature affects enzyme activity: an experiment might expose identical enzyme solutions to temperatures of 4°C, 25°C, 37°C, and 70°C and measure the rate at which each solution catalyzes a reaction. The independent variable is temperature, the dependent variable is reaction rate, and all other factors (enzyme concentration, substrate concentration, pH) are held constant as controls. Data are collected, analyzed statistically, and used to either support or falsify the hypothesis. The scientific method is iterative — inconclusive or unexpected results prompt new hypotheses and further experimentation.
 
-In Unit 2, DNA replication stood out to me. The idea that your body copies approximately three billion base pairs every time a cell divides — and mostly gets it right — is incredible. It made me think about how cancer can result from even small errors in that process. The concept of proofreading enzymes that catch and fix mistakes during replication was something I had never considered before.
-
-From Unit 3, natural selection felt most relevant to my everyday life. I have always heard the phrase "survival of the fittest" but I did not understand that fitness in biology specifically means reproductive success, not physical strength or intelligence. That distinction completely changed how I interpreted the concept. I also found the examples of antibiotic resistance in bacteria compelling because it shows evolution happening on a timescale we can actually observe.',
-   NOW() - INTERVAL '4 days', 'graded'),
+Regarding cell types: prokaryotic cells are structurally simpler and evolutionarily older. They include bacteria such as Escherichia coli and archaea such as Methanobacterium. These cells have no nucleus; instead, their circular DNA resides in a nucleoid region. They also lack membrane-bound organelles. Eukaryotic cells evolved later and are considerably more complex. Animal cells — such as a human muscle cell — and plant cells — such as a leaf mesophyll cell — are eukaryotic. They house their DNA within a nucleus and contain mitochondria, ribosomes, and an endomembrane system. Plant cells additionally have chloroplasts for photosynthesis and a cell wall for structural support.',
+   NOW() - INTERVAL '3 days', 'submitted'),
 
   -- 003 · Maya Patel · FINAL
   ('00000000-0000-0000-0006-000000000003',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000004',
-   'The concept from Unit 1 that surprised me most was the fluid mosaic model of the cell membrane. I expected the membrane to be a simple barrier, but learning that it is a dynamic structure with proteins that move, channels that open and close, and a phospholipid bilayer that is selectively permeable changed my understanding entirely. The way cells regulate what enters and exits through active and passive transport felt almost like a sophisticated security system.
+   'The scientific method is a structured approach to generating reliable knowledge. It begins with curiosity: an observation prompts a question. The scientist then proposes a hypothesis — a specific, measurable prediction — and designs an experiment to test it. A good experiment manipulates exactly one independent variable while controlling all others. For instance, to test whether different soil types affect seed germination rate, I would plant identical seeds in clay, loam, and sandy soils, keep all other conditions constant (water, light, temperature), and count germinated seeds over ten days. The data would either support the hypothesis or require its revision. Peer review and replication by other scientists further validate findings before they become accepted scientific knowledge.
 
-From Unit 2, the concept of gene expression — specifically how the same DNA can produce different proteins in different cell types — was the most relevant to my life. I have always wondered how a liver cell and a neuron can have the same DNA but look and function so differently. Learning about transcription factors and how they regulate which genes get expressed answered a question I had never even known to ask.
-
-In Unit 3, the concept of coevolution stood out to me. The example of flowering plants and their pollinators evolving together over millions of years made me see the natural world as deeply interconnected in ways I had not appreciated before. I think about this now when I see bees in my garden — there is an evolutionary history behind every interaction I observe.',
-   NOW() - INTERVAL '4 days', 'graded'),
+Prokaryotic cells are characterized by their lack of a membrane-bound nucleus and membrane-enclosed organelles. The two groups of prokaryotes are bacteria — such as Staphylococcus aureus — and archaea — such as Halobacterium, which thrives in extremely salty environments. Both types carry their DNA in a nucleoid region and are generally much smaller than eukaryotic cells. Eukaryotic cells possess a true nucleus containing their chromosomes, as well as organelles like the Golgi apparatus and mitochondria. Animal cells and plant cells are both eukaryotic, though they differ: plant cells have chloroplasts that carry out photosynthesis, a central vacuole that maintains turgor pressure, and a cellulose cell wall that provides rigidity — none of which are found in animal cells.',
+   NOW() - INTERVAL '2 days', 'submitted'),
 
   -- 004 · Tyler Brooks · FINAL
   ('00000000-0000-0000-0006-000000000004',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000005',
-   'Unit 1 gave me a new appreciation for photosynthesis. I knew plants used sunlight to make food, but I had no idea about the light-dependent and light-independent reactions, or that the Calvin cycle is essentially a carbon-fixing machine running inside the chloroplast. What surprised me most was learning that the oxygen we breathe is a byproduct of splitting water molecules during the light reactions — it felt like a fact that should be more widely known.
+   'Scientists rely on the scientific method because it minimizes bias and produces reproducible results. The process starts with an observation that sparks a question, then moves to forming a hypothesis — a clear, testable statement of expected results. The experimental design must include a control group and an experimental group that differ by only one variable. For example, to determine whether caffeine affects the heart rate of Daphnia (water fleas), I would expose one group to a caffeine solution and keep a control group in plain water. I would measure beats per minute under a microscope for both groups and record the data. If the caffeine group shows a statistically significant increase, the hypothesis is supported. If not, it is rejected and a revised hypothesis is formed. The method is cyclical: results always lead to new questions.
 
-From Unit 2, meiosis and genetic recombination were the most relevant concepts to me personally. I have a sibling and we look very different from each other despite having the same parents. Understanding crossing over and independent assortment during meiosis finally explained why siblings can be so genetically distinct. It also made me think about genetic diversity in a population as something that is actively generated, not just random.
-
-In Unit 3, the concept of ecological succession was the most surprising. I did not know that ecosystems follow predictable patterns of change over time, from pioneer species to climax communities. Learning about primary and secondary succession made me think about the empty lot near my house differently — it is not just an abandoned space, it is an ecosystem in an early stage of succession.',
-   NOW() - INTERVAL '3 days', 'graded')
+Prokaryotic and eukaryotic cells differ fundamentally in their internal organization. Prokaryotes — including bacteria like Bacillus subtilis and archaea like Thermococcus — lack a nucleus; their DNA forms a single circular chromosome in the cytoplasm. They are also smaller and reproduce rapidly by binary fission. Eukaryotes, by contrast, have a defined nucleus enclosed by a nuclear envelope, and their DNA is organized into multiple linear chromosomes. Animal cells and plant cells are eukaryotic: animal cells have centrioles and lysosomes, while plant cells have chloroplasts, a large central vacuole, and a cell wall. These structural differences reflect the different evolutionary histories and functional demands of each cell type.',
+   NOW() - INTERVAL '2 days', 'submitted')
 
 ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
-  -- 005 · Sam Nguyen · AI_SUGGESTED
+  -- 005 · Sam Nguyen · FINAL
   ('00000000-0000-0000-0006-000000000005',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000006',
-   'From Unit 1, I found the section on macromolecules most interesting. Learning about how proteins are made from amino acids and how the sequence determines the shape and function was something I had not thought about before. It made me realize how much of what our bodies do depends on proteins working correctly.
+   'The scientific method is how scientists test ideas in a controlled and repeatable way. It starts with an observation, then a question, then a hypothesis. To test a hypothesis, you design an experiment with a control group and an experimental group, changing only the variable you are testing. A good example is testing whether fertilizer amount affects tomato plant yield: one group gets the recommended dose, one gets double, and one gets none. You keep water, light, and soil the same for all three groups. After the growing season you compare tomato yields across groups. The results either support the hypothesis or show it needs to be revised. The scientific method is important because it gives everyone a shared process for testing ideas so results can be trusted and repeated.
 
-In Unit 2, the genetics unit was challenging but I found Punnett squares satisfying once I understood how to use them. The idea that you can predict the probability of traits in offspring using simple ratios was surprising to me. I also found the section on sex-linked traits interesting because it explained patterns I had noticed in my own family.
-
-From Unit 3, the ecology section was my favorite part of the course. I liked learning about food webs and how energy flows through an ecosystem. The concept of trophic levels made me think about the environmental impact of different diets, which is something I care about.',
-   NOW() - INTERVAL '4 days', 'submitted'),
-
-  -- 006 · Priya Sharma · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000006',
-   '00000000-0000-0000-0003-000000000030',
-   '00000000-0000-0000-0000-000000000007',
-   'Biology has been a challenging but rewarding course this quarter. From Unit 1, the concept that stood out to me was osmosis and how water moves across cell membranes. I had heard the word before but did not understand the mechanism. Learning that water moves from areas of low solute concentration to high solute concentration through a semipermeable membrane helped me understand things like why plants wilt when they are not watered.
-
-From Unit 2, I found the section on mutations and their effects on proteins most relevant. The idea that a single base change in DNA can cause a disease like sickle cell anemia made the connection between molecular biology and human health very concrete for me.
-
-In Unit 3, the concept of natural selection was the most surprising. I understood the basic idea before this class, but learning about the specific mechanisms — variation, heritability, differential reproduction — made it feel much more rigorous and scientific than I had previously thought.',
+Prokaryotic cells are simpler than eukaryotic cells. They do not have a nucleus — their DNA floats in the cytoplasm. The two types of prokaryotes are bacteria and archaea. Bacteria are found almost everywhere, including in our digestive systems. Archaea often live in extreme environments. Eukaryotic cells are larger and have a membrane-enclosed nucleus as well as organelles. Animal cells and plant cells are both eukaryotic. The main differences between them are that plant cells have a cell wall and chloroplasts, while animal cells do not. These differences allow plant cells to make their own food through photosynthesis, which is a key distinction.',
    NOW() - INTERVAL '3 days', 'submitted'),
+
+  -- 006 · Priya Sharma · FINAL
+  ('00000000-0000-0000-0006-000000000006',
+   '00000000-0000-0000-0003-000000000015',
+   '00000000-0000-0000-0000-000000000007',
+   'The scientific method is a step-by-step process for investigating questions about the natural world. A scientist begins by observing something interesting, formulates a question, and then proposes a hypothesis — a testable explanation for what they expect to find. The experiment that follows must be designed carefully so that only one variable differs between the control and experimental groups. For instance, to test whether exercise duration affects resting heart rate over a month, participants in the experimental group would exercise 30 minutes daily while the control group remains sedentary, and all other lifestyle factors would be standardized. Heart rate would be measured at the same time each morning. The results are then analyzed and used to support or refute the hypothesis. If the data are unclear, the hypothesis is modified and the process repeats.
+
+There are two broad categories of cells: prokaryotic and eukaryotic. Prokaryotic cells, found in bacteria and archaea, are defined by the absence of a membrane-bound nucleus. Their genetic material is located in a region of the cytoplasm called the nucleoid. They are generally small and structurally simple. Eukaryotic cells, in contrast, contain a nucleus surrounded by a nuclear membrane, as well as membrane-bound organelles like mitochondria and the endoplasmic reticulum. Animal cells and plant cells are both eukaryotes. Plant cells are distinguished by the presence of chloroplasts (for photosynthesis), a large central vacuole, and a rigid cell wall made of cellulose. Animal cells lack these structures but have centrioles, which play a role in cell division.',
+   NOW() - INTERVAL '2 days', 'submitted')
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
   -- 007 · Marcus Johnson · AI_SUGGESTED
   ('00000000-0000-0000-0006-000000000007',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000008',
-   'This course covered a lot of material and I found different parts interesting for different reasons. In Unit 1, the most relevant concept to my life was cellular respiration. I play sports and I had always wondered why I get tired during exercise. Learning about how muscles switch from aerobic to anaerobic respiration when oxygen runs low, and how lactic acid builds up as a result, directly explained something I experience regularly.
+   'The scientific method is a process used to answer scientific questions. You start with an observation and then ask a question. Then you make a hypothesis, which is a prediction about what will happen. You test the hypothesis with an experiment where you have a control group and an experimental group. After collecting data you see if the hypothesis was right or wrong.
 
-From Unit 2, the concept of epigenetics came up briefly in lecture and I found it fascinating. The idea that gene expression can be influenced by environmental factors without changing the DNA sequence itself was something I had never encountered before. It made me think about how lifestyle choices might affect not just my own health but potentially future generations.
+Prokaryotic cells do not have a nucleus. Two examples are bacteria and archaea. Eukaryotic cells have a nucleus. Animal cells and plant cells are eukaryotic. Plant cells have a cell wall and chloroplasts.',
+   NOW() - INTERVAL '2 days', 'submitted'),
 
-In Unit 3, I found the section on invasive species and their ecological impact most relevant. There are several invasive species in my region and understanding why they are so disruptive — because they lack natural predators and can outcompete native species — gave me a much better framework for thinking about conservation.',
-   NOW() - INTERVAL '3 days', 'submitted')
+  -- 008 · Sofia Reyes · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000008',
+   '00000000-0000-0000-0003-000000000015',
+   '00000000-0000-0000-0000-000000000009',
+   'Scientists use the scientific method to study the world. It involves making an observation, asking a question, forming a hypothesis, and doing an experiment. The control group stays the same and the experimental group is changed. An example would be testing different amounts of water on plants and seeing which grows tallest.
+
+Prokaryotic cells include bacteria and archaea. They are smaller and simpler than eukaryotic cells and do not have a nucleus. Eukaryotic cells have a nucleus. Examples are animal cells and plant cells. Plant cells look different because they have a green color from chlorophyll.',
+   NOW() - INTERVAL '1 day', 'submitted'),
+
+  -- 009 · Ethan Kim · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000009',
+   '00000000-0000-0000-0003-000000000015',
+   '00000000-0000-0000-0000-000000000010',
+   'The scientific method helps scientists find answers. First you observe something and ask a question. Then you guess what might happen — that is the hypothesis. You run an experiment and collect data to see if you were right. Scientists repeat experiments to make sure the results are reliable.
+
+For cell types, prokaryotic cells are bacteria and archaea. They do not have a nucleus. Eukaryotic cells have a nucleus and are more complex. Animal and plant cells are eukaryotic. They are different from each other in some ways like the cell wall in plant cells.',
+   NOW() - INTERVAL '1 day', 'submitted')
 
 ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 008 · Sofia Reyes · PENDING
-  ('00000000-0000-0000-0006-000000000008',
-   '00000000-0000-0000-0003-000000000030',
-   '00000000-0000-0000-0000-000000000009',
-   'Biology was interesting this quarter. From Unit 1 I liked learning about cell structure and how organelles work together. From Unit 2, genetics was confusing at first but Punnett squares made sense once I practiced them. From Unit 3 I liked the ecology section because I like animals and thinking about how populations interact.',
-   NOW() - INTERVAL '2 days', 'submitted'),
-
-  -- 009 · Ethan Kim · PENDING
-  ('00000000-0000-0000-0006-000000000009',
-   '00000000-0000-0000-0003-000000000030',
-   '00000000-0000-0000-0000-000000000010',
-   'Unit 1 was about cells and chemistry which was hard. I liked the lab where we used the microscope. Unit 2 was genetics and I thought the DNA stuff was interesting. Unit 3 was evolution and ecology. I liked learning about food chains.',
-   NOW() - INTERVAL '1 day', 'submitted'),
 
   -- 010 · Aaliyah Washington · PENDING
   ('00000000-0000-0000-0006-000000000010',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000011',
-   'From Unit 1 the most surprising concept was how enzymes work and how they can be denatured. From Unit 2 I found DNA replication interesting. From Unit 3 natural selection was the most relevant concept to my life because I see examples of it in nature around me.',
-   NOW() - INTERVAL '2 days', 'submitted')
+   'The scientific method is steps scientists follow. You observe, ask a question, make a hypothesis and test it. Prokaryotic cells dont have a nucleus like bacteria. Eukaryotic cells have a nucleus like animal and plant cells.',
+   NOW() - INTERVAL '1 day', 'submitted'),
 
-ON CONFLICT (assignment_id, student_id) DO NOTHING;
-
-INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 011 · Connor Murphy · DRAFT
+  -- 011 · Connor Murphy · PENDING
   ('00000000-0000-0000-0006-000000000011',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000012',
-   'Unit 1 was about chemistry and cells. I think the most interesting thing was',
-   NULL, 'draft'),
+   'Scientists use the scientific method to study things. Prokaryotic cells are like bacteria they have no nucleus. Eukaryotic cells include animal cells and plant cells and they have a nucleus.',
+   NOW() - INTERVAL '1 day', 'submitted'),
 
-  -- 012 · Zoe Chen · DRAFT
+  -- 012 · Zoe Chen · PENDING
   ('00000000-0000-0000-0006-000000000012',
-   '00000000-0000-0000-0003-000000000030',
+   '00000000-0000-0000-0003-000000000015',
    '00000000-0000-0000-0000-000000000013',
-   'The concept that surprised me most from this course was in Unit 2 when we learned about',
-   NULL, 'draft')
-
-  -- 013 Diego Flores, 014 Hannah Okafor, 015 Liam Patel: BLANK — no row
-
-ON CONFLICT (assignment_id, student_id) DO NOTHING;
-
--- ─────────────────────────────────────────────────────────────────────────────
--- A038: COMS 101 Written Evaluation – Round 1  (submissions 013–024)
--- ─────────────────────────────────────────────────────────────────────────────
-
-INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 013 · Alex Rivera · FINAL
-  ('00000000-0000-0000-0006-000000000013',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000002',
-   'The speaker I evaluated in Round 1 showed strong content knowledge and clear organization, but had room to grow in delivery and audience engagement. Here is my evaluation across all five criteria.
-
-Organization: The speech had a clear three-part structure with a strong introduction that grabbed attention with a personal story about growing up in two different cities. The transitions between main points were smooth — the speaker used signpost phrases like "moving on to my second point" which made it easy to follow. The conclusion summarized the main points clearly, though it ended a bit abruptly without a memorable closing line or callback to the opening story.
-
-Delivery: The speaker''s pace was generally good but sped up noticeably during the second main point, which made some sentences hard to follow. There were several filler words ("um", "like", "you know") in the middle section, though the speaker recovered well by the conclusion and finished with good energy and confidence.
-
-Eye Contact: Eye contact was inconsistent. The speaker looked at their notes frequently in the first minute but improved significantly by the second half of the speech. One strength was making deliberate eye contact with different sections of the room rather than just one side — this showed awareness of the full audience.
-
-Vocal Variety: The speaker used good volume and spoke clearly, but pitch stayed relatively flat throughout. More variation in tone when emphasizing key points would increase engagement. The one moment of strong vocal variety was when the speaker described a childhood memory — the change in tone there was effective and natural.
-
-Content: The speech was well-researched and the main points were relevant and specific. The speaker used a credible source for the second point which added weight to the argument. One suggestion: the third main point felt rushed compared to the first two and would benefit from one more supporting detail or example.',
-   NOW() - INTERVAL '7 days', 'graded'),
-
-  -- 014 · Jordan Lee · FINAL
-  ('00000000-0000-0000-0006-000000000014',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000003',
-   'I evaluated my classmate''s Round 1 introductory speech and found it to be a strong first effort with clear areas for growth. Here is my assessment of each criterion.
-
-Organization: The speech was well-organized with a clear introduction, body, and conclusion. The speaker opened with a rhetorical question — "Have you ever felt like you belonged in two places at once?" — which immediately drew the audience in. The three main points were clearly previewed in the introduction and each was addressed in order. The conclusion was effective but could have been stronger with a more memorable final line.
-
-Delivery: The speaker''s delivery was confident for a first speech. They stood still and avoided nervous movement, which projected composure. The pace was slightly fast in the middle section, particularly when describing their family background, but slowed appropriately for the conclusion.
-
-Eye Contact: Eye contact was one of the speaker''s strongest areas. They made consistent contact with multiple sections of the audience and rarely looked at their notes after the first thirty seconds. This made the speech feel conversational rather than read.
-
-Vocal Variety: Vocal variety was adequate but could be improved. The speaker''s volume was appropriate throughout, but the pitch and rate stayed fairly consistent. Adding more emphasis on key words — particularly in the main points — would make the speech more dynamic.
-
-Content: The content was personal and engaging. The speaker shared specific details about their background that made the speech memorable. One area for improvement: the second main point relied on a general claim without a specific example or source to back it up. Adding one concrete detail there would strengthen the argument considerably.',
-   NOW() - INTERVAL '6 days', 'graded'),
-
-  -- 015 · Maya Patel · FINAL
-  ('00000000-0000-0000-0006-000000000015',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000004',
-   'My evaluation of the Round 1 speech covers all five required areas. Overall the speaker demonstrated solid preparation and a genuine connection to their topic, which made the speech engaging to listen to.
-
-Organization: The speech followed a clear structure. The introduction used a startling statistic to open, which was an effective attention-getter. The body had three distinct main points, each introduced with a clear transition. The conclusion restated the main points and ended with a call to action, which gave the speech a sense of purpose beyond just sharing information.
-
-Delivery: Delivery was the area with the most room for growth. The speaker held their note cards throughout the speech and referenced them frequently, which interrupted the flow. When they were not looking at their notes, their delivery was natural and confident. I would encourage them to practice enough that the cards become a safety net rather than a script.
-
-Eye Contact: Related to the delivery issue, eye contact suffered because of the note card reliance. The speaker made good eye contact during the introduction and conclusion but looked down frequently during the body. The moments of direct eye contact were effective — the audience visibly responded when the speaker looked at them directly.
-
-Vocal Variety: The speaker used good vocal variety in the introduction, varying their pace and pitch to build interest. This energy faded somewhat in the middle of the speech but returned for the conclusion. Maintaining that variety throughout would significantly improve the overall impact.
-
-Content: The content was well-chosen and specific. The speaker clearly knew their topic and included details that showed genuine research. One suggestion: the third main point introduced a new idea that was not previewed in the introduction, which felt slightly disconnected from the rest of the speech.',
-   NOW() - INTERVAL '6 days', 'graded'),
-
-  -- 016 · Tyler Brooks · FINAL
-  ('00000000-0000-0000-0006-000000000016',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000005',
-   'This evaluation covers the five required criteria for the Round 1 introductory speech. The speaker I observed showed genuine enthusiasm for their topic and a willingness to engage with the audience, which are strong foundations to build on.
-
-Organization: The speech was clearly organized. The introduction opened with a personal anecdote that established the speaker''s credibility and connection to the topic. The body had two main points rather than the recommended three, which made the speech feel slightly thin. The conclusion was strong — the speaker circled back to the opening story, which gave the speech a satisfying sense of closure.
-
-Delivery: The speaker''s delivery was energetic and natural. They moved purposefully during the speech, using the space effectively rather than staying frozen behind the podium. The pace was well-controlled throughout, with appropriate pauses before key points. The only delivery issue was a tendency to trail off at the end of sentences, which made some points harder to hear.
-
-Eye Contact: Eye contact was excellent. The speaker made consistent, deliberate contact with different parts of the room and held eye contact long enough to feel genuine rather than scanning. This was the strongest aspect of the speech and made the whole presentation feel like a conversation.
-
-Vocal Variety: Vocal variety was good overall. The speaker used changes in pace and volume effectively, slowing down for emphasis and speeding up to convey excitement. One area to work on: the pitch stayed in a fairly narrow range. Experimenting with higher and lower tones would add another dimension to the delivery.
-
-Content: The content was engaging and personal. The speaker shared specific stories that made the speech memorable. The main weakness was the lack of a third main point — the speech felt like it ended before fully developing the topic. Adding one more supporting point would make the argument more complete.',
-   NOW() - INTERVAL '5 days', 'graded')
-
-ON CONFLICT (assignment_id, student_id) DO NOTHING;
-
-INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 017 · Sam Nguyen · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000017',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000006',
-   'I evaluated my classmate''s Round 1 speech and thought they did a really good job overall. Their organization was clear and they had a strong introduction that got my attention right away. Their delivery was confident and they did not seem nervous at all, which was impressive for a first speech.
-
-For eye contact, they looked at the audience most of the time which was great to see. Their vocal variety was good too — they sped up when they were excited about their topic which added energy to the speech. I noticed they slowed down for the conclusion which was effective.
-
-The content was interesting and relevant to the audience. I learned something new from their speech which I think is the goal of an informative presentation. One thing I would suggest is to make the conclusion a little stronger with a callback to the opening. The introduction was memorable but the ending did not quite match it in impact.
-
-Overall this was a solid first effort and I think they will continue to improve as the quarter goes on. The strongest areas were eye contact and delivery confidence.',
-   NOW() - INTERVAL '6 days', 'submitted'),
-
-  -- 018 · Priya Sharma · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000018',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000007',
-   'The speaker I evaluated gave a solid Round 1 speech with some clear strengths and a few areas to work on. Here is my feedback on each of the five areas.
-
-Organization was good. The speech had a clear beginning, middle, and end. The introduction was engaging and the main points were easy to follow. The conclusion summarized the speech well.
-
-Delivery was confident. The speaker did not seem nervous and spoke at a good pace. There were a few filler words but not enough to be distracting.
-
-Eye contact was decent. The speaker looked at the audience regularly but tended to focus on one side of the room. Making eye contact with the whole audience would improve this.
-
-Vocal variety was present but could be stronger. The speaker used some changes in volume but the pitch stayed mostly the same throughout. More variation would make the speech more engaging.
-
-Content was appropriate and well-chosen. The speaker clearly knew their topic. I would suggest adding one more specific example to the second main point to make it more convincing.',
-   NOW() - INTERVAL '5 days', 'submitted'),
-
-  -- 019 · Marcus Johnson · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000019',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000008',
-   'My evaluation of the Round 1 speech focuses on the five required areas. The speaker showed good preparation and a clear connection to their topic.
-
-Organization: The speech was well-structured with a clear introduction and conclusion. The body had three main points that were easy to follow. Transitions were present but could be smoother — a few times the speaker just moved to the next point without a clear signal.
-
-Delivery: The speaker''s delivery was natural and conversational. They spoke at a comfortable pace and used appropriate pauses. One area to improve is avoiding the tendency to look at the floor when thinking — it breaks the connection with the audience.
-
-Eye contact: Eye contact was inconsistent. Strong in the introduction, weaker in the body, and recovered for the conclusion. The speaker should practice enough to maintain eye contact throughout.
-
-Vocal variety: The speaker used good volume but limited pitch variation. The speech would benefit from more dynamic changes in tone, especially when emphasizing key points.
-
-Content: The content was relevant and specific. The speaker used a personal story effectively in the introduction. The third main point was the weakest — it felt less developed than the first two and could use more supporting detail.',
-   NOW() - INTERVAL '5 days', 'submitted')
-
-ON CONFLICT (assignment_id, student_id) DO NOTHING;
-
-INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 020 · Sofia Reyes · PENDING
-  ('00000000-0000-0000-0006-000000000020',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000009',
-   'The speech I evaluated was good. The organization was clear and easy to follow. The delivery was confident. Eye contact was okay. The vocal variety could be better. The content was interesting and relevant.',
-   NOW() - INTERVAL '3 days', 'submitted'),
-
-  -- 021 · Ethan Kim · PENDING
-  ('00000000-0000-0000-0006-000000000021',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000010',
-   'I thought the speech was well done. The speaker was organized and had good eye contact. Their delivery was natural. The content was interesting. I would suggest working on vocal variety.',
-   NOW() - INTERVAL '2 days', 'submitted'),
-
-  -- 022 · Aaliyah Washington · PENDING
-  ('00000000-0000-0000-0006-000000000022',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000011',
-   'The speaker did a good job with organization and had a clear structure. Their eye contact was strong and they seemed comfortable in front of the audience. Delivery was good overall. Content was relevant. Vocal variety could be improved with more changes in pitch and pace.',
+   'The scientific method is a way to do experiments. Prokaryotes are bacteria. Eukaryotes have a nucleus. Plant and animal cells are eukaryotes.',
    NOW() - INTERVAL '2 days', 'submitted')
 
 ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
-  -- 023 · Connor Murphy · DRAFT
-  ('00000000-0000-0000-0006-000000000023',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000012',
-   'The speech I evaluated had good organization. The introduction was strong with a personal story. The delivery was',
+  -- 013 · Diego Flores · DRAFT
+  ('00000000-0000-0000-0006-000000000013',
+   '00000000-0000-0000-0003-000000000015',
+   '00000000-0000-0000-0000-000000000014',
+   'The scientific method involves',
    NULL, 'draft'),
 
-  -- 024 · Zoe Chen · DRAFT
-  ('00000000-0000-0000-0006-000000000024',
-   '00000000-0000-0000-0003-000000000038',
-   '00000000-0000-0000-0000-000000000013',
-   'Organization: clear structure with intro body conclusion. Delivery: confident. Eye contact:',
+  -- 014 · Hannah Okafor · DRAFT
+  ('00000000-0000-0000-0006-000000000014',
+   '00000000-0000-0000-0003-000000000015',
+   '00000000-0000-0000-0000-000000000015',
+   'The scientific method involves',
    NULL, 'draft')
 
-  -- 014 Diego Flores, 015 Hannah Okafor, 016 Liam Patel: BLANK — no row
+  -- 016 Liam Patel: BLANK — no row
 
 ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- A040: COMS 101 Analyzing Delivery Style  (submissions 025–036)
+-- A033: COMS 101 Introduction  (submissions 015–028)
 -- ─────────────────────────────────────────────────────────────────────────────
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
-  -- 025 · Alex Rivera · FINAL
-  ('00000000-0000-0000-0006-000000000025',
-   '00000000-0000-0000-0003-000000000040',
+  -- 015 · Alex Rivera · FINAL
+  ('00000000-0000-0000-0006-000000000015',
+   '00000000-0000-0000-0003-000000000033',
    '00000000-0000-0000-0000-000000000002',
-   'The assigned speech video featured a speaker delivering a ten-minute informative presentation on climate change. I analyzed the delivery using three course concepts: eye contact, vocal variety, and pacing.
-
-Eye Contact: The speaker demonstrated strong eye contact throughout the speech. Rather than scanning the room mechanically, they held eye contact with individual audience members for two to three seconds at a time before moving on — a technique we discussed in class as creating genuine connection rather than the appearance of it. This was particularly effective during the opening two minutes when the speaker was establishing credibility. The one weakness was a tendency to look down at notes during transitions between main points, which briefly broke the connection. I would coach this speaker to internalize their transitions so they can maintain eye contact even when moving between sections.
-
-Vocal Variety: The speaker used vocal variety effectively in several moments. When describing the projected consequences of inaction, they slowed their pace and lowered their volume, which created a sense of gravity that matched the content. During the call to action at the end, they increased both pace and volume, which built energy and urgency. However, the middle section of the speech — covering the scientific evidence — was delivered in a relatively flat, monotone style that made it harder to stay engaged. I would coach the speaker to identify two or three key statistics in that section and use pitch changes to signal their importance.
-
-Pacing: The overall pacing was well-controlled. The speaker used pauses deliberately — particularly after asking rhetorical questions — which gave the audience time to process the content. One area for improvement: the speaker rushed through the explanation of carbon feedback loops, which was the most technically complex part of the speech. Slowing down for complex content and speeding up for simpler transitions is a technique we covered in Week 2 that would serve this speaker well.',
-   NOW() - INTERVAL '8 days', 'graded'),
-
-  -- 026 · Jordan Lee · FINAL
-  ('00000000-0000-0000-0006-000000000026',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000003',
-   'For this assignment I analyzed the delivery of the assigned speech video using three concepts from course material: gestures, structure, and vocal variety.
-
-Gestures: The speaker used gestures frequently and naturally throughout the speech. Their hand movements generally reinforced the verbal content — for example, when describing a timeline, they moved their hand from left to right, which visually anchored the concept for the audience. We discussed in class that effective gestures should be purposeful and match the content, and this speaker largely achieved that. The one area for improvement was a tendency to use the same gesture — a pointing motion — repeatedly, which started to feel repetitive by the middle of the speech. I would coach them to expand their gestural vocabulary and vary the types of movements they use.
-
-Structure: The speech was clearly structured with a preview in the introduction and a summary in the conclusion. The three main points were distinct and well-organized. However, the transitions between points were weak — the speaker often just paused briefly and moved on without a verbal signal. Using explicit transition phrases like "now that we have covered X, let''s turn to Y" would make the structure more apparent to the audience and easier to follow.
-
-Vocal Variety: The speaker''s vocal variety was the strongest aspect of their delivery. They used changes in pitch, pace, and volume strategically throughout the speech. The most effective moment was when they told a personal story — their voice became quieter and more intimate, which drew the audience in. I would encourage them to use that same technique more deliberately in other parts of the speech where they want to create emotional connection.',
-   NOW() - INTERVAL '7 days', 'graded'),
-
-  -- 027 · Maya Patel · FINAL
-  ('00000000-0000-0000-0006-000000000027',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000004',
-   'My analysis of the assigned speech video focuses on three delivery concepts: eye contact, pacing, and use of space.
-
-Eye Contact: The speaker''s eye contact was inconsistent. During the introduction and conclusion, they maintained strong eye contact with the audience, which created a sense of confidence and connection. During the body of the speech, however, they frequently looked at the screen behind them when referencing their slides. While some glancing at visual aids is expected, the speaker often turned their back to the audience for several seconds at a time, which broke the connection entirely. I would coach this speaker to practice with their slides enough that they can reference them with a brief glance rather than a full turn, keeping their body oriented toward the audience.
-
-Pacing: The pacing was generally appropriate but had one significant issue: the speaker did not use pauses effectively. After making important points, they immediately moved on without giving the audience time to absorb the information. We discussed in class that strategic pauses after key claims signal their importance and give the audience processing time. I would coach this speaker to identify their three most important points and practice pausing for a full two seconds after each one.
-
-Use of Space: The speaker used the stage space effectively. They moved purposefully between sections of the stage, which helped maintain audience attention and signaled transitions between main points. This is a technique we covered in the delivery unit — using physical movement to reinforce structure. The speaker executed this well and it was one of the most polished aspects of their presentation.',
-   NOW() - INTERVAL '7 days', 'graded'),
-
-  -- 028 · Tyler Brooks · FINAL
-  ('00000000-0000-0000-0006-000000000028',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000005',
-   'I analyzed the assigned speech video using three course concepts: vocal variety, eye contact, and managing anxiety.
-
-Vocal Variety: The speaker demonstrated strong vocal variety throughout the speech. They used changes in pace, pitch, and volume to maintain audience engagement and signal the relative importance of different points. The most effective use of vocal variety was during the narrative section of the speech, where the speaker slowed their pace and lowered their volume to create intimacy. This matched the content perfectly and drew the audience in. One area for improvement: the speaker''s volume dropped at the end of sentences, which made some points harder to hear. I would coach them to maintain consistent volume through the end of each sentence.
-
-Eye Contact: Eye contact was strong overall. The speaker made deliberate contact with different sections of the audience and held it long enough to feel genuine. The one weakness was during the question-and-answer section at the end, where the speaker looked at the floor while thinking before responding. Maintaining eye contact while formulating a response — even if it means a brief pause — projects more confidence and keeps the audience engaged.
-
-Managing Anxiety: The speaker showed visible signs of anxiety in the first two minutes — slightly faster pace, occasional voice tremor, and fidgeting with their notes. However, they settled into the speech by the third minute and the anxiety became much less apparent. This is a pattern we discussed in class: anxiety is often highest at the start and decreases as the speaker gets into their material. I would coach this speaker to use a deliberate pause and breath at the very beginning of the speech before saying their first word, which can help reset the nervous system and project calm from the start.',
-   NOW() - INTERVAL '6 days', 'graded')
-
-ON CONFLICT (assignment_id, student_id) DO NOTHING;
-
-INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 029 · Sam Nguyen · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000029',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000006',
-   'I watched the assigned speech video and analyzed the speaker''s delivery using three concepts from class: eye contact, vocal variety, and gestures.
-
-Eye contact was one of the speaker''s strengths. They looked at the audience regularly and did not rely too heavily on their notes. This made the speech feel more conversational and engaging. I would encourage them to continue developing this skill and work on distributing their eye contact more evenly across the room rather than focusing on one section.
-
-Vocal variety was present but inconsistent. The speaker used good volume and spoke clearly, but the pitch stayed relatively flat for most of the speech. There were a few moments — particularly in the introduction and conclusion — where they used more dynamic variation, and those moments were noticeably more engaging. I would coach them to bring that same energy to the body of the speech.
-
-Gestures were natural and appropriate. The speaker used hand movements that matched their words without being distracting. One area for improvement is that the gestures were mostly small and close to the body. Larger, more expansive gestures would project more confidence and be more visible to audience members in the back of the room.',
-   NOW() - INTERVAL '5 days', 'submitted'),
-
-  -- 030 · Priya Sharma · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000030',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000007',
-   'For this assignment I analyzed the delivery of the assigned speech using three concepts: pacing, structure, and eye contact.
-
-Pacing: The speaker''s pacing was generally good. They spoke at a comfortable rate that was easy to follow. They used pauses effectively after key points, which gave the audience time to process the information. One area for improvement: the speaker rushed through the technical section of the speech, which made it harder to follow. Slowing down for complex content is a technique we covered in class that would help here.
-
-Structure: The speech was clearly organized with a preview, three main points, and a summary. The transitions between points were clear and helped the audience follow along. The conclusion was effective and ended with a memorable statement. One suggestion: the introduction could be stronger — it started with a definition, which is a less engaging attention-getter than a story or question.
-
-Eye contact: Eye contact was adequate but could be improved. The speaker made contact with the audience regularly but tended to look at the same section of the room. Distributing eye contact more evenly — including the sides and back of the room — would make more audience members feel included in the speech.',
+   'Hi, I''m Alex Rivera, a Business Administration major. My biggest communication challenge is that I tend to speak too quickly when I''m nervous, which makes it hard for people to follow my train of thought. I want to work on slowing down, using deliberate pauses, and letting key points land before moving on.',
    NOW() - INTERVAL '4 days', 'submitted'),
 
-  -- 031 · Marcus Johnson · AI_SUGGESTED
-  ('00000000-0000-0000-0006-000000000031',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000008',
-   'My analysis of the assigned speech video uses three course concepts: vocal variety, use of space, and managing anxiety.
+  -- 016 · Jordan Lee · FINAL
+  ('00000000-0000-0000-0006-000000000016',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000003',
+   'Hi, I''m Jordan Lee, a Psychology major. My main communication challenge is making eye contact with an audience — I tend to focus on one spot or look at my notes instead of scanning the room. I''m hoping this class will help me become more comfortable looking at people directly while I speak so my delivery feels more natural and confident.',
+   NOW() - INTERVAL '4 days', 'submitted'),
 
-Vocal variety: The speaker used vocal variety effectively in the introduction and conclusion but less so in the body. The most effective moment was when they raised their voice to emphasize a key statistic — this drew the audience''s attention and signaled the importance of the information. I would coach the speaker to identify two or three more moments in the body where they can use similar emphasis.
-
-Use of space: The speaker stayed mostly in one spot throughout the speech, which limited their use of the stage. We discussed in class that purposeful movement can reinforce structure and maintain audience attention. I would encourage this speaker to practice moving to a different part of the stage when transitioning between main points.
-
-Managing anxiety: The speaker appeared comfortable and confident throughout the speech. There were no visible signs of anxiety — no fidgeting, voice tremors, or rushed pacing. This is a real strength and suggests good preparation. The one suggestion I have is to use more deliberate pauses, which would add gravitas to the delivery and make the speaker appear even more in control.',
-   NOW() - INTERVAL '4 days', 'submitted')
-
-ON CONFLICT (assignment_id, student_id) DO NOTHING;
-
-INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
-
-  -- 032 · Sofia Reyes · PENDING
-  ('00000000-0000-0000-0006-000000000032',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000009',
-   'The speaker in the video had good eye contact and spoke clearly. Their vocal variety was okay. They used gestures that matched their words. I think they could improve by using more pauses and varying their pitch more.',
+  -- 017 · Maya Patel · FINAL
+  ('00000000-0000-0000-0006-000000000017',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000004',
+   'Hi, I''m Maya Patel, a Nursing major. One communication challenge I consistently face is organizing my thoughts on the spot — I know what I want to say but it comes out jumbled under pressure. I want to learn techniques for structuring ideas quickly so that even impromptu responses sound clear and purposeful.',
    NOW() - INTERVAL '3 days', 'submitted'),
 
-  -- 033 · Ethan Kim · PENDING
-  ('00000000-0000-0000-0006-000000000033',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000010',
-   'I analyzed the speech using eye contact, pacing, and gestures. Eye contact was good. Pacing was a little fast in the middle. Gestures were natural. Overall a solid delivery with room to improve on vocal variety.',
-   NOW() - INTERVAL '2 days', 'submitted'),
+  -- 018 · Tyler Brooks · FINAL
+  ('00000000-0000-0000-0006-000000000018',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000005',
+   'Hi, I''m Tyler Brooks, a Criminal Justice major. My biggest communication challenge is vocal variety — I tend to speak in a flat, monotone voice that does not convey enthusiasm even when I care about the topic. I want to develop more dynamic delivery so that audiences stay engaged and my words have the impact they deserve.',
+   NOW() - INTERVAL '3 days', 'submitted'),
 
-  -- 034 · Aaliyah Washington · PENDING
-  ('00000000-0000-0000-0006-000000000034',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000011',
-   'The speaker demonstrated strong vocal variety and good use of eye contact. Their pacing was well-controlled and they used pauses effectively. One area for improvement is gestures — they were limited and could be more expressive. The structure of the speech was clear and easy to follow.',
+  -- 019 · Sam Nguyen · FINAL
+  ('00000000-0000-0000-0006-000000000019',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000006',
+   'Hi, I''m Sam Nguyen, an Environmental Science major. A communication challenge I struggle with is filler words — I say "um" and "like" constantly when I''m thinking, which undermines how knowledgeable I sound. I want to build the habit of pausing silently instead of filling silence with words, so my speech sounds more polished and intentional.',
+   NOW() - INTERVAL '3 days', 'submitted'),
+
+  -- 020 · Priya Sharma · FINAL
+  ('00000000-0000-0000-0006-000000000020',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000007',
+   'Hi, I''m Priya Sharma, a Computer Science major. My communication challenge is projecting confidence when I''m not sure about something — I tend to trail off or hedge too much, which makes me sound uncertain even when I have a valid point. I want to learn how to deliver ideas with conviction while still being honest about uncertainty.',
    NOW() - INTERVAL '2 days', 'submitted')
 
 ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
 INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
 
-  -- 035 · Connor Murphy · DRAFT
-  ('00000000-0000-0000-0006-000000000035',
-   '00000000-0000-0000-0003-000000000040',
+  -- 021 · Marcus Johnson · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000021',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000008',
+   'Hi I''m Marcus Johnson and I''m majoring in Kinesiology. My communication challenge is getting nervous in front of groups and forgetting what I was going to say.',
+   NOW() - INTERVAL '2 days', 'submitted'),
+
+  -- 022 · Sofia Reyes · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000022',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000009',
+   'My name is Sofia Reyes and I am a Graphic Design major. I find it hard to speak in front of people and I want to get better at it.',
+   NOW() - INTERVAL '2 days', 'submitted'),
+
+  -- 023 · Ethan Kim · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000023',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000010',
+   'Hi, I am Ethan Kim. I am studying Accounting. I struggle with public speaking and hope this class helps me improve.',
+   NOW() - INTERVAL '1 day', 'submitted')
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+
+  -- 024 · Aaliyah Washington · PENDING
+  ('00000000-0000-0000-0006-000000000024',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000011',
+   'My name is Aaliyah Washington.',
+   NOW() - INTERVAL '1 day', 'submitted'),
+
+  -- 025 · Connor Murphy · PENDING
+  ('00000000-0000-0000-0006-000000000025',
+   '00000000-0000-0000-0003-000000000033',
    '00000000-0000-0000-0000-000000000012',
-   'Eye contact: the speaker made good eye contact with the audience. They looked at different parts of the room. Vocal variety:',
+   'Connor Murphy.',
+   NOW() - INTERVAL '1 day', 'submitted'),
+
+  -- 026 · Zoe Chen · PENDING
+  ('00000000-0000-0000-0006-000000000026',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000013',
+   'My name is Zoe Chen.',
+   NOW() - INTERVAL '2 days', 'submitted')
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+
+  -- 027 · Diego Flores · DRAFT
+  ('00000000-0000-0000-0006-000000000027',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000014',
+   'My name is',
    NULL, 'draft'),
 
-  -- 036 · Zoe Chen · DRAFT
-  ('00000000-0000-0000-0006-000000000036',
-   '00000000-0000-0000-0003-000000000040',
-   '00000000-0000-0000-0000-000000000013',
-   'I watched the assigned speech and noticed the speaker used pacing effectively. They slowed down for important points and',
+  -- 028 · Hannah Okafor · DRAFT
+  ('00000000-0000-0000-0006-000000000028',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000015',
+   'My name is',
    NULL, 'draft')
 
-  -- 014 Diego Flores, 015 Hannah Okafor, 016 Liam Patel: BLANK — no row
+  -- 016 Liam Patel: BLANK — no row
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- A035: COMS 101 Quiz 1 – Speech Structure  (submissions 029–042)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+
+  -- 029 · Alex Rivera · FINAL
+  ('00000000-0000-0000-0006-000000000029',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000002',
+   'The introduction of a speech serves two essential functions: it captures the audience''s attention and orients them to the topic. An effective introduction opens with an attention-getter — such as a startling statistic, a rhetorical question, or a brief personal story — and then previews the main points the speaker will cover. Without this preview, the audience has no roadmap and may struggle to follow the structure of the speech.
+
+The body is the heart of the speech, where the speaker develops each main point in depth. Each main point should be supported by evidence — facts, examples, statistics, or testimony — and the points should connect through clear transitions. Good transitions signal to the audience that the speaker is moving from one idea to the next, maintaining coherence throughout.
+
+The conclusion has two jobs: to summarize what was said and to provide a sense of closure, often through a call to action or a memorable final statement. Echoing the attention-getter from the introduction — a technique called a callback — is particularly effective because it gives the audience a satisfying sense of completion and reinforces the central message.',
+   NOW() - INTERVAL '3 days', 'submitted'),
+
+  -- 030 · Jordan Lee · FINAL
+  ('00000000-0000-0000-0006-000000000030',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000003',
+   'A well-structured speech has three distinct parts, each with a specific purpose. The introduction must do more than just announce the topic — it needs to earn the audience''s attention and trust. Effective attention-getters include humor, a compelling anecdote, or a thought-provoking question. After grabbing attention, the introduction states the thesis and previews the main points, so the audience knows exactly what to expect.
+
+The body develops the argument or information across two to four main points. Each point is introduced, developed with supporting evidence, and closed before transitioning to the next. The transitions between points are critical: without them, the speech feels choppy and disconnected. Strong transitions recap the previous point and preview the next one, keeping the audience oriented at all times.
+
+The conclusion signals to the audience that the speech is ending — which matters because audiences tend to remember the last thing they hear. A strong conclusion restates the thesis, briefly reviews the main points, and closes with a memorable final thought or call to action. Ending abruptly without a proper conclusion leaves the audience feeling unfinished.',
+   NOW() - INTERVAL '3 days', 'submitted'),
+
+  -- 031 · Maya Patel · FINAL
+  ('00000000-0000-0000-0006-000000000031',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000004',
+   'Speech structure follows a three-part format that audiences have been conditioned to expect. The introduction establishes credibility and context: it uses an attention-getter to engage the audience emotionally or intellectually, establishes the speaker''s connection to the topic, states the central thesis, and previews the main points in the order they will be addressed. This roadmap reduces cognitive load for the audience.
+
+In the body, the speaker develops each main point with specific, credible evidence. Organizing the body points in a logical order — chronological, problem-solution, or topical — helps the audience follow the argument. Each point should be distinct enough to stand alone while contributing to the overall thesis. Internal summaries at the end of long main points can help the audience retain the information.
+
+The conclusion fulfills a psychological contract with the audience. After hearing the speaker develop an argument, the audience expects closure. The conclusion restates the thesis in fresh language, summarizes the main points concisely, and delivers a final statement that leaves a lasting impression. A call to action is especially appropriate for persuasive speeches because it gives the audience something concrete to do with the information they have received.',
+   NOW() - INTERVAL '2 days', 'submitted'),
+
+  -- 032 · Tyler Brooks · FINAL
+  ('00000000-0000-0000-0006-000000000032',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000005',
+   'Every effective speech relies on a clear three-part structure. The introduction is the audience''s first impression of both the speaker and the topic. It should open with an attention device — something unexpected, emotional, or provocative — and then transition smoothly into the thesis and a preview of the main points. A strong introduction signals that the speaker is prepared and worth listening to.
+
+The body is where the speaker does the real argumentative or informational work. Each main point should be clearly stated, supported with evidence, and connected to the thesis. Transitions between points are not optional — they are the connective tissue that holds the speech together. Without transitions, the audience must work too hard to follow the logic, which increases the chance they will disengage.
+
+The conclusion is the last thing the audience hears, so it carries disproportionate weight in shaping their overall impression. It should begin with a clear signal that the speech is ending (such as "In conclusion" or "To summarize"), briefly restate the main points, and end with a strong closing line. A callback to the opening attention-getter creates a sense of symmetry and makes the speech feel polished and complete.',
+   NOW() - INTERVAL '2 days', 'submitted'),
+
+  -- 033 · Sam Nguyen · FINAL
+  ('00000000-0000-0000-0006-000000000033',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000006',
+   'A speech is organized into three parts. The introduction grabs the audience''s attention with a hook and tells them what the speech will be about by previewing the main points. A good attention-getter could be a surprising fact, a short story, or a question the audience can relate to. The introduction ends by stating the main thesis clearly.
+
+The body develops the main points one at a time and uses evidence to support each one. Transitions between points help the audience follow along and understand the connection between ideas. Each point should be focused and relevant to the overall topic.
+
+The conclusion wraps up the speech by restating the main points and leaving the audience with something to remember or act on. It should feel like a natural ending, not just stopping in the middle. A call to action works well in persuasive speeches to motivate the audience to do something with what they have learned.',
+   NOW() - INTERVAL '3 days', 'submitted'),
+
+  -- 034 · Priya Sharma · FINAL
+  ('00000000-0000-0000-0006-000000000034',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000007',
+   'The three-part structure of a speech — introduction, body, and conclusion — is designed to serve the audience. The introduction does more than announce a topic. It builds interest through an attention-getter, establishes the speaker''s credibility, and previews what is coming so the audience can follow along. Without a clear preview, audiences can feel lost from the start.
+
+The body is where the speaker delivers the content. It is organized into main points, each developed with evidence and connected by transitions. The transitions matter because they signal the audience when one idea is ending and another is beginning, keeping the argument coherent. Each main point should be strong enough to stand alone but unified by the overall thesis.
+
+The conclusion reinforces everything the speaker has said and provides a memorable ending. Restating the main points briefly helps the audience walk away with the key ideas intact. A strong closing line — whether a memorable quote, a call to action, or a return to the opening image — ensures the audience leaves with a clear impression of the speech''s purpose.',
+   NOW() - INTERVAL '2 days', 'submitted')
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+
+  -- 035 · Marcus Johnson · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000035',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000008',
+   'The introduction starts the speech and gets the audience interested. The body has the main points with evidence. The conclusion ends the speech and summarizes what was said.',
+   NOW() - INTERVAL '2 days', 'submitted'),
+
+  -- 036 · Sofia Reyes · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000036',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000009',
+   'The introduction grabs attention and previews the speech. The body develops the main points with supporting details. The conclusion restates the main points and provides a closing statement.',
+   NOW() - INTERVAL '1 day', 'submitted'),
+
+  -- 037 · Ethan Kim · AI_SUGGESTED
+  ('00000000-0000-0000-0006-000000000037',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000010',
+   'A speech has three parts. The introduction hooks the audience and states the topic. The body covers the main points. The conclusion summarizes the speech.',
+   NOW() - INTERVAL '1 day', 'submitted')
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+
+  -- 038 · Aaliyah Washington · PENDING
+  ('00000000-0000-0000-0006-000000000038',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000011',
+   'A speech has an introduction body and conclusion. The introduction gets attention. The body talks about the main points and the conclusion is when you end the speech and remind people what you talked about.',
+   NOW() - INTERVAL '1 day', 'submitted'),
+
+  -- 039 · Connor Murphy · PENDING
+  ('00000000-0000-0000-0006-000000000039',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000012',
+   'Speeches have three parts introduction body conclusion. The introduction grabs attention. The body has the info. The conclusion ends it.',
+   NOW() - INTERVAL '1 day', 'submitted'),
+
+  -- 040 · Zoe Chen · PENDING
+  ('00000000-0000-0000-0006-000000000040',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000013',
+   'A speech has three parts. You start with the intro to get peoples attention then you have the body where you say your main points and then the conclusion to finish.',
+   NOW() - INTERVAL '2 days', 'submitted')
+
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+
+  -- 041 · Diego Flores · DRAFT
+  ('00000000-0000-0000-0006-000000000041',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000014',
+   'The introduction is the first part of a speech',
+   NULL, 'draft'),
+
+  -- 042 · Hannah Okafor · DRAFT
+  ('00000000-0000-0000-0006-000000000042',
+   '00000000-0000-0000-0003-000000000035',
+   '00000000-0000-0000-0000-000000000015',
+   'The introduction is the first part of a speech',
+   NULL, 'draft')
+
+  -- 016 Liam Patel: BLANK — no row
 
 ON CONFLICT (assignment_id, student_id) DO NOTHING;
 
@@ -970,269 +924,325 @@ ON CONFLICT (assignment_id, student_id) DO NOTHING;
 -- ai_suggested state: ai_suggested_score only (final_score/feedback/approved = NULL)
 -- pending/draft:      no grade row
 --
--- Grade IDs 001–007  → A030 BIO Course Reflection
--- Grade IDs 008–014  → A038 COMS Written Eval Round 1
--- Grade IDs 015–021  → A040 COMS Analyzing Delivery Style
+-- Grade IDs 001–009  → A015 BIO Connect Homework 1 (6 final + 3 ai_suggested)
+-- Grade IDs 010–018  → A033 COMS Introduction
+-- Grade IDs 019–027  → A035 COMS Quiz 1 – Speech Structure
 -- =============================================================================
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
-  -- ── A030 BIO 111 Course Reflection ──────────────────────────────────────────
+  -- ── A015 BIO 111 Connect Homework 1 ─────────────────────────────────────────
 
   -- G001 · Alex Rivera · FINAL (sub 001)
   ('00000000-0000-0000-0007-000000000001',
    '00000000-0000-0000-0006-000000000001',
-   10,
-   'Unit 1 concept (enzymes and denaturation): 3/3 — accurate, personal connection to fever is insightful and shows genuine understanding beyond the textbook.
-Unit 2 concept (Mendelian genetics and medical pedigrees): 3/3 — accurate, personal relevance well explained with a real-world application.
-Unit 3 concept (Hardy-Weinberg equilibrium): 2/2 — correct and specific, the observation about populations almost never meeting all five conditions is excellent.
-Genuine attempt: 2/2 — strong writing, well over 300 words, organized paragraphs.',
-   10,
-   'Outstanding reflection. Every concept is accurate and your personal connections are genuinely insightful, not just restating the textbook. The observation about Hardy-Weinberg making evolution measurable is exactly the kind of thinking this course aims for.',
+   5,
+   'Scientific method with example: 3/3 — accurate, specific example given (bean seedlings under different light intensities). Control/experimental groups clearly identified and hypothesis described correctly.
+Prokaryotic vs. eukaryotic: 2/2 — bacteria and archaea correctly named as prokaryotes; animal cell and plant cell correctly named as eukaryotes with accurate structural distinctions (nucleus, organelles, cell wall, chloroplasts).',
+   5,
+   'Excellent work. Your scientific method paragraph gives a concrete, well-explained example and your cell comparison is accurate and complete. The detail about the nucleoid region and chloroplasts shows genuine engagement with the material.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '4 days'),
+   NOW() - INTERVAL '2 days'),
 
   -- G002 · Jordan Lee · FINAL (sub 002)
   ('00000000-0000-0000-0007-000000000002',
    '00000000-0000-0000-0006-000000000002',
-   9,
-   'Unit 1 concept (ATP and cellular respiration): 3/3 — accurate, personal connection is genuine and specific.
-Unit 2 concept (DNA replication and cancer): 3/3 — accurate and shows real understanding beyond the textbook.
-Unit 3 concept (natural selection and fitness): 2/2 — correct distinction between reproductive success and physical strength, antibiotic resistance example is well-chosen.
-Genuine attempt: 1/2 — well over 300 words and organized, minor deduction for slightly brief paragraphs.',
-   9,
-   'Strong reflection with accurate concepts and genuine personal connections. The antibiotic resistance example for natural selection is particularly well-chosen. To push toward a 10 next time, develop each paragraph a bit further — your ideas are good but some could use one more sentence of explanation.',
+   5,
+   'Scientific method with example: 3/3 — accurate, specific example given (enzyme activity at different temperatures). Independent and dependent variables correctly identified; controls well described.
+Prokaryotic vs. eukaryotic: 2/2 — E. coli and Methanobacterium named as prokaryotes; human muscle cell and leaf mesophyll cell named as eukaryotes. Structural differences (nucleus, organelles, cell wall, chloroplasts) accurately described.',
+   5,
+   'Strong submission. Your enzyme activity example is specific and technically accurate, and naming actual species for both prokaryotes and eukaryotes shows real engagement. Full marks.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '3 days'),
+   NOW() - INTERVAL '2 days'),
 
   -- G003 · Maya Patel · FINAL (sub 003)
   ('00000000-0000-0000-0007-000000000003',
    '00000000-0000-0000-0006-000000000003',
-   10,
-   'Unit 1 concept (fluid mosaic model and membrane transport): 3/3 — accurate and the "security system" analogy shows genuine conceptual understanding.
-Unit 2 concept (gene expression and cell differentiation): 3/3 — excellent — addresses a sophisticated concept and explains it clearly.
-Unit 3 concept (coevolution): 2/2 — accurate and the personal observation about bees is a lovely real-world connection.
-Genuine attempt: 2/2 — well over 300 words, organized, thoughtful writing.',
-   10,
-   'Excellent work. You chose sophisticated concepts and explained them with real depth. The gene expression paragraph in particular shows you understood one of the harder ideas in the course. The coevolution observation about your garden is exactly the kind of personal connection this assignment asks for.',
+   5,
+   'Scientific method with example: 3/3 — accurate, specific example given (soil type vs. seed germination rate). Hypothesis, control variables, and iterative nature of the method all addressed.
+Prokaryotic vs. eukaryotic: 2/2 — Staphylococcus aureus and Halobacterium correctly named; animal and plant cells correctly distinguished with accurate details (central vacuole, cellulose cell wall).',
+   5,
+   'Excellent response. Your scientific method example is well-chosen and your cell comparison names real organisms. The detail about the central vacuole and cellulose cell wall is exactly the level of specificity this assignment is looking for.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '3 days'),
+   NOW() - INTERVAL '1 day'),
 
   -- G004 · Tyler Brooks · FINAL (sub 004)
   ('00000000-0000-0000-0007-000000000004',
    '00000000-0000-0000-0006-000000000004',
-   9,
-   'Unit 1 concept (photosynthesis and oxygen as byproduct): 3/3 — accurate, the observation about oxygen coming from water splitting is a great specific detail.
-Unit 2 concept (meiosis and genetic recombination): 3/3 — accurate, personal connection to sibling differences is relatable and well-explained.
-Unit 3 concept (ecological succession): 2/2 — accurate, the empty lot example is a strong real-world application.
-Genuine attempt: 1/2 — well over 300 words, organized, minor deduction for slightly surface-level treatment of Unit 3.',
-   9,
-   'Good reflection with accurate concepts and strong personal connections. The photosynthesis paragraph is particularly well-done — the specific detail about oxygen coming from water splitting shows you really engaged with the material. Develop the ecological succession paragraph a bit more next time.',
+   5,
+   'Scientific method with example: 3/3 — accurate, specific example given (caffeine and Daphnia heart rate). Control/experimental groups correctly identified; iterative nature of the method noted.
+Prokaryotic vs. eukaryotic: 2/2 — Bacillus subtilis and Thermococcus correctly named as prokaryotes; animal and plant cells correctly distinguished with organelle-level details (centrioles, lysosomes, chloroplasts, cell wall).',
+   5,
+   'Excellent work. The Daphnia example is creative and specific, and your cell comparison demonstrates real knowledge of organelle-level differences. Full marks.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '2 days')
+   NOW() - INTERVAL '1 day'),
+
+  -- G005 · Sam Nguyen · FINAL (sub 005)
+  ('00000000-0000-0000-0007-000000000005',
+   '00000000-0000-0000-0006-000000000005',
+   4,
+   'Scientific method with example: 3/3 — accurate, specific example given (fertilizer dose vs. tomato yield). Three experimental groups and controls clearly described.
+Prokaryotic vs. eukaryotic: 1/2 — bacteria and archaea correctly named as prokaryotes; animal and plant cells correctly named as eukaryotes. However, the structural distinction is simplified — "cell wall and chloroplasts" is correct but the response does not mention the nucleus as the defining feature of eukaryotes.',
+   4,
+   'Good work. Your fertilizer experiment is a clear and specific example. For the cell comparison, make sure you center the nucleus as the defining difference between prokaryotes and eukaryotes — the absence of a membrane-bound nucleus is the key criterion, not just the cell wall and chloroplasts.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '1 day'),
+
+  -- G006 · Priya Sharma · FINAL (sub 006)
+  ('00000000-0000-0000-0007-000000000006',
+   '00000000-0000-0000-0006-000000000006',
+   5,
+   'Scientific method with example: 3/3 — accurate, specific example given (exercise duration vs. resting heart rate). Control/experimental setup, standardized conditions, and hypothesis revision all addressed.
+Prokaryotic vs. eukaryotic: 2/2 — bacteria and archaea correctly named as prokaryotes; animal and plant cells correctly named as eukaryotes with accurate organelle-level distinctions (centrioles, chloroplasts, cell wall, central vacuole).',
+   5,
+   'Excellent response. Your exercise experiment example is well-designed and shows you understand how to control variables. The cell comparison is thorough and accurate. Full marks.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '1 day')
 
 ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
-
-  -- G005 · Sam Nguyen · AI_SUGGESTED (sub 005)
-  ('00000000-0000-0000-0007-000000000005',
-   '00000000-0000-0000-0006-000000000005',
-   7,
-   'Unit 1 concept (macromolecules and proteins): 2/3 — concept is accurate but the personal connection is thin. "Made me realize how much depends on proteins" is vague.
-Unit 2 concept (Punnett squares and sex-linked traits): 2/3 — Punnett squares are mentioned but the reflection is more about finding them satisfying than explaining why the concept was relevant.
-Unit 3 concept (food webs and trophic levels): 2/2 — accurate, personal connection to diet and environment is genuine.
-Genuine attempt: 1/2 — adequate length but writing is somewhat surface-level throughout.',
-   NULL, NULL, NULL, NULL),
-
-  -- G006 · Priya Sharma · AI_SUGGESTED (sub 006)
-  ('00000000-0000-0000-0007-000000000006',
-   '00000000-0000-0000-0006-000000000006',
-   8,
-   'Unit 1 concept (osmosis): 3/3 — accurate, the plant wilting example is a strong real-world connection.
-Unit 2 concept (mutations and sickle cell anemia): 3/3 — accurate and shows understanding of the molecular-to-phenotype connection.
-Unit 3 concept (natural selection mechanisms): 1/2 — correct but the reflection is brief and does not go beyond restating the four conditions.
-Genuine attempt: 1/2 — adequate length, writing is organized but somewhat brief in the third paragraph.',
-   NULL, NULL, NULL, NULL),
 
   -- G007 · Marcus Johnson · AI_SUGGESTED (sub 007)
   ('00000000-0000-0000-0007-000000000007',
    '00000000-0000-0000-0006-000000000007',
-   8,
-   'Unit 1 concept (aerobic vs. anaerobic respiration and lactic acid): 3/3 — accurate, personal connection to sports is specific and genuine.
-Unit 2 concept (epigenetics): 2/3 — interesting choice, but epigenetics was only briefly mentioned in lecture. The reflection shows curiosity but the concept description is somewhat imprecise.
-Unit 3 concept (invasive species): 2/2 — accurate, regional connection is a strong personal application.
-Genuine attempt: 1/2 — adequate length, writing is organized but the epigenetics paragraph needs more precision.',
+   3,
+   'Scientific method with example: 1/3 — the steps are listed correctly but no specific example is given. The response describes the process in abstract terms only.
+Prokaryotic vs. eukaryotic: 2/2 — bacteria and archaea correctly named as prokaryotes; animal and plant cells correctly named as eukaryotes. Cell wall and chloroplasts correctly noted as plant cell features.',
+   NULL, NULL, NULL, NULL),
+
+  -- G008 · Sofia Reyes · AI_SUGGESTED (sub 008)
+  ('00000000-0000-0000-0007-000000000008',
+   '00000000-0000-0000-0006-000000000008',
+   3,
+   'Scientific method with example: 2/3 — an example is present (water amount vs. plant height) but it lacks detail: no mention of the control group, dependent variable, or what data would be collected.
+Prokaryotic vs. eukaryotic: 1/2 — bacteria and archaea correctly identified as prokaryotes; animal and plant cells identified as eukaryotes. However, stating plant cells "look green from chlorophyll" is imprecise — chloroplasts are the organelle; chlorophyll is the pigment inside them.',
+   NULL, NULL, NULL, NULL),
+
+  -- G009 · Ethan Kim · AI_SUGGESTED (sub 009)
+  ('00000000-0000-0000-0007-000000000009',
+   '00000000-0000-0000-0006-000000000009',
+   3,
+   'Scientific method with example: 1/3 — steps are listed but no example is provided. "Run an experiment" does not demonstrate understanding of experimental design.
+Prokaryotic vs. eukaryotic: 2/2 — bacteria and archaea correctly named as prokaryotes; animal and plant cells correctly named as eukaryotes. Cell wall noted as a plant cell feature.',
    NULL, NULL, NULL, NULL)
 
 ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
-  -- ── A038 COMS 101 Written Evaluation Round 1 ────────────────────────────────
+  -- ── A033 COMS 101 Introduction ──────────────────────────────────────────────
 
-  -- G008 · Alex Rivera · FINAL (sub 013)
-  ('00000000-0000-0000-0007-000000000008',
-   '00000000-0000-0000-0006-000000000013',
-   15,
-   'Addresses all five criteria: 6/6 — organization, delivery, eye contact, vocal variety, and content all addressed with substance and specificity.
-Cites specific moments: 6/6 — multiple specific examples throughout (personal story opening, filler words in middle section, looking at notes in first minute, third point feeling rushed, deliberate eye contact with different room sections).
-Constructive tone and writing quality: 3/3 — professional, organized, well over 400 words.',
-   15,
-   'Excellent evaluation. You addressed every criterion with specificity — citing actual moments from the speech rather than speaking in generalities. This is exactly what constructive peer feedback looks like. Strong work.',
-   '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '6 days'),
-
-  -- G009 · Jordan Lee · FINAL (sub 014)
-  ('00000000-0000-0000-0007-000000000009',
-   '00000000-0000-0000-0006-000000000014',
-   14,
-   'Addresses all five criteria: 6/6 — all five areas addressed with substance.
-Cites specific moments: 5/6 — good specificity throughout (rhetorical question opener, fast pace in middle, eye contact with multiple sections, volume drop at sentence ends). Minor deduction: vocal variety section could cite one more specific moment.
-Constructive tone and writing quality: 3/3 — professional, organized, well over 400 words.',
-   14,
-   'Strong evaluation with good specificity throughout. You identified concrete moments in the speech for most criteria. To reach a 15 next time, make sure every criterion has at least two specific examples — your vocal variety section was the one area that stayed a bit general.',
-   '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '5 days'),
-
-  -- G010 · Maya Patel · FINAL (sub 015)
+  -- G010 · Alex Rivera · FINAL (sub 015)
   ('00000000-0000-0000-0007-000000000010',
    '00000000-0000-0000-0006-000000000015',
-   14,
-   'Addresses all five criteria: 6/6 — all five areas addressed with substance and clear analysis.
-Cites specific moments: 5/6 — strong specificity (startling statistic opener, note card reliance, eye contact recovery in conclusion, vocal variety in introduction). Minor deduction: content section mentions a disconnected third point but does not describe what it was.
-Constructive tone and writing quality: 3/3 — professional, organized, well over 400 words.',
-   14,
-   'Very good evaluation. Your analysis of the note card issue and its effect on eye contact was particularly insightful — you connected two criteria together, which shows sophisticated thinking. Name the specific disconnected point in the content section next time for full marks.',
+   15,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 4/10 — speaking too quickly when nervous is a specific, authentic challenge. Good self-awareness.
+Genuine 2–3 sentences with actionable goal: 5/5 — three sentences, specific goal stated (slow down, use deliberate pauses, let key points land). Reads as authentic.',
+   15,
+   'Strong introduction. You identified a specific communication challenge and described a concrete goal. This is exactly the kind of self-aware framing that will help you get the most out of this course.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '5 days'),
+   NOW() - INTERVAL '3 days'),
 
-  -- G011 · Tyler Brooks · FINAL (sub 016)
+  -- G011 · Jordan Lee · FINAL (sub 016)
   ('00000000-0000-0000-0007-000000000011',
    '00000000-0000-0000-0006-000000000016',
-   13,
-   'Addresses all five criteria: 5/6 — all five areas addressed, but delivery section is brief and does not fully analyze the trailing-off issue.
-Cites specific moments: 5/6 — good specificity (personal anecdote opener, purposeful movement, two main points instead of three, eye contact with full room, pitch range). Minor deduction: delivery section lacks a specific example.
-Constructive tone and writing quality: 3/3 — professional, organized, well over 400 words.',
-   13,
-   'Good evaluation with strong specificity in most areas. The observation about the speaker having only two main points is an important structural critique. Develop the delivery section more — you identified the trailing-off issue but did not give a specific example of when it happened.',
+   15,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 4/10 — difficulty maintaining eye contact is a specific, common challenge. Personal authenticity comes through.
+Genuine 2–3 sentences with actionable goal: 5/5 — three sentences, specific goal (scan the room, feel more natural and confident). Reads as genuine.',
+   15,
+   'Good work. Eye contact is a real and common challenge, and your goal is specific enough to work toward. I look forward to seeing your progress over the quarter.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '4 days')
+   NOW() - INTERVAL '3 days'),
+
+  -- G012 · Maya Patel · FINAL (sub 017)
+  ('00000000-0000-0000-0007-000000000012',
+   '00000000-0000-0000-0006-000000000017',
+   15,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 4/10 — organizing thoughts on the spot is a specific and relatable challenge, especially relevant for a Nursing major.
+Genuine 2–3 sentences with actionable goal: 5/5 — three sentences, specific goal stated (techniques for structuring ideas quickly so impromptu responses sound clear and purposeful). Reads as genuine.',
+   15,
+   'Excellent introduction. The challenge you describe — knowing what you want to say but having it come out jumbled — is specific and honest, and your goal is actionable. This is a great start.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '2 days'),
+
+  -- G013 · Tyler Brooks · FINAL (sub 018)
+  ('00000000-0000-0000-0007-000000000013',
+   '00000000-0000-0000-0006-000000000018',
+   15,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 4/10 — flat, monotone delivery is a specific challenge. Insightful to note it happens even when you care about the topic.
+Genuine 2–3 sentences with actionable goal: 5/5 — three sentences, specific goal (dynamic delivery, audience engagement, impact). Reads as genuine.',
+   15,
+   'Strong introduction. Identifying monotone delivery as your challenge shows good self-awareness, and noting that it happens even when you care about the topic is an insightful observation. That awareness is the first step toward change.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '2 days'),
+
+  -- G014 · Sam Nguyen · FINAL (sub 019)
+  ('00000000-0000-0000-0007-000000000014',
+   '00000000-0000-0000-0006-000000000019',
+   15,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 4/10 — filler words ("um" and "like") is a specific, common challenge. Connecting it to credibility shows real understanding of its impact.
+Genuine 2–3 sentences with actionable goal: 5/5 — three sentences, specific goal (pause silently instead of filling silence, sound more polished and intentional). Reads as genuine.',
+   15,
+   'Good introduction. Filler words are one of the most common challenges speakers face, and your goal — pausing silently instead of filling silence — is exactly the right technique to practice. Well done.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '2 days'),
+
+  -- G015 · Priya Sharma · FINAL (sub 020)
+  ('00000000-0000-0000-0007-000000000015',
+   '00000000-0000-0000-0006-000000000020',
+   15,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 4/10 — trailing off and over-hedging is a specific challenge. The nuance of wanting to sound confident without being dishonest about uncertainty is sophisticated.
+Genuine 2–3 sentences with actionable goal: 5/5 — three sentences, specific goal (deliver ideas with conviction while remaining honest about uncertainty). Reads as genuine.',
+   15,
+   'Excellent introduction. The challenge you describe — wanting to project confidence without overstating certainty — is one of the more nuanced communication goals in this class. That self-awareness will serve you well.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '1 day')
 
 ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
-  -- G012 · Sam Nguyen · AI_SUGGESTED (sub 017)
-  ('00000000-0000-0000-0007-000000000012',
-   '00000000-0000-0000-0006-000000000017',
+  -- G016 · Marcus Johnson · AI_SUGGESTED (sub 021)
+  ('00000000-0000-0000-0007-000000000016',
+   '00000000-0000-0000-0006-000000000021',
    8,
-   'Addresses all five criteria: 3/6 — organization and delivery mentioned with some substance. Eye contact and vocal variety are noted but not analyzed. Content addressed but superficially.
-Cites specific moments: 2/6 — "looked at the audience most of the time" and "sped up when excited" are the only specific observations. The rest is general praise.
-Constructive tone and writing quality: 3/3 — tone is positive and appropriate, writing is clear, adequate length.',
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 2/10 — "getting nervous and forgetting what I was going to say" is a common experience but described only vaguely. No specific goal or strategy mentioned.
+Genuine 2–3 sentences with actionable goal: 3/5 — two sentences, but no specific action plan. Response reads as genuine in tone but lacks the required goal statement.',
    NULL, NULL, NULL, NULL),
 
-  -- G013 · Priya Sharma · AI_SUGGESTED (sub 018)
-  ('00000000-0000-0000-0007-000000000013',
-   '00000000-0000-0000-0006-000000000018',
-   9,
-   'Addresses all five criteria: 5/6 — all five areas addressed. Eye contact section is brief and lacks depth.
-Cites specific moments: 2/6 — "focused on one side of the room" is the only specific observation. All other criteria are described in general terms without citing actual moments from the speech.
-Constructive tone and writing quality: 2/3 — tone is appropriate, writing is organized but below 400 words.',
+  -- G017 · Sofia Reyes · AI_SUGGESTED (sub 022)
+  ('00000000-0000-0000-0007-000000000017',
+   '00000000-0000-0000-0006-000000000022',
+   7,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 1/10 — "I find it hard to speak in front of people" is very vague. No specific challenge named and no goal described.
+Genuine 2–3 sentences with actionable goal: 3/5 — two sentences, but the second is a generic aspiration rather than a specific goal.',
    NULL, NULL, NULL, NULL),
 
-  -- G014 · Marcus Johnson · AI_SUGGESTED (sub 019)
-  ('00000000-0000-0000-0007-000000000014',
-   '00000000-0000-0000-0006-000000000019',
-   10,
-   'Addresses all five criteria: 5/6 — all five areas addressed with some analysis. Vocal variety section is brief.
-Cites specific moments: 3/6 — "looked at the floor when thinking" and "strong in introduction, weaker in body" are specific. Transitions issue is identified but not illustrated with an example. Other criteria stay general.
-Constructive tone and writing quality: 2/3 — tone is appropriate and constructive, writing is organized but slightly under 400 words.',
+  -- G018 · Ethan Kim · AI_SUGGESTED (sub 023)
+  ('00000000-0000-0000-0007-000000000018',
+   '00000000-0000-0000-0006-000000000023',
+   7,
+   'Name and major: 3/10 — present and clear.
+Communication challenge identified: 1/10 — "I struggle with public speaking" is too broad. No specific aspect of public speaking identified.
+Genuine 2–3 sentences with actionable goal: 3/5 — two sentences; "hope this class helps me improve" is not a specific goal.',
    NULL, NULL, NULL, NULL)
 
 ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
-  -- ── A040 COMS 101 Analyzing Delivery Style ──────────────────────────────────
+  -- ── A035 COMS 101 Quiz 1 – Speech Structure ──────────────────────────────────
 
-  -- G015 · Alex Rivera · FINAL (sub 025)
-  ('00000000-0000-0000-0007-000000000015',
-   '00000000-0000-0000-0006-000000000025',
-   29,
-   'Applies at least three distinct course concepts: 15/15 — eye contact, vocal variety, and pacing all applied correctly with accurate course terminology.
-Supports each claim with specific evidence: 10/10 — every concept is backed by specific observations from the video (2–3 second eye contact holds, volume drop for gravity, pace increase for call to action, rushing through carbon feedback loops).
-Writing is organized and professional: 4/5 — well over 400 words, clear structure, minor deduction for one slightly abrupt transition.',
-   29,
-   'Excellent analysis. You applied all three concepts with precision and backed every claim with specific evidence from the video. The observation about the speaker rushing through the most technically complex section is a sophisticated coaching insight. Strong work.',
+  -- G019 · Alex Rivera · FINAL (sub 029)
+  ('00000000-0000-0000-0007-000000000019',
+   '00000000-0000-0000-0006-000000000029',
+   15,
+   'Introduction (purpose + how): 5/5 — accurately describes the two functions (attention-getting and previewing), names specific attention-getter types, and explains the preview''s role for the audience.
+Body (development + evidence + transitions): 5/5 — correctly identifies evidence-based development, logical organization, and transitions as connective tissue; explains what transitions do for the audience.
+Conclusion (summary + closure): 5/5 — accurately describes restating the thesis, summarizing main points, and providing a memorable close; bonus: correctly explains the callback technique.',
+   15,
+   'Excellent answer. You described each part accurately and with real depth — especially the callback technique in the conclusion. This is a strong demonstration of the course material.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '7 days'),
+   NOW() - INTERVAL '2 days'),
 
-  -- G016 · Jordan Lee · FINAL (sub 026)
-  ('00000000-0000-0000-0007-000000000016',
-   '00000000-0000-0000-0006-000000000026',
-   28,
-   'Applies at least three distinct course concepts: 14/15 — gestures, structure, and vocal variety applied correctly. Minor deduction: the structure analysis focuses on transitions but does not fully address the overall organizational pattern.
-Supports each claim with specific evidence: 9/10 — strong specificity throughout (left-to-right gesture for timeline, pointing gesture repetition, weak transitions, intimate storytelling moment). Minor deduction: vocal variety section could cite one more specific moment.
-Writing is organized and professional: 5/5 — well over 400 words, clear structure, professional tone.',
-   28,
-   'Very strong analysis. The observation about the speaker using the same pointing gesture repeatedly is a specific and insightful coaching note. Develop the structure section a bit more next time — transitions are one aspect of structure but not the whole picture.',
+  -- G020 · Jordan Lee · FINAL (sub 030)
+  ('00000000-0000-0000-0007-000000000020',
+   '00000000-0000-0000-0006-000000000030',
+   15,
+   'Introduction (purpose + how): 5/5 — accurately describes earning attention and trust, names attention-getter types, explains thesis and preview.
+Body (development + evidence + transitions): 5/5 — accurately describes main point development, evidence, and transitions; correctly identifies transitions as "connective tissue" that keeps the argument coherent.
+Conclusion (summary + closure): 5/5 — accurately describes restating the thesis, reviewing main points, and closing with a memorable thought; notes the psychological importance of the last thing the audience hears.',
+   15,
+   'Strong response throughout. The observation that the conclusion carries disproportionate weight because audiences remember the last thing they hear shows real understanding of audience psychology. Full marks.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '6 days'),
+   NOW() - INTERVAL '2 days'),
 
-  -- G017 · Maya Patel · FINAL (sub 027)
-  ('00000000-0000-0000-0007-000000000017',
-   '00000000-0000-0000-0006-000000000027',
-   28,
-   'Applies at least three distinct course concepts: 14/15 — eye contact, pacing, and use of space applied correctly. Minor deduction: use of space section is slightly brief.
-Supports each claim with specific evidence: 10/10 — excellent specificity throughout (turning back to screen, pausing after rhetorical questions, rushing through carbon feedback loops, purposeful stage movement between sections).
-Writing is organized and professional: 4/5 — well over 400 words, clear structure, minor deduction for slightly abrupt ending.',
-   28,
-   'Strong analysis with excellent specificity. The observation about the speaker turning their back to the audience when referencing slides is a precise and actionable coaching note. The use of space section is your strongest — develop the eye contact section to the same level next time.',
+  -- G021 · Maya Patel · FINAL (sub 031)
+  ('00000000-0000-0000-0007-000000000021',
+   '00000000-0000-0000-0006-000000000031',
+   15,
+   'Introduction (purpose + how): 5/5 — accurately describes attention-getter, credibility establishment, thesis, and preview; correctly notes the preview reduces cognitive load.
+Body (development + evidence + transitions): 5/5 — accurately describes evidence, logical ordering, and internal summaries; demonstrates understanding of multiple organizational patterns.
+Conclusion (summary + closure): 5/5 — accurately describes thesis restatement, main point summary, and final statement; correctly notes call to action is especially appropriate for persuasive speeches.',
+   15,
+   'Excellent work. Your response shows sophisticated understanding — noting the cognitive load function of previews and the appropriateness of calls to action for persuasive speeches. Full marks.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '6 days'),
+   NOW() - INTERVAL '1 day'),
 
-  -- G018 · Tyler Brooks · FINAL (sub 028)
-  ('00000000-0000-0000-0007-000000000018',
-   '00000000-0000-0000-0006-000000000028',
-   27,
-   'Applies at least three distinct course concepts: 14/15 — vocal variety, eye contact, and managing anxiety applied correctly. Minor deduction: managing anxiety section is slightly brief.
-Supports each claim with specific evidence: 9/10 — good specificity (volume drop at sentence ends, floor-looking during Q&A, faster pace and voice tremor in first two minutes, settling by minute three). Minor deduction: vocal variety section could cite one more specific moment.
-Writing is organized and professional: 4/5 — well over 400 words, clear structure, minor deduction for one section feeling slightly rushed.',
-   27,
-   'Good analysis with solid specificity. The observation about anxiety being highest at the start and decreasing as the speaker gets into their material shows you connected the video to course concepts effectively. Develop the managing anxiety section more — you have the right idea but it ends a bit abruptly.',
+  -- G022 · Tyler Brooks · FINAL (sub 032)
+  ('00000000-0000-0000-0007-000000000022',
+   '00000000-0000-0000-0006-000000000032',
+   15,
+   'Introduction (purpose + how): 5/5 — accurately describes attention device, thesis, and preview; notes the introduction signals speaker preparation.
+Body (development + evidence + transitions): 5/5 — accurately describes main points, evidence, and transitions; correctly notes transitions are "not optional" and explains what happens without them.
+Conclusion (summary + closure): 5/5 — accurately describes the signal phrase, main point review, and strong closing line; correctly identifies the callback as creating a sense of symmetry.',
+   15,
+   'Strong response. Framing transitions as "not optional" is a great way to put it — it emphasizes how critical they are. And noting the signal phrase ("In conclusion") shows attention to practical delivery. Full marks.',
    '00000000-0000-0000-0000-000000000001',
-   NOW() - INTERVAL '5 days')
+   NOW() - INTERVAL '1 day'),
+
+  -- G023 · Sam Nguyen · FINAL (sub 033)
+  ('00000000-0000-0000-0007-000000000023',
+   '00000000-0000-0000-0006-000000000033',
+   13,
+   'Introduction (purpose + how): 4/5 — accurately describes attention-getter and preview; correctly notes thesis. One sentence per element is on the minimal side.
+Body (development + evidence + transitions): 5/5 — accurately describes main points, evidence, and transitions.
+Conclusion (summary + closure): 4/5 — accurately describes restatement and call to action. Missing: no mention of closure or memorable final statement beyond the call to action.',
+   13,
+   'Good response overall. Your body section is strong and your description of the introduction is accurate. The conclusion section would benefit from more detail — a call to action is one option, but the conclusion can also close with a memorable quote or a callback to the opening. Add that nuance next time.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '1 day'),
+
+  -- G024 · Priya Sharma · FINAL (sub 034)
+  ('00000000-0000-0000-0007-000000000024',
+   '00000000-0000-0000-0006-000000000034',
+   15,
+   'Introduction (purpose + how): 5/5 — accurately describes serving the audience, attention-getter, credibility, and preview; correctly notes what happens without a preview.
+Body (development + evidence + transitions): 5/5 — accurately describes main points, evidence, and transitions; correctly explains the function of transitions for the audience.
+Conclusion (summary + closure): 5/5 — accurately describes restating the thesis in fresh language, summarizing main points, and delivering a lasting impression; notes specific closing techniques.',
+   15,
+   'Excellent response. Framing the introduction as serving the audience — rather than just announcing a topic — shows real rhetorical understanding. And noting that the thesis should be restated "in fresh language" is a sophisticated detail. Full marks.',
+   '00000000-0000-0000-0000-000000000001',
+   NOW() - INTERVAL '1 day')
 
 ON CONFLICT (submission_id) DO NOTHING;
 
 INSERT INTO grades (id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_by, approved_at) VALUES
 
-  -- G019 · Sam Nguyen · AI_SUGGESTED (sub 029)
-  ('00000000-0000-0000-0007-000000000019',
-   '00000000-0000-0000-0006-000000000029',
-   20,
-   'Applies at least three distinct course concepts: 10/15 — eye contact, vocal variety, and gestures identified correctly. However, the analysis of each is surface-level and does not demonstrate deep application of course terminology.
-Supports each claim with specific evidence: 7/10 — some specific observations (small gestures close to body, dynamic variation in introduction and conclusion) but several claims are general ("eye contact was one of the speaker''s strengths" without a specific example).
-Writing is organized and professional: 3/5 — adequate length, organized, but writing is somewhat formulaic.',
+  -- G025 · Marcus Johnson · AI_SUGGESTED (sub 035)
+  ('00000000-0000-0000-0007-000000000025',
+   '00000000-0000-0000-0006-000000000035',
+   5,
+   'Introduction (purpose + how): 1/5 — one sentence; names "getting the audience interested" but does not describe the attention-getter or preview.
+Body (development + evidence + transitions): 2/5 — one sentence; correctly notes main points and evidence but omits transitions.
+Conclusion (summary + closure): 2/5 — one sentence; correctly notes summarizing but omits the call to action or closing statement.',
    NULL, NULL, NULL, NULL),
 
-  -- G020 · Priya Sharma · AI_SUGGESTED (sub 030)
-  ('00000000-0000-0000-0007-000000000020',
-   '00000000-0000-0000-0006-000000000030',
-   21,
-   'Applies at least three distinct course concepts: 11/15 — pacing, structure, and eye contact applied correctly. Pacing and structure sections show good understanding. Eye contact section is brief.
-Supports each claim with specific evidence: 7/10 — good specificity in pacing (rushing through technical section) and structure (definition as attention-getter). Eye contact section lacks specific examples.
-Writing is organized and professional: 3/5 — adequate length, organized, writing is clear but somewhat brief in the eye contact section.',
+  -- G026 · Sofia Reyes · AI_SUGGESTED (sub 036)
+  ('00000000-0000-0000-0007-000000000026',
+   '00000000-0000-0000-0006-000000000036',
+   7,
+   'Introduction (purpose + how): 2/5 — one sentence; correctly names attention-getter and preview but no explanation of purpose or how each works.
+Body (development + evidence + transitions): 3/5 — one sentence; correctly names main points and supporting details but does not explain the role of transitions.
+Conclusion (summary + closure): 2/5 — one sentence; correctly names restating main points and closing statement but no explanation of why these matter.',
    NULL, NULL, NULL, NULL),
 
-  -- G021 · Marcus Johnson · AI_SUGGESTED (sub 031)
-  ('00000000-0000-0000-0007-000000000021',
-   '00000000-0000-0000-0006-000000000031',
-   22,
-   'Applies at least three distinct course concepts: 12/15 — vocal variety, use of space, and managing anxiety applied correctly. Use of space section correctly identifies the issue but the analysis is brief.
-Supports each claim with specific evidence: 7/10 — good specificity for vocal variety (raising voice for key statistic) and managing anxiety (no visible signs, deliberate pauses). Use of space section lacks a specific example of where the speaker stayed rooted.
-Writing is organized and professional: 3/5 — adequate length, organized, writing is clear but the use of space section needs more development.',
+  -- G027 · Ethan Kim · AI_SUGGESTED (sub 037)
+  ('00000000-0000-0000-0007-000000000027',
+   '00000000-0000-0000-0006-000000000037',
+   5,
+   'Introduction (purpose + how): 1/5 — one sentence; names "hooks the audience and states the topic" but no explanation of how or why.
+Body (development + evidence + transitions): 2/5 — one sentence; correctly names main points but omits evidence and transitions entirely.
+Conclusion (summary + closure): 2/5 — one sentence; correctly names summarizing but no mention of closure, call to action, or memorable final statement.',
    NULL, NULL, NULL, NULL)
 
 ON CONFLICT (submission_id) DO NOTHING;
@@ -1259,9 +1269,9 @@ UPDATE assignments SET due_date = '2026-07-20' WHERE id = '00000000-0000-0000-00
 UPDATE assignments SET due_date = '2026-07-27' WHERE id = '00000000-0000-0000-0003-000000000031';
 UPDATE assignments SET due_date = '2026-08-04' WHERE id = '00000000-0000-0000-0003-000000000032';
 -- COMS 101 (033–045)
-UPDATE assignments SET due_date = '2026-05-30' WHERE id = '00000000-0000-0000-0003-000000000033';
+UPDATE assignments SET due_date = '2026-05-28' WHERE id = '00000000-0000-0000-0003-000000000033';
 UPDATE assignments SET due_date = '2026-06-02' WHERE id = '00000000-0000-0000-0003-000000000034';
-UPDATE assignments SET due_date = '2026-06-06' WHERE id = '00000000-0000-0000-0003-000000000035';
+UPDATE assignments SET due_date = '2026-06-02' WHERE id = '00000000-0000-0000-0003-000000000035';
 UPDATE assignments SET due_date = '2026-06-09' WHERE id = '00000000-0000-0000-0003-000000000036';
 UPDATE assignments SET due_date = '2026-06-13' WHERE id = '00000000-0000-0000-0003-000000000037';
 UPDATE assignments SET due_date = '2026-06-16' WHERE id = '00000000-0000-0000-0003-000000000038';
@@ -1272,3 +1282,310 @@ UPDATE assignments SET due_date = '2026-07-07' WHERE id = '00000000-0000-0000-00
 UPDATE assignments SET due_date = '2026-07-14' WHERE id = '00000000-0000-0000-0003-000000000043';
 UPDATE assignments SET due_date = '2026-07-21' WHERE id = '00000000-0000-0000-0003-000000000044';
 UPDATE assignments SET due_date = '2026-08-07' WHERE id = '00000000-0000-0000-0003-000000000045';
+
+
+-- ============= WEEK-FILL: added to ensure every week has a module =============
+
+-- =============================================================================
+-- BIO 111 — NEW MODULES (Weeks 2, 3, 4, 6, 7, 9, 10)
+-- =============================================================================
+
+INSERT INTO modules (id, course_id, title, description, "order", week_number) VALUES
+  ('00000000-0000-0000-0002-000000000021', '00000000-0000-0000-0001-000000000002',
+   'Photosynthesis and Cellular Respiration', 'Energy flow in cells: ATP synthesis, light-dependent and light-independent reactions in chloroplasts, glycolysis, Krebs cycle, and oxidative phosphorylation in mitochondria.', 2, 2),
+  ('00000000-0000-0000-0002-000000000022', '00000000-0000-0000-0001-000000000002',
+   'Cell Transport and Membrane Biology', 'Phospholipid bilayer structure, selective permeability, osmosis, diffusion, facilitated diffusion, and active transport across the plasma membrane.', 3, 3),
+  ('00000000-0000-0000-0002-000000000023', '00000000-0000-0000-0001-000000000002',
+   'Midterm Prep and Cell Division Intro', 'Review of Units 1–2 for Midterm 1. Introduction to the cell cycle, phases of mitosis, and checkpoints that regulate cell division.', 4, 4),
+  ('00000000-0000-0000-0002-000000000024', '00000000-0000-0000-0001-000000000002',
+   'Meiosis and Genetic Variation', 'Meiosis I and II, crossing over, independent assortment, and how sexual reproduction generates genetic diversity in a population.', 6, 6),
+  ('00000000-0000-0000-0002-000000000025', '00000000-0000-0000-0001-000000000002',
+   'Gene Expression', 'Transcription (DNA to mRNA), translation (mRNA to protein), the genetic code, types of mutations, and how errors in gene expression can affect protein structure and function.', 7, 7),
+  ('00000000-0000-0000-0002-000000000026', '00000000-0000-0000-0001-000000000002',
+   'Population Ecology', 'Population growth models (exponential and logistic), carrying capacity, limiting factors, density-dependent and density-independent controls, and life history strategies.', 9, 9),
+  ('00000000-0000-0000-0002-000000000027', '00000000-0000-0000-0001-000000000002',
+   'Community Ecology and Biomes', 'Species interactions (predation, competition, symbiosis), ecological succession, biome classification, and the abiotic factors that define terrestrial and aquatic biomes.', 10, 10)
+ON CONFLICT (id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 2: Photosynthesis and Cellular Respiration ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000046', '00000000-0000-0000-0002-000000000021', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 3 – Photosynthesis and Cellular Respiration',
+   'Answer in complete sentences. (1) Compare and contrast photosynthesis and cellular respiration: where does each occur, what are the reactants and products, and how do they depend on each other? (2) Trace a carbon atom from CO₂ in the air through the Calvin cycle into a glucose molecule. What happens to that carbon if the glucose is later used in cellular respiration?',
+   5),
+  ('00000000-0000-0000-0003-000000000047', '00000000-0000-0000-0002-000000000021', '00000000-0000-0000-0001-000000000002',
+   'Lab 3 Notebook – Photosynthesis Rate',
+   'Write up your observations from the photosynthesis rate lab using the floating leaf disk assay. (1) Describe the trend you observed as light intensity increased, and explain why in terms of the light-dependent reactions. (2) What was your experimental control and what variable did you manipulate? (3) Identify one source of error and explain how it could have affected your results. 2+ paragraphs.',
+   10)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000046', '00000000-0000-0000-0003-000000000046',
+   '[{"description": "Accurately compares photosynthesis and cellular respiration (location, reactants, products, interdependence)", "points": 3},
+     {"description": "Correctly traces a carbon atom through the Calvin cycle and into cellular respiration", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000047', '00000000-0000-0000-0003-000000000047',
+   '[{"description": "Describes observed trend and connects it to the light-dependent reactions", "points": 4},
+     {"description": "Correctly identifies control and manipulated variable", "points": 3},
+     {"description": "Identifies a plausible source of error with a specific explanation of its effect", "points": 3}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 3: Cell Transport and Membrane Biology ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000048', '00000000-0000-0000-0002-000000000022', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 4 – Cell Transport',
+   'Answer in complete sentences. (1) Define osmosis and explain what happens to an animal cell placed in a hypotonic, isotonic, and hypertonic solution. Why does this matter for cells in living organisms? (2) What is the difference between passive transport and active transport? Give one specific example of each in the human body, and explain why active transport requires energy.',
+   5),
+  ('00000000-0000-0000-0003-000000000049', '00000000-0000-0000-0002-000000000022', '00000000-0000-0000-0001-000000000002',
+   'Quiz 5 – Cell Transport and Membranes',
+   'Online quiz covering phospholipid bilayer structure, osmosis, diffusion, facilitated diffusion, and active transport. Includes diagram interpretation questions. Timed, 15 points. Score recorded automatically.',
+   15)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000048', '00000000-0000-0000-0003-000000000048',
+   '[{"description": "Correctly predicts and explains cell behavior in all three solution types", "points": 3},
+     {"description": "Clearly distinguishes passive and active transport with accurate examples and energy explanation", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000049', '00000000-0000-0000-0003-000000000049',
+   '[{"description": "Quiz performance (score recorded automatically)", "points": 15}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 4: Midterm Prep and Cell Division Intro ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000050', '00000000-0000-0000-0002-000000000023', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 6 – Cell Cycle and Mitosis',
+   'Answer in complete sentences. (1) Describe the phases of the cell cycle (G1, S, G2, M). What happens during each phase and why is interphase so critical? (2) What is a cell cycle checkpoint? Describe what is checked at the G1/S checkpoint and explain what happens if a cell fails the check.',
+   5),
+  ('00000000-0000-0000-0003-000000000051', '00000000-0000-0000-0002-000000000023', '00000000-0000-0000-0001-000000000002',
+   'Midterm 1 Review',
+   'Complete the optional review activity before Midterm 1. The review covers all Unit 1 topics: atomic structure, macromolecules, cell structure, transport, photosynthesis, and cellular respiration. This is ungraded — use it to identify gaps before the exam.',
+   0)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000050', '00000000-0000-0000-0003-000000000050',
+   '[{"description": "Accurately describes each phase of the cell cycle with what occurs", "points": 3},
+     {"description": "Correctly defines a checkpoint and explains G1/S consequences", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000051', '00000000-0000-0000-0003-000000000051',
+   '[{"description": "Ungraded checkpoint (0 pts — completion recorded)", "points": 0}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 6: Meiosis and Genetic Variation ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000052', '00000000-0000-0000-0002-000000000024', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 7 – Meiosis and Genetic Variation',
+   'Answer in complete sentences. (1) Compare mitosis and meiosis: what is the purpose of each, how many divisions occur, and what is the ploidy of the resulting cells? (2) Explain how crossing over during prophase I and independent assortment during metaphase I each contribute to genetic variation. Why is this variation important for a population''s long-term survival?',
+   5),
+  ('00000000-0000-0000-0003-000000000053', '00000000-0000-0000-0002-000000000024', '00000000-0000-0000-0001-000000000002',
+   'Lab 4 Notebook – Meiosis Modeling',
+   'Summarize your observations from the meiosis modeling activity. (1) Describe what happened to chromosome number and genetic composition at each major stage of meiosis I and II. (2) Explain one point during the activity where you had to make a choice that demonstrated independent assortment. (3) How did your model illustrate crossing over, and what was the genetic result? 2+ paragraphs.',
+   10)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000052', '00000000-0000-0000-0003-000000000052',
+   '[{"description": "Accurately compares mitosis and meiosis (purpose, divisions, ploidy)", "points": 3},
+     {"description": "Correctly explains how crossing over and independent assortment generate variation and why that matters", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000053', '00000000-0000-0000-0003-000000000053',
+   '[{"description": "Describes chromosome number and genetic changes through both meiotic divisions", "points": 4},
+     {"description": "Identifies a specific moment demonstrating independent assortment in the activity", "points": 3},
+     {"description": "Explains how crossing over was modeled and describes the genetic result (2+ paragraphs)", "points": 3}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 7: Gene Expression ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000054', '00000000-0000-0000-0002-000000000025', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 8 – Gene Expression',
+   'Answer in complete sentences. (1) Describe the two main steps of gene expression (transcription and translation). Where does each occur in a eukaryotic cell and what molecules are involved? (2) Explain the difference between a missense mutation, a nonsense mutation, and a frameshift mutation. For each, describe the likely effect on the resulting protein.',
+   5),
+  ('00000000-0000-0000-0003-000000000055', '00000000-0000-0000-0002-000000000025', '00000000-0000-0000-0001-000000000002',
+   'Quiz 6 – Gene Expression and Mutations',
+   'Online quiz on transcription, translation, the genetic code, and mutation types. Includes codon table interpretation questions. Timed, 25 points. Score recorded automatically.',
+   25)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000054', '00000000-0000-0000-0003-000000000054',
+   '[{"description": "Accurately describes transcription and translation with correct location and molecules for each", "points": 3},
+     {"description": "Correctly defines all three mutation types with an accurate description of protein-level effects", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000055', '00000000-0000-0000-0003-000000000055',
+   '[{"description": "Quiz performance (score recorded automatically)", "points": 25}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 9: Population Ecology ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000056', '00000000-0000-0000-0002-000000000026', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 9 – Population Ecology',
+   'Answer in complete sentences. (1) Compare exponential and logistic population growth: what does each model assume, what does the growth curve look like, and when does each model apply in nature? (2) Define carrying capacity and identify two density-dependent limiting factors and one density-independent limiting factor. Explain how each factor would affect a deer population.',
+   5),
+  ('00000000-0000-0000-0003-000000000057', '00000000-0000-0000-0002-000000000026', '00000000-0000-0000-0001-000000000002',
+   'Lab 6 Notebook – Population Growth Simulation',
+   'Write up your results from the population growth simulation. (1) Describe the shape of your growth curve and identify the phase where growth was fastest. (2) At what approximate population size did growth begin to slow, and what does this value represent? (3) Which limiting factors in the simulation had the greatest effect on the population, and why? 2+ paragraphs.',
+   10)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000056', '00000000-0000-0000-0003-000000000056',
+   '[{"description": "Accurately compares exponential and logistic growth models (assumptions, curve shape, applicability)", "points": 3},
+     {"description": "Correctly defines carrying capacity and identifies and explains density-dependent and density-independent factors with the deer example", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000057', '00000000-0000-0000-0003-000000000057',
+   '[{"description": "Describes growth curve shape and correctly identifies the phase of fastest growth", "points": 3},
+     {"description": "Correctly identifies the carrying capacity value and explains what it represents", "points": 4},
+     {"description": "Identifies the most impactful limiting factors with a specific explanation (2+ paragraphs)", "points": 3}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- BIO 111 · Week 10: Community Ecology and Biomes ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000058', '00000000-0000-0000-0002-000000000027', '00000000-0000-0000-0001-000000000002',
+   'Connect Homework 10 – Community Ecology',
+   'Answer in complete sentences. (1) Define and give one specific example each of predation, competition, mutualism, commensalism, and parasitism. For each, indicate which species benefit, are harmed, or are unaffected. (2) Describe primary ecological succession starting from bare rock. Name at least two pioneer species types and explain how they change the environment for later species.',
+   5),
+  ('00000000-0000-0000-0003-000000000059', '00000000-0000-0000-0002-000000000027', '00000000-0000-0000-0001-000000000002',
+   'Quiz 7 – Community Ecology and Biomes',
+   'Online quiz on species interactions, ecological succession, biome classification, and the abiotic factors defining major terrestrial and aquatic biomes. Timed, 25 points. Score recorded automatically.',
+   25)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000058', '00000000-0000-0000-0003-000000000058',
+   '[{"description": "Provides accurate examples of all five interaction types with correct effect on each species", "points": 3},
+     {"description": "Describes primary succession with at least two pioneer species types and explains facilitation", "points": 2}]'),
+  ('00000000-0000-0000-0004-000000000059', '00000000-0000-0000-0003-000000000059',
+   '[{"description": "Quiz performance (score recorded automatically)", "points": 25}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- =============================================================================
+-- COMS 101 — MISSING ASSIGNMENTS (Weeks 5, 6, 7, 8, 9, 10)
+-- =============================================================================
+
+-- ---------------- COMS 101 · Week 5: Verbal Evaluation + Reflection 1 ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000060', '00000000-0000-0000-0002-000000000017', '00000000-0000-0000-0001-000000000003',
+   'Verbal Evaluation – Round 1',
+   'During Round 1 speech days, you will deliver a 60–90 second verbal evaluation of a classmate''s speech immediately after they finish. Your evaluation must address at least two strengths and one specific area for improvement. Be constructive, be specific, and speak to the presenter — not about them. Score entered by instructor in class.',
+   15),
+  ('00000000-0000-0000-0003-000000000061', '00000000-0000-0000-0002-000000000017', '00000000-0000-0000-0001-000000000003',
+   'Reflection 1',
+   'Write a short reflection after receiving feedback on your Round 1 speech. In 2–3 paragraphs: (1) Describe one piece of feedback (written or verbal) that surprised you and explain why. (2) Identify the one delivery skill you most want to improve before Round 2 and explain concretely what you will do differently. (3) Rate your overall confidence level on a scale of 1–10 and briefly explain your rating.',
+   10)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000060', '00000000-0000-0000-0003-000000000060',
+   '[{"description": "Verbal evaluation delivered in class (score entered by instructor)", "points": 15}]'),
+  ('00000000-0000-0000-0004-000000000061', '00000000-0000-0000-0003-000000000061',
+   '[{"description": "Discusses a specific piece of feedback received and explains its significance", "points": 4},
+     {"description": "Identifies one skill to improve with a concrete, actionable plan for Round 2", "points": 4},
+     {"description": "Confidence rating is included with a genuine brief explanation (2–3 paragraphs total)", "points": 2}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 6: Research and Sources Exercise ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000062', '00000000-0000-0000-0002-000000000018', '00000000-0000-0000-0001-000000000003',
+   'Research and Sources Exercise',
+   'Find two credible sources you could use in your Round 2 informative speech. For each source: (1) write a full APA or MLA citation, (2) write one sentence summarizing the main point relevant to your speech, and (3) explain in one sentence why this source is credible (consider author credentials, publication type, and date). Then write one short paragraph explaining how you plan to integrate both sources into your speech without plagiarizing.',
+   5)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000062', '00000000-0000-0000-0003-000000000062',
+   '[{"description": "Both sources have complete, correctly formatted citations", "points": 2},
+     {"description": "Each source has an accurate summary sentence and a credibility explanation", "points": 2},
+     {"description": "Integration paragraph shows awareness of how to use sources without plagiarizing", "points": 1}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 7: Specific Purpose & Central Idea – Round 2 ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000063', '00000000-0000-0000-0002-000000000012', '00000000-0000-0000-0001-000000000003',
+   'Specific Purpose & Central Idea – Round 2',
+   'Submit your Round 2 speech planning document before your informative speech. Include: (1) Specific purpose — one sentence with a measurable verb (explain, describe, compare). No conjunctions. (2) Central idea — one complete sentence summarizing your main argument or topic. (3) Preview of 2–4 main points. (4) A brief description of the visual aid you plan to use and how it will support your speech.',
+   0)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000063', '00000000-0000-0000-0003-000000000063',
+   '[{"description": "Checkpoint completed (0 pts — planning document submitted before Round 2 speech)", "points": 0}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 8: Verbal Evaluation – Round 2 ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000064', '00000000-0000-0000-0002-000000000019', '00000000-0000-0000-0001-000000000003',
+   'Verbal Evaluation – Round 2',
+   'Deliver a 60–90 second verbal evaluation of a classmate''s Round 2 informative speech immediately after they finish. Your evaluation must address at least two specific strengths and one area for improvement, including at least one comment on their use of visual aids. Speak directly to the presenter in an encouraging and professional tone. Score entered by instructor in class.',
+   15)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000064', '00000000-0000-0000-0003-000000000064',
+   '[{"description": "Verbal evaluation delivered in class (score entered by instructor)", "points": 15}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 9: Specific Purpose & Central Idea – Round 3 ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000065', '00000000-0000-0000-0002-000000000013', '00000000-0000-0000-0001-000000000003',
+   'Specific Purpose & Central Idea – Round 3',
+   'Submit your Round 3 speech planning document before your persuasive speech. Include: (1) Specific purpose — one sentence with a persuasive verb (persuade, convince, motivate). No conjunctions. (2) Central idea — one complete sentence stating your position or call to action. (3) Preview of 2–4 main points structured using Monroe''s Motivated Sequence or another persuasive pattern. (4) Identify the primary appeal you plan to use (logos, ethos, or pathos) and explain why it fits your audience and topic.',
+   0)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000065', '00000000-0000-0000-0003-000000000065',
+   '[{"description": "Checkpoint completed (0 pts — planning document submitted before Round 3 speech)", "points": 0}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- ---------------- COMS 101 · Week 10: Verbal Evaluation – Round 3 ----------------
+
+INSERT INTO assignments (id, module_id, course_id, title, instructions, points_possible) VALUES
+  ('00000000-0000-0000-0003-000000000066', '00000000-0000-0000-0002-000000000020', '00000000-0000-0000-0001-000000000003',
+   'Verbal Evaluation – Round 3',
+   'Deliver a 60–90 second verbal evaluation of a classmate''s Round 3 persuasive speech immediately after they finish. Your evaluation must comment on the effectiveness of their persuasive strategy, address at least one of the three rhetorical appeals (logos, ethos, pathos), and provide one specific, actionable suggestion. Speak directly to the presenter. Score entered by instructor in class.',
+   15)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO rubrics (id, assignment_id, criteria) VALUES
+  ('00000000-0000-0000-0004-000000000066', '00000000-0000-0000-0003-000000000066',
+   '[{"description": "Verbal evaluation delivered in class (score entered by instructor)", "points": 15}]')
+ON CONFLICT (assignment_id) DO NOTHING;
+
+-- =============================================================================
+-- DUE DATES — new assignments (046–066)
+-- BIO 111 started Apr 28; weeks advance by 7 days.
+--   Week 2 = ~May 7,  Week 3 = ~May 14, Week 4 = ~May 21
+--   Week 6 = ~Jun  4, Week 7 = ~Jun 11, Week 9 = ~Jun 25, Week 10 = ~Jul 2
+-- COMS 101 same start; due dates mirror BIO cadence for matching weeks.
+-- =============================================================================
+
+-- BIO 111 new assignments (046–059)
+UPDATE assignments SET due_date = '2026-05-10' WHERE id = '00000000-0000-0000-0003-000000000046';
+UPDATE assignments SET due_date = '2026-05-10' WHERE id = '00000000-0000-0000-0003-000000000047';
+UPDATE assignments SET due_date = '2026-05-17' WHERE id = '00000000-0000-0000-0003-000000000048';
+UPDATE assignments SET due_date = '2026-05-17' WHERE id = '00000000-0000-0000-0003-000000000049';
+UPDATE assignments SET due_date = '2026-05-24' WHERE id = '00000000-0000-0000-0003-000000000050';
+UPDATE assignments SET due_date = '2026-05-24' WHERE id = '00000000-0000-0000-0003-000000000051';
+UPDATE assignments SET due_date = '2026-06-07' WHERE id = '00000000-0000-0000-0003-000000000052';
+UPDATE assignments SET due_date = '2026-06-07' WHERE id = '00000000-0000-0000-0003-000000000053';
+UPDATE assignments SET due_date = '2026-06-14' WHERE id = '00000000-0000-0000-0003-000000000054';
+UPDATE assignments SET due_date = '2026-06-14' WHERE id = '00000000-0000-0000-0003-000000000055';
+UPDATE assignments SET due_date = '2026-06-28' WHERE id = '00000000-0000-0000-0003-000000000056';
+UPDATE assignments SET due_date = '2026-06-28' WHERE id = '00000000-0000-0000-0003-000000000057';
+UPDATE assignments SET due_date = '2026-07-05' WHERE id = '00000000-0000-0000-0003-000000000058';
+UPDATE assignments SET due_date = '2026-07-05' WHERE id = '00000000-0000-0000-0003-000000000059';
+-- COMS 101 new assignments (060–066)
+UPDATE assignments SET due_date = '2026-06-19' WHERE id = '00000000-0000-0000-0003-000000000060';
+UPDATE assignments SET due_date = '2026-06-22' WHERE id = '00000000-0000-0000-0003-000000000061';
+UPDATE assignments SET due_date = '2026-06-26' WHERE id = '00000000-0000-0000-0003-000000000062';
+UPDATE assignments SET due_date = '2026-06-30' WHERE id = '00000000-0000-0000-0003-000000000063';
+UPDATE assignments SET due_date = '2026-07-03' WHERE id = '00000000-0000-0000-0003-000000000064';
+UPDATE assignments SET due_date = '2026-07-14' WHERE id = '00000000-0000-0000-0003-000000000065';
+UPDATE assignments SET due_date = '2026-07-21' WHERE id = '00000000-0000-0000-0003-000000000066';

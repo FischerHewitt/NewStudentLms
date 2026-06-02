@@ -19,6 +19,7 @@ Weekly Schedule:
 
 Week 1: Sequences
   - Defining sequences, limits of sequences, squeeze theorem for sequences
+  - Wednesday Problem – Week 1 (Wednesday, 10 pts — submit written work in text box)
   - Homework 1 due Friday (Section 11.1: #3, 5, 7, 11, 13, 15, 17, 23, 25)
 
 Week 2: Series and Convergence Tests
@@ -70,6 +71,15 @@ Week 11: Review and Final Exam
   - Final Exam Thursday (comprehensive, covers all units, in class, no calculator)
 
 ## Assignments
+
+Wednesday Problem – Week 1
+Instructions: Find the limit of the sequence a_n = (3n - n^2) / (n^2 + 4) as n approaches infinity. Show all steps in order: (1) identify the dominant terms or divide the numerator and denominator by n^2; (2) show that the sub-dominant terms go to 0 as n approaches infinity; (3) form the simplified ratio; (4) state the final numerical value of the limit. Label each step clearly.
+Points: 10
+Rubric:
+  - Identifies dominant terms or correctly divides numerator and denominator by n^2: 3 pts
+  - Shows that sub-dominant terms go to 0 as n approaches infinity: 3 pts
+  - Forms the simplified ratio correctly from the steps above: 3 pts
+  - Final numerical answer is correct: 1 pt
 
 Homework 1
 Description: Practice problems on sequences, limits of sequences, and the squeeze theorem.
@@ -126,17 +136,6 @@ Points: 10
 Quiz 6
 Description: Covers parametric curves — derivatives, tangent lines, and arc length.
 Points: 10
-
-Quiz 7 – Polar Tangent Lines
-Instructions: Find the slope of the tangent line to the polar curve r = 1 + cosθ at θ = π/2. Show all steps in order: (1) convert to parametric form using x = r cosθ and y = r sinθ with r = 1 + cosθ substituted in; (2) apply the product rule to differentiate y with respect to θ to find dy/dθ; (3) apply the product rule to differentiate x with respect to θ to find dx/dθ; (4) form the ratio dy/dθ ÷ dx/dθ; (5) substitute θ = π/2 into the ratio and state the final numerical slope. Label each step clearly.
-Points: 10
-Rubric:
-  - Sets up parametric form x = r cosθ, y = r sinθ with r = 1+cosθ substituted in: 2 pts
-  - Applies product rule to find dy/dθ — structure correct regardless of sign: 2 pts
-  - Applies product rule to find dx/dθ — structure correct regardless of sign: 2 pts
-  - Forms the ratio dy/dθ ÷ dx/dθ correctly from their expressions: 2 pts
-  - Substitutes θ = π/2 and states a final numerical slope: 1 pt
-  - Work is clearly organized and steps are labeled: 1 pt
 
 Midterm 1
 Description: In-class exam covering Weeks 1–4: sequences, series, and convergence tests. No calculator. 50 minutes.
