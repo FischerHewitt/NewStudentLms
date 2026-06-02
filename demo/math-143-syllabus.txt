@@ -1,0 +1,154 @@
+MATH 143 – Calculus III
+Instructor: Dr. Fischer Hewitt
+Lectures: Monday, Tuesday, Thursday, Friday 10:10–11:00am
+Textbook: James Stewart, Calculus, 8th Edition
+
+Course Overview:
+This course continues the study of calculus with three major units: infinite sequences and series, vector algebra in two and three dimensions, and parametric and polar curves. Students will develop both computational fluency and the ability to communicate mathematical reasoning in writing. All work must show full steps — answers without supporting work receive no credit.
+
+Grading Breakdown:
+  Homework: 5% (completion-based, submitted on paper, no late work accepted)
+  Quizzes: 10% (weekly, 10 pts each, lowest score dropped, submitted as uploaded file, no calculators)
+  Midterm 1: 25% (Week 5, covers sequences and series)
+  Midterm 2: 25% (Week 8, covers vectors and dot/cross products)
+  Final Exam: 35% (comprehensive, mandatory, Week 11)
+
+Grading Scale: A 90–100, B 80–89.9, C 70–79.9, D 60–69.9, F below 60. No rounding.
+
+Weekly Schedule:
+
+Week 1: Sequences
+  - Defining sequences, limits of sequences, squeeze theorem for sequences
+  - Wednesday Problem – Week 1 (Wednesday, 10 pts — submit written work in text box)
+  - Homework 1 due Friday (Section 11.1: #3, 5, 7, 11, 13, 15, 17, 23, 25)
+
+Week 2: Series and Convergence Tests
+  - Geometric series, telescoping series, divergence test, integral test
+  - Homework 2 due Friday
+  - Quiz 1 Friday (Sequences, 10 pts — upload handwritten work as PDF or photo)
+
+Week 3: More Convergence Tests
+  - Comparison test, limit comparison, ratio test, root test
+  - Homework 3 due Friday
+  - Quiz 2 Friday (Series basics, 10 pts — upload handwritten work as PDF or photo)
+
+Week 4: Power Series and Taylor Series
+  - Radius of convergence, interval of convergence, Taylor and Maclaurin series
+  - Homework 4 due Friday
+  - Quiz 3 Friday (Convergence tests, 10 pts — upload handwritten work as PDF or photo)
+
+Week 5: Review and Midterm 1
+  - Review session Tuesday
+  - Midterm 1 Thursday (Weeks 1–4, sequences and series, in class, no calculator)
+  - Midterm reflection writing assignment due Friday (250+ words)
+
+Week 6: Vectors in 2D and 3D
+  - Vector operations, magnitude, unit vectors, dot product, projections
+  - Homework 5 due Friday
+  - Quiz 4 Friday (Vectors basics, 10 pts — upload handwritten work as PDF or photo)
+
+Week 7: Cross Product and Lines/Planes
+  - Cross product, equations of lines and planes in 3D, distance formulas
+  - Homework 6 due Friday
+  - Quiz 5 Friday (Vectors and dot product, 10 pts — upload handwritten work as PDF or photo)
+
+Week 8: Review and Midterm 2
+  - Review session Tuesday
+  - Midterm 2 Thursday (Weeks 6–7, vectors, in class, no calculator)
+
+Week 9: Parametric Curves and Calculus
+  - Parametric equations, derivatives and tangent lines, arc length
+  - Homework 7 due Friday
+  - Quiz 6 Friday (Parametric curves, 10 pts — upload handwritten work as PDF or photo)
+
+Week 10: Polar Coordinates
+  - Polar coordinate system, converting between polar and Cartesian, area in polar
+  - Homework 8 due Friday
+  - Quiz 7 Friday (Polar coordinates, 10 pts — upload handwritten work as PDF or photo)
+
+Week 11: Review and Final Exam
+  - Review session Monday
+  - Final Exam Thursday (comprehensive, covers all units, in class, no calculator)
+
+## Assignments
+
+Wednesday Problem – Week 1
+Instructions: Find the limit of the sequence a_n = (3n - n^2) / (n^2 + 4) as n approaches infinity. Show all steps in order: (1) identify the dominant terms or divide the numerator and denominator by n^2; (2) show that the sub-dominant terms go to 0 as n approaches infinity; (3) form the simplified ratio; (4) state the final numerical value of the limit. Label each step clearly.
+Points: 10
+Rubric:
+  - Identifies dominant terms or correctly divides numerator and denominator by n^2: 3 pts
+  - Shows that sub-dominant terms go to 0 as n approaches infinity: 3 pts
+  - Forms the simplified ratio correctly from the steps above: 3 pts
+  - Final numerical answer is correct: 1 pt
+
+Homework 1
+Description: Practice problems on sequences, limits of sequences, and the squeeze theorem.
+Points: 5
+
+Homework 2
+Description: Practice problems on geometric series, telescoping series, divergence test, and integral test.
+Points: 5
+
+Homework 3
+Description: Practice problems on comparison test, limit comparison, ratio test, and root test.
+Points: 5
+
+Homework 4
+Description: Practice problems on radius of convergence, interval of convergence, Taylor and Maclaurin series.
+Points: 5
+
+Homework 5
+Description: Practice problems on vector operations, magnitude, unit vectors, dot product, and projections.
+Points: 5
+
+Homework 6
+Description: Practice problems on cross product, equations of lines and planes in 3D, and distance formulas.
+Points: 5
+
+Homework 7
+Description: Practice problems on parametric equations, derivatives and tangent lines, and arc length.
+Points: 5
+
+Homework 8
+Description: Practice problems on polar coordinate system, converting between polar and Cartesian, and area in polar.
+Points: 5
+
+Quiz 1
+Description: Covers sequences — limits, squeeze theorem, and convergence of sequences.
+Points: 10
+
+Quiz 2
+Description: Covers series basics — geometric series, telescoping series, and the divergence test.
+Points: 10
+
+Quiz 3
+Description: Covers convergence tests — comparison, limit comparison, ratio, and root tests.
+Points: 10
+
+Quiz 4
+Description: Covers vector basics — operations, magnitude, unit vectors, dot product, and projections.
+Points: 10
+
+Quiz 5
+Description: Covers vectors and dot product — projections, angles between vectors, and applications.
+Points: 10
+
+Quiz 6
+Description: Covers parametric curves — derivatives, tangent lines, and arc length.
+Points: 10
+
+Midterm 1
+Description: In-class exam covering Weeks 1–4: sequences, series, and convergence tests. No calculator. 50 minutes.
+Points: 100
+
+Midterm 1 Reflection
+Description: Written reflection (250+ words) on Midterm 1 performance — what you understood, what you missed, and how you will prepare differently going forward.
+Points: 10
+
+Midterm 2
+Description: In-class exam covering Weeks 6–7: vectors, dot product, cross product, lines and planes in 3D. No calculator. 50 minutes.
+Points: 100
+
+Final Exam
+Description: Comprehensive in-class exam covering all units (sequences and series, vectors, parametric and polar curves). No calculator. Mandatory.
+Points: 200
