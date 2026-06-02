@@ -242,13 +242,20 @@ function syllabusTextForPrompt(syllabus: string): string {
     .trim()
 }
 
+export const DEFAULT_COURSE_WEEKS = 11
+
 export function buildGeneratePrompt(syllabus: string, startDate: string | null, instructions?: string | null): string {
   const safeDate = startDate && ISO_DATE_RE.test(startDate.trim()) ? startDate.trim() : null
   const dateInstruction = safeDate
     ? `The course starts on ${safeDate}. Week 1 begins that date — anchor all due dates from there.\n\n`
     : ''
+
+  const hints = extractCourseMetadataHintsFromInstructions(instructions ?? '')
+  const targetWeeks = hints.duration?.weeks ?? DEFAULT_COURSE_WEEKS
+  const defaultDuration = `Module count: generate exactly ${targetWeeks} modules — one per week. The course is ${targetWeeks} weeks long.\n\n`
+
   const teacherInstructions = instructions?.trim()
     ? `Teacher instructions (requirements for the generated draft; preserve these when deciding course length, module count, due dates, assignment style, and page simplicity):\n${syllabusTextForPrompt(instructions)}\n\n`
     : ''
-  return `${dateInstruction}${teacherInstructions}Here is the course syllabus or course source material. Extract the full course structure:\n\n${syllabusTextForPrompt(syllabus)}`
+  return `${dateInstruction}${defaultDuration}${teacherInstructions}Here is the course syllabus or course source material. Extract the full course structure:\n\n${syllabusTextForPrompt(syllabus)}`
 }

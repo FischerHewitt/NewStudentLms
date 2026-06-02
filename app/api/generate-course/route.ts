@@ -10,6 +10,7 @@ Given course source material and optional teacher instructions, create a clear, 
 
 Guidelines:
 - Follow explicit teacher instructions unless they conflict with the required JSON schema
+- Default to an 11-week course structure unless the syllabus or teacher instructions specify a different length
 - Create one module per week or major unit in the syllabus
 - Extract real assignment names, instructions, and due dates from the syllabus text
 - If the teacher asks you to generate a syllabus from sparse course details, infer a reasonable university syllabus first, then structure it into modules, assignments, due dates, and rubrics

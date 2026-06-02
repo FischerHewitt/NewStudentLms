@@ -62,6 +62,24 @@ export default async function globalSetup() {
     if (error) throw new Error(`global-setup: failed to delete e2e courses — ${error.message}`)
   }
 
+  // ── Demo Loop: delete any MATH 143 courses from previous demo runs ───────────
+  // publish_course_structure cascades to modules/assignments/rubrics/enrollments/submissions
+
+  const { data: math143Courses, error: math143QueryErr } = await db
+    .from('courses')
+    .select('id')
+    .eq('teacher_id', TEACHER_ID)
+    .ilike('title', 'MATH 143%')
+
+  if (math143QueryErr) throw new Error(`global-setup: failed to query MATH 143 courses — ${math143QueryErr.message}`)
+
+  const math143CourseIds = (math143Courses ?? []).map((c: { id: string }) => c.id)
+
+  if (math143CourseIds.length > 0) {
+    const { error } = await db.from('courses').delete().in('id', math143CourseIds)
+    if (error) throw new Error(`global-setup: failed to delete MATH 143 courses — ${error.message}`)
+  }
+
   // ── Flow C: reset Sam Nguyen's submission, then seed a fresh empty one ───────
 
   await deleteSubmissionsForStudent(db, ASSIGNMENT_ID, SAM_NGUYEN_ID, 'Sam Nguyen (Flow C)')

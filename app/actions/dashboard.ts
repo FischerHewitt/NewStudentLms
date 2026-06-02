@@ -28,6 +28,8 @@ export type CourseWithModules = {
   title: string
   term: string | null
   section: string | null
+  startDate: string | null
+  endDate: string | null
   status: 'draft' | 'published'
   teacherName: string
   rawSyllabus: string | null
@@ -67,7 +69,7 @@ export async function getCourseWithModules(
 
   const { data: course } = await db
     .from('courses')
-    .select('id, title, term, section, status, teacher_id, raw_syllabus')
+    .select('id, title, term, section, start_date, end_date, status, teacher_id, raw_syllabus')
     .eq('id', courseId)
     .single()
 
@@ -89,6 +91,8 @@ export async function getCourseWithModules(
     title: course.title,
     term: course.term ?? null,
     section: course.section ?? null,
+    startDate: course.start_date ?? null,
+    endDate: course.end_date ?? null,
     status: (course.status ?? 'draft') as 'draft' | 'published',
     teacherName: teacherResult.data?.name ?? 'Unknown',
     rawSyllabus: course.raw_syllabus ?? null,

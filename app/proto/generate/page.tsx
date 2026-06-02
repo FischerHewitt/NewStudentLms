@@ -120,12 +120,27 @@ function ProtoContent() {
             <input defaultValue="Introduction to Computer Science" className="flex-1 rounded-lg border-0 bg-transparent px-1 text-2xl font-bold focus:outline-none focus:ring-1 focus:ring-purple-200" style={{ color: LI.onSurface }} />
             <button className="flex-shrink-0 cursor-pointer rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-90" style={{ background: AI_GRADIENT }}>Save Course →</button>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          {/* Row 1: Term · Section · Duration */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <input placeholder="Term (e.g. Fall 2026)" className="rounded-lg border px-3 py-1.5 text-sm placeholder:text-slate-400 focus:outline-none" style={{ borderColor: LI.outlineVariant }} />
             <input placeholder="Section" className="w-28 rounded-lg border px-3 py-1.5 text-sm placeholder:text-slate-400 focus:outline-none" style={{ borderColor: LI.outlineVariant }} />
             <div className="flex items-center gap-1.5">
-              <span className="text-xs" style={{ color: LI.onSurfaceVariant }}>Start</span>
+              <span className="text-xs font-medium" style={{ color: LI.onSurfaceVariant }}>Duration</span>
+              <input type="number" placeholder="Weeks" min={0} className="w-24 rounded-lg border px-2 py-1.5 text-sm placeholder:text-slate-400 focus:outline-none" style={{ borderColor: LI.outlineVariant }} />
+              <span className="text-xs" style={{ color: LI.onSurfaceVariant }}>weeks</span>
+              <input type="number" placeholder="Days" min={0} max={6} className="w-20 rounded-lg border px-2 py-1.5 text-sm placeholder:text-slate-400 focus:outline-none" style={{ borderColor: LI.outlineVariant }} />
+              <span className="text-xs" style={{ color: LI.onSurfaceVariant }}>days</span>
+            </div>
+          </div>
+          {/* Row 2: Start · End dates */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium" style={{ color: LI.onSurfaceVariant }}>Start</span>
               <input type="date" defaultValue="2026-08-10" className="rounded-lg border px-2 py-1.5 text-sm focus:outline-none" style={{ borderColor: LI.outlineVariant }} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium" style={{ color: LI.onSurfaceVariant }}>End</span>
+              <input type="date" className="rounded-lg border px-2 py-1.5 text-sm focus:outline-none" style={{ borderColor: LI.outlineVariant }} />
             </div>
           </div>
         </div>
@@ -204,7 +219,7 @@ function AssignmentRow({ assignment: a, resources, isPanelTarget, onOpenPanel, o
   onUpdateRubric: (fn: (r: Criterion[]) => Criterion[]) => void
   onDropPdf: (name: string) => void; onDropFile: (name: string) => void
 }) {
-  const [rubricOpen, setRubricOpen] = useState(false)
+  const [rubricOpen, setRubricOpen] = useState(true)
 
   return (
     <div className="px-5 py-4 transition-colors" style={{ background: isPanelTarget ? LI.purpleFaint : undefined }}>

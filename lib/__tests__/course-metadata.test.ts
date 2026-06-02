@@ -197,4 +197,29 @@ describe('buildGeneratePrompt', () => {
     expect(prompt).toContain('10 weeks')
     expect(prompt).toContain('requirements for the generated draft')
   })
+
+  it('injects an 11-week default when no duration is present in instructions', () => {
+    const prompt = buildGeneratePrompt('Intro to Biology course', null)
+    expect(prompt).toContain('11 weeks')
+  })
+
+  it('uses teacher-specified duration for explicit module count when instructions name a duration', () => {
+    const prompt = buildGeneratePrompt(
+      'Intro to Biology course',
+      null,
+      'Make this an 8 week course.',
+    )
+    // Module count line uses the teacher's duration, not the 11-week default
+    expect(prompt).toContain('exactly 8 modules')
+    expect(prompt).not.toContain('exactly 11 modules')
+  })
+
+  it('uses 11 as the module count when instructions already say 11 weeks', () => {
+    const prompt = buildGeneratePrompt(
+      'Calculus I',
+      null,
+      'Course duration: 11 weeks',
+    )
+    expect(prompt).toContain('exactly 11 modules')
+  })
 })

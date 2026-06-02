@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { speedgraderHref } from '@/lib/routes'
 import { displaySubmissionStatus } from '@/lib/teacherAssignmentPanel'
+import { getAssignmentBlocks } from '@/lib/content-blocks'
+import { StudentViewPreviewModal } from '@/components/StudentViewPreviewModal'
 import type { AssignmentWithDetails, SubmissionData } from '@/app/actions/assignment'
 
 const C = {
@@ -29,6 +31,7 @@ interface Props {
 export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: Props) {
   const [chatInput, setChatInput] = useState('')
   const [isEditing, setIsEditing] = useState(false)
+  const [showStudentPreview, setShowStudentPreview] = useState(false)
 
   const criteria = assignment.rubric?.criteria ?? []
   const submitted = allSubmissions.filter((s) => s.status === 'submitted' || s.status === 'graded')
@@ -324,25 +327,20 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
             </div>
 
             {/* Student View Preview */}
-            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18 }}>
+            <div
+              onClick={() => setShowStudentPreview(true)}
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = C.purple)}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
+            >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 8, background: '#f0edef',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 22, color: C.muted }}>description</span>
-                  </div>
-                  <span style={{
-                    position: 'absolute', bottom: -4, right: -4,
-                    background: '#ef4444', color: 'white', fontSize: 7, fontWeight: 800,
-                    padding: '1px 4px', borderRadius: 3, letterSpacing: '0.03em',
-                  }}>PDF</span>
+                <div style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 8, background: 'rgba(124,58,237,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 22, color: C.purple }}>visibility</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: C.text, margin: 0 }}>Student View Preview</p>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.08)', padding: '2px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>PDF</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.purple, background: 'rgba(124,58,237,0.08)', padding: '2px 6px', borderRadius: 4, letterSpacing: '0.04em' }}>Preview</span>
                   </div>
                   <p style={{
                     fontSize: 13, color: C.muted, margin: 0, lineHeight: 1.5,
@@ -571,6 +569,18 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
         )}
 
       </div>
+
+      {/* Student View Preview Modal — shared component (issue #125) */}
+      {showStudentPreview && (
+        <StudentViewPreviewModal
+          title={assignment.title}
+          dueDate={assignment.due_date}
+          pointsPossible={assignment.points_possible}
+          instructions={assignment.instructions}
+          contentBlocks={getAssignmentBlocks({ instructions: assignment.instructions, content_blocks: assignment.content_blocks })}
+          onClose={() => setShowStudentPreview(false)}
+        />
+      )}
     </div>
   )
 }

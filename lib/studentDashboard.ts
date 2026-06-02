@@ -14,7 +14,8 @@ export function filterOpenAssignments(
     (a) =>
       (a.status === 'not-started' || a.status === 'in-progress') &&
       (!courseFilter || a.courseId === courseFilter) &&
-      (!dayFilter || a.due === dayFilter) &&
-      a.due !== null,
+      // When dayFilter is active, only match dated assignments on that day.
+      // Undated assignments are always included when dayFilter is null.
+      (!dayFilter || a.due === dayFilter),
   )
 }

@@ -17,7 +17,13 @@ const LI = {
   alumosOrange: '#F59E0B',
 }
 const AI_GRADIENT = 'linear-gradient(135deg, #F59E0B 0%, #EC4899 50%, #7C3AED 100%)'
-const HERO_BG = 'linear-gradient(135deg, #1a0e2e 0%, #0e1830 100%)'
+const PUBLISH_GRADIENT = 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+
+function formatDate(iso: string) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  })
+}
 
 interface Props {
   course: CourseWithModules
@@ -71,34 +77,51 @@ export function TeacherCourseDashboard({ course, allSubmissions, enrolledStudent
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Dark hero */}
-      <div className="px-8 pb-8 pt-6" style={{ background: HERO_BG }}>
-        <Link href="/courses" className="mb-4 inline-block text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+      {/* White command bar header */}
+      <div className="border-b border-slate-200 bg-white px-8 py-6 shadow-sm">
+        <Link href="/courses" className="mb-1 inline-block text-xs text-slate-400 hover:text-violet-600">
           ← Courses
         </Link>
         <div className="flex items-start justify-between gap-6">
-          <div>
-            <div className="mb-2 flex items-center gap-2">
-              <span
-                className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                style={
-                  courseStatus === 'published'
-                    ? { background: 'rgba(16,185,129,0.2)', color: '#4ade80' }
-                    : { background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }
-                }
+          {/* Left: title + metadata */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">{course.title}</h1>
+              <Link
+                href="/coming-soon"
+                className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-violet-600"
+                title="Edit course details (coming soon)"
               >
-                {courseStatus}
-              </span>
-              {course.term && <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{course.term}</span>}
-              {course.section && <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{course.section}</span>}
+                <span className="material-symbols-outlined text-[18px]">edit</span>
+              </Link>
             </div>
-            <h1 className="text-3xl font-bold text-white" style={{ fontFamily: 'var(--font-hanken, system-ui)' }}>
-              {course.title}
-            </h1>
-            <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>{course.teacherName}</p>
+            <p className="mt-0.5 text-sm text-slate-500">{course.teacherName}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+              {(course.startDate || course.endDate) && (
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-slate-400">calendar_today</span>
+                  {course.startDate ? formatDate(course.startDate) : '—'}
+                  {' – '}
+                  {course.endDate ? formatDate(course.endDate) : '—'}
+                </span>
+              )}
+              {course.section && (
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-slate-400">meeting_room</span>
+                  {course.section}
+                </span>
+              )}
+              {course.term && (
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-slate-400">school</span>
+                  {course.term}
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-2">
+          {/* Right: status + publish CTA */}
+          <div className="flex shrink-0 flex-col items-end gap-3">
             {pendingCount > 0 && firstPendingSubId && (
               <Link
                 href={speedgraderHref(course.id, firstPendingSubId)}
@@ -112,21 +135,40 @@ export function TeacherCourseDashboard({ course, allSubmissions, enrolledStudent
               <button
                 onClick={handlePublish}
                 disabled={publishPending}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
-                style={{ borderColor: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)' }}
+                className="rounded-2xl px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:opacity-90 active:scale-95 disabled:opacity-50"
+                style={{ background: PUBLISH_GRADIENT, boxShadow: '0 4px 20px rgba(16,185,129,0.35)' }}
               >
-                {publishPending ? 'Publishing…' : 'Publish course'}
+                <span className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[17px]">rocket_launch</span>
+                  {publishPending ? 'Publishing…' : 'Publish course'}
+                </span>
               </button>
             ) : (
-              <button
-                onClick={handleUnpublish}
-                disabled={publishPending}
-                className="rounded-xl border px-4 py-2 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50"
-                style={{ borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)' }}
-              >
-                {publishPending ? 'Unpublishing…' : 'Unpublish'}
-              </button>
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold"
+                  style={{ background: 'rgba(16,185,129,0.1)', color: '#059669' }}
+                >
+                  <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                  Published
+                </span>
+                <button
+                  onClick={handleUnpublish}
+                  disabled={publishPending}
+                  className="text-xs text-slate-400 underline hover:text-slate-600 disabled:opacity-50"
+                >
+                  {publishPending ? 'Unpublishing…' : 'Unpublish'}
+                </button>
+              </div>
             )}
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              style={courseStatus === 'published'
+                ? { background: 'rgba(16,185,129,0.1)', color: '#059669' }
+                : { background: '#FEF3C7', color: '#92400E' }}
+            >
+              {courseStatus}
+            </span>
           </div>
         </div>
       </div>

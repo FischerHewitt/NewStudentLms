@@ -22,6 +22,7 @@ const assignment: AssignmentWithDetails = {
   points_possible: 10,
   rubric: null,
   resources: [],
+  content_blocks: null,
 }
 
 const studentSubmission: StudentSubmissionData = {
@@ -84,6 +85,28 @@ describe('StudentAssignmentView', () => {
     expect(html).toContain('report.pdf')
     expect(html).toContain('2.0 KB')
     expect(html).not.toContain('disabled="" class="rounded-lg bg-indigo-600')
+  })
+
+  it('renders stored content blocks in order', () => {
+    const html = renderToStaticMarkup(
+      <StudentAssignmentView
+        courseId="c1"
+        assignment={{
+          ...assignment,
+          instructions: 'Solve the equation.',
+          content_blocks: [
+            { id: 'text-0', kind: 'text', label: 'Solve the equation.' },
+            { id: 'dl-1', kind: 'download', label: 'starter.py' },
+          ],
+        }}
+        studentSubmission={studentSubmission}
+      />,
+    )
+
+    const textPos = html.indexOf('Solve the equation.')
+    const dlPos = html.indexOf('starter.py')
+    expect(textPos).toBeGreaterThan(-1)
+    expect(dlPos).toBeGreaterThan(textPos)
   })
 
   it('shows submitted attachments in the read-only response view', () => {

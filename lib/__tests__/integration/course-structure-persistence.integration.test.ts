@@ -171,4 +171,63 @@ describe('publishCourseStructure — real DB', () => {
 
     expect(modules).toHaveLength(1)
   })
+
+  it('persists an assignment content_blocks array through the publish', async () => {
+    const db = createServerClient()
+
+    const previewWithBlocks: CoursePreview = {
+      title: 'Content Blocks Course',
+      modules: [
+        {
+          title: 'Week 1',
+          week_number: 1,
+          description: 'Blocks.',
+          assignments: [
+            {
+              title: 'Quadratic Lab',
+              instructions: 'Solve the equation.',
+              due_date: '2026-09-01',
+              points_possible: 30,
+              rubric: { criteria: [{ description: 'Correct roots', points: 30 }] },
+              content_blocks: [
+                { id: 'text-0', kind: 'text', label: 'Solve the equation.' },
+                { id: 'math-1', kind: 'math', label: 'x^2 + 2x + 1 = 0' },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+
+    const { data: course } = await db
+      .from('courses')
+      .insert({
+        title: previewWithBlocks.title,
+        teacher_id: TEACHER_ID,
+        raw_syllabus: 'test syllabus',
+        generation_preview: previewWithBlocks,
+      })
+      .select('id')
+      .single()
+
+    testCourseId = course!.id
+
+    await publishCourseStructure(db, {
+      courseId: course!.id,
+      teacherId: TEACHER_ID,
+      studentId: STUDENT_ID,
+      preview: previewWithBlocks,
+    })
+
+    const { data: assignments } = await db
+      .from('assignments')
+      .select('content_blocks')
+      .eq('course_id', course!.id)
+
+    expect(assignments).toHaveLength(1)
+    expect(assignments![0].content_blocks).toEqual([
+      { id: 'text-0', kind: 'text', label: 'Solve the equation.' },
+      { id: 'math-1', kind: 'math', label: 'x^2 + 2x + 1 = 0' },
+    ])
+  })
 })

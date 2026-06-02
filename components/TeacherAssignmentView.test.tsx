@@ -16,6 +16,7 @@ const mockAssignment: AssignmentWithDetails = {
     ],
   },
   resources: [],
+  content_blocks: null,
 }
 
 const mockSubmissions: SubmissionData[] = [

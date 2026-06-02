@@ -351,3 +351,93 @@ Design decisions to make:
     (e.g. if the syllabus used a non-standard scale or the AI extracted it incorrectly).
   - Edge case: plus/minus grades (A+, A-, B+, etc.) — decide whether to support them
     or flatten to whole letters for the MVP.
+
+
+## Content Blocks — AI emits blocks directly (deferred Option B)
+Issue #108 ships with Option A: the syllabus-to-course AI is unchanged and Content
+Blocks are synthesized after generation (every assignment gets one default `text` block
+derived from `instructions`; the teacher adds math/download blocks by hand in the editor).
+
+Deferred Option B: extend the generation schema so the AI emits a `content_blocks` array
+directly, so a math-heavy assignment can arrive with a `math` block already populated.
+  - Why deferred: ADR-0009 switched generation off tool mode because llama-3.3 was already
+    failing on the simpler schema; a richer nested schema reintroduces that failure risk.
+  - Extra work B requires: validate/sanitize AI block output on every generation (malformed
+    LaTeX, download blocks referencing files that don't exist), plus new generation tests.
+  - Layering B on later does NOT require reworking persistence — the persisted
+    content_blocks shape from Option A is forward-compatible.
+  See: PRD Issue #107, foundation Issue #108.
+
+## Content Blocks — blocks become canonical source of truth for text (deferred Option B)
+Issue #108 ships with Option A: `assignments.instructions` stays canonical and the first
+`text` block mirrors it. Additional `text` blocks are treated as ordered addenda. This
+keeps every existing reader of `instructions` (AI SpeedGrader prompt builder, Student Coach,
+TeacherAssignmentView, gradebook) working untouched.
+
+Deferred Option B: make `content_blocks` the single source of truth and reduce
+`instructions` to a derived/legacy flattened string (or drop it).
+  - Why deferred: every consumer that reads `instructions` today must be migrated to read
+    from blocks or from a derived string — larger blast radius, more to test.
+  - When to revisit: if multi-text-block authoring (multiple independent instruction
+    sections per assignment) becomes a real need rather than first-block-plus-addenda.
+  See: PRD Issue #107, foundation Issue #108.
+
+## Course length wrong — AI generation sets duration to 1 week
+When the AI generates a course it sets the duration to 1 week. The course length
+should be 11 weeks. Fix the generation so the course duration is set correctly
+(11 weeks) instead of defaulting to 1 week.
+
+## Make sure the demo loop is working
+Verify the end-to-end demo loop runs cleanly start to finish.
+
+## Have the metrics page up
+Get the metrics page up and available.
+
+
+## Course metadata editing from Course page (deferred from #127)
+The white command bar header (issue #128) shows a pencil icon that currently links to
+/coming-soon. Wire it up properly:
+  - Inline edit form expanding below the title row (violet-tinted panel)
+  - Fields: Title (full-width), Start date / End date (side by side), Section / Term (side by side)
+  - Save / Cancel buttons; optimistic local update with server error rollback
+  - New `updateCourseMetadata` server action in app/actions/course.ts
+  - Server-side validation: end_date >= start_date (matching validateCourseMetadata in lib/course-metadata.ts)
+  - Integration test: DB row updated correctly; teacher-owns-course guard enforced
+  See: PRD Issue #127, blocked-by #128
+
+
+## Assignment content editing from Course page (deferred from #127)
+Teachers should be able to edit assignment title, instructions, due date, and points
+directly from the curriculum view on the Course page, without navigating to the
+dedicated Assignment edit page.
+  - Inline edit mode per assignment card (click to edit, Save/Cancel)
+  - Editing updates the live assignments row in the DB
+  - Requires an explicit "Publish assignment" step to push changes to students via
+    assignment_versions (existing publishAssignment action)
+  - The curriculum card should show a "Published · edits pending" indicator if the
+    live row has changed since the last published snapshot
+  See: PRD Issue #127, related to "Assignment published with pending edits indicator"
+
+
+## Rubric criterion editing from Course page (deferred from #127)
+Upgrade CollapsibleRubric (issue #129) from read-only display to an editable form
+when expanded from the teacher curriculum view.
+  - Add / remove criteria rows
+  - Edit criterion description and point value inline
+  - Save updates the rubric criteria JSONB on the assignments row
+  - Show a warning if Pending Grades already exist for the assignment
+    ("existing AI grades were generated with the old rubric — re-run SpeedGrader to update")
+  See: PRD Issue #127, also see existing "Rubric editing" item above
+
+
+## Due-date rescheduling when course dates change on a published Course (deferred from #127)
+When a teacher edits start_date or end_date on a published Course, proportionally
+reassign all assignment due dates using the existing rescheduleDateForCourseRange
+logic from lib/course-metadata.ts (currently GenerateFlow-only).
+  - Trigger: saving the course metadata edit form (see "Course metadata editing" above)
+  - Show a confirmation prompt: "Changing the course dates will reschedule N assignment
+    due dates. Continue?"
+  - Apply rescheduling atomically (or row-by-row with a progress indicator)
+  - Edge cases: assignments with null due_date are skipped; assignments already outside
+    the new range are clamped to the new end date
+  See: PRD Issue #127

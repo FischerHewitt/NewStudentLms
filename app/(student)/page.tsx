@@ -13,6 +13,10 @@ export default function RootPage() {
     window.location.href = '/studentview'
   }
 
+  function goToBusinessMetrics() {
+    window.location.href = '/business-metrics'
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-10 bg-[#fcf8fa]">
       <ALUMOSGradientLogo iconSize={48} />
@@ -36,6 +40,32 @@ export default function RootPage() {
           <span className="block font-semibold text-slate-800">Student</span>
         </button>
       </div>
+
+      <button
+        onClick={goToBusinessMetrics}
+        aria-label="Business Metrics"
+        title="Business Metrics"
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          boxShadow: '0 4px 14px rgba(126,34,206,0.4)',
+          fontSize: 22,
+        fontWeight: 700,
+        }}
+      >
+        $
+      </button>
     </div>
   )
 }

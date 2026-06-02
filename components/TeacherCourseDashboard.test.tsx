@@ -18,6 +18,8 @@ const COURSE: CourseWithModules = {
   title: 'BIO 111',
   term: 'Spring 2026',
   section: '01',
+  startDate: null,
+  endDate: null,
   status: 'published',
   teacherName: 'Dr. Chen',
   rawSyllabus: null,

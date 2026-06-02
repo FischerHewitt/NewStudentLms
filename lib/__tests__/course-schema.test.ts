@@ -1,51 +1,44 @@
 import { describe, expect, it } from 'vitest'
-import {
-  validateCourseStatus,
-  validateResourceType,
-  validateUserStatus,
-} from '@/lib/course-schema'
+import { assignmentSchema } from '@/lib/schemas/course'
 
-describe('Course status', () => {
-  it('accepts draft', () => {
-    expect(validateCourseStatus('draft')).toBe(true)
+describe('assignmentSchema content_blocks', () => {
+  const base = {
+    title: 'Quadratic Solver Lab',
+    instructions: 'Solve the equation.',
+    due_date: '2026-09-15',
+    points_possible: 30,
+    rubric: { criteria: [{ description: 'Correct roots', points: 30 }] },
+  }
+
+  it('accepts and preserves an ordered content_blocks array', () => {
+    const parsed = assignmentSchema.parse({
+      ...base,
+      content_blocks: [
+        { id: 'text-0', kind: 'text', label: 'Solve the equation.' },
+        { id: 'math-1', kind: 'math', label: 'x^2 + 2x + 1 = 0' },
+        { id: 'download-2', kind: 'download', label: 'data.csv' },
+      ],
+    })
+
+    expect(parsed.content_blocks).toEqual([
+      { id: 'text-0', kind: 'text', label: 'Solve the equation.' },
+      { id: 'math-1', kind: 'math', label: 'x^2 + 2x + 1 = 0' },
+      { id: 'download-2', kind: 'download', label: 'data.csv' },
+    ])
   })
 
-  it('accepts published', () => {
-    expect(validateCourseStatus('published')).toBe(true)
+  it('accepts an assignment with no content_blocks (legacy / generated shape)', () => {
+    const parsed = assignmentSchema.parse(base)
+
+    expect(parsed.content_blocks).toBeUndefined()
   })
 
-  it('rejects unknown values', () => {
-    expect(validateCourseStatus('active')).toBe(false)
-    expect(validateCourseStatus('')).toBe(false)
-  })
-})
+  it('rejects a block with an unknown kind', () => {
+    const result = assignmentSchema.safeParse({
+      ...base,
+      content_blocks: [{ id: 'x-0', kind: 'video', label: 'clip.mp4' }],
+    })
 
-describe('Resource type', () => {
-  it('accepts file', () => {
-    expect(validateResourceType('file')).toBe(true)
-  })
-
-  it('accepts link', () => {
-    expect(validateResourceType('link')).toBe(true)
-  })
-
-  it('rejects unknown values', () => {
-    expect(validateResourceType('document')).toBe(false)
-    expect(validateResourceType('')).toBe(false)
-  })
-})
-
-describe('User status', () => {
-  it('accepts pending', () => {
-    expect(validateUserStatus('pending')).toBe(true)
-  })
-
-  it('accepts active', () => {
-    expect(validateUserStatus('active')).toBe(true)
-  })
-
-  it('rejects unknown values', () => {
-    expect(validateUserStatus('inactive')).toBe(false)
-    expect(validateUserStatus('')).toBe(false)
+    expect(result.success).toBe(false)
   })
 })

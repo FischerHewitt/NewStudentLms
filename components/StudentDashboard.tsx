@@ -474,20 +474,31 @@ function findNextOpenAssignment(assignments: StudentDashboardAssignment[]): Stud
     .sort((a, b) => new Date(a.due!).getTime() - new Date(b.due!).getTime())[0] ?? null
 }
 
+const NO_DATE_KEY = 'no-date'
+
 function groupOpenAssignments(assignments: StudentDashboardAssignment[]) {
   const groups: Record<string, StudentDashboardAssignment[]> = {}
   for (const assignment of assignments) {
-    if (!assignment.due) continue
-    const key = assignment.due
+    const key = assignment.due ?? NO_DATE_KEY
     groups[key] = groups[key] ? [...groups[key], assignment] : [assignment]
   }
   return Object.keys(groups)
-    .sort()
-    .map((date) => ({ date, label: dateLabel(date), assignments: groups[date] }))
+    .sort((a, b) => {
+      // Undated group always floats to the bottom
+      if (a === NO_DATE_KEY) return 1
+      if (b === NO_DATE_KEY) return -1
+      return a.localeCompare(b)
+    })
+    .map((date) => ({
+      date,
+      label: date === NO_DATE_KEY ? 'No due date' : dateLabel(date),
+      assignments: groups[date],
+    }))
 }
 
 function isInTodoWindow(assignment: StudentDashboardAssignment): boolean {
-  if (!assignment.due) return false
+  // Undated assignments always appear — they have no concrete deadline to miss.
+  if (!assignment.due) return true
   return daysUntil(assignment.due) <= TODO_AHEAD_DAYS
 }
 
@@ -1033,7 +1044,7 @@ function AssignmentChecklist({
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-base font-semibold text-slate-950">{assignment.title}</p>
-                      <p className="text-sm text-slate-600">{assignment.due} - {assignment.points}pts</p>
+                      <p className="text-sm text-slate-600">{assignment.due ?? 'No due date'} · {assignment.points}pts</p>
                     </div>
                   </Link>
                   <button
@@ -1114,7 +1125,7 @@ function CompletedChecklist({
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-base font-semibold text-slate-500 line-through decoration-slate-400 decoration-2">{assignment.title}</p>
-                      <p className="text-sm text-slate-600">{assignment.due} - {assignment.points}pts</p>
+                      <p className="text-sm text-slate-600">{assignment.due ?? 'No due date'} · {assignment.points}pts</p>
                     </div>
                   </div>
                   {isGraded ? (
@@ -1174,8 +1185,9 @@ function OverviewPanel({
     ? assignments.filter((assignment) => assignment.courseId === selectedCourseId)
     : assignments
   const allOpenAssignments = filterOpenAssignments(visibleAssignments, null, dayFilter)
-  const openWindowAssignments = allOpenAssignments.filter(isInTodoWindow)
-  const openAssignments = openWindowAssignments.slice(0, TODO_VISIBLE_LIMIT)
+  // isInTodoWindow only controls calendar-dot visibility in WeekStrip.
+  // The checklist shows ALL open assignments so newly-published courses are never hidden.
+  const openAssignments = allOpenAssignments.slice(0, TODO_VISIBLE_LIMIT)
   const allCompletedAssignments = visibleAssignments
     .filter(
       (assignment) => assignment.status === 'graded' || assignment.status === 'submitted',

@@ -19,6 +19,7 @@ export type AssignmentWithDetails = {
   points_possible: number
   rubric: { criteria: { description: string; points: number }[] } | null
   resources: import('@/lib/resources').Resource[]
+  content_blocks: import('@/lib/content-blocks').ContentBlock[] | null
 }
 
 export type StudentSubmissionData = {
@@ -60,7 +61,7 @@ export async function getAssignmentWithDetails(
   const [assignmentResult, rubricResult, resourcesResult] = await Promise.all([
     db
       .from('assignments')
-      .select('id, title, instructions, due_date, points_possible')
+      .select('id, title, instructions, due_date, points_possible, content_blocks')
       .eq('id', assignmentId)
       .single(),
     db.from('rubrics').select('criteria').eq('assignment_id', assignmentId).single(),
@@ -75,6 +76,7 @@ export async function getAssignmentWithDetails(
       ? (rubricResult.data as { criteria: { description: string; points: number }[] })
       : null,
     resources: (resourcesResult.data ?? []) as import('@/lib/resources').Resource[],
+    content_blocks: (assignmentResult.data as unknown as { content_blocks?: import('@/lib/content-blocks').ContentBlock[] | null }).content_blocks ?? null,
   }
 }
 

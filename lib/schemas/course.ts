@@ -5,6 +5,12 @@ export const rubricCriterionSchema = z.object({
   points: z.number().describe('Points allocated to this criterion'),
 })
 
+export const contentBlockSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['text', 'math', 'download']),
+  label: z.string(),
+})
+
 export const assignmentSchema = z.object({
   title: z.string().describe('Short assignment title'),
   instructions: z.string().describe('Full assignment instructions for the student'),
@@ -16,6 +22,10 @@ export const assignmentSchema = z.object({
   rubric: z.object({
     criteria: z.array(rubricCriterionSchema).describe('2-4 grading criteria'),
   }),
+  content_blocks: z
+    .array(contentBlockSchema)
+    .optional()
+    .describe('Ordered content blocks shown to the student; synthesized from instructions when absent'),
 })
 
 export const moduleSchema = z.object({
@@ -34,3 +44,5 @@ export type CoursePreview = z.infer<typeof coursePreviewSchema>
 export type ModulePreview = z.infer<typeof moduleSchema>
 export type AssignmentPreview = z.infer<typeof assignmentSchema>
 export type RubricCriterion = z.infer<typeof rubricCriterionSchema>
+export type ContentBlock = z.infer<typeof contentBlockSchema>
+export type BlockKind = ContentBlock['kind']

@@ -26,6 +26,9 @@ import {
   updateCriterion,
 } from '@/lib/course-editor'
 import { RichTextarea } from '@/components/RichTextarea'
+import { AssignmentResourcePanel } from '@/components/AssignmentResourcePanel'
+import { StudentViewPreviewModal } from '@/components/StudentViewPreviewModal'
+import { getAssignmentBlocks, type ContentBlock } from '@/lib/content-blocks'
 
 type FlowState = 'idle' | 'generating' | 'review' | 'saving' | 'error'
 type InputMode = 'upload' | 'paste' | 'manual'
@@ -40,12 +43,17 @@ const LI = {
 }
 const AI_GRADIENT = 'linear-gradient(135deg, #F59E0B 0%, #EC4899 50%, #7C3AED 100%)'
 
-const SHORTCUTS = [
-  'Generate a complete syllabus first',
-  'Set the course start date',
-  'One module per week',
-  'Keep pages simple and visual',
-  'Course length is __ weeks and __ days',
+type PlainShortcut = { id: string; type: 'plain'; label: string }
+type DateShortcut = { id: 'start-date'; type: 'date'; label: string }
+type DurationShortcut = { id: 'duration'; type: 'duration'; label: string }
+type Shortcut = PlainShortcut | DateShortcut | DurationShortcut
+
+const SHORTCUTS: Shortcut[] = [
+  { id: 'syllabus', type: 'plain', label: 'Generate a complete syllabus first' },
+  { id: 'start-date', type: 'date', label: 'Set the course start date' },
+  { id: 'one-module', type: 'plain', label: 'One module per week' },
+  { id: 'simple', type: 'plain', label: 'Keep pages simple and visual' },
+  { id: 'duration', type: 'duration', label: 'Course length' },
 ]
 
 interface Props {
@@ -109,8 +117,22 @@ export function GenerateFlow({ draft }: Props) {
   const [rubricPending, setRubricPending] = useState<string | null>(null)
   const [rubricSuggestions, setRubricSuggestions] = useState<Record<string, { description: string; points: number }[]>>({})
 
+  // Resource Side Panel state (issue #111)
+  const [panelAssignmentKey, setPanelAssignmentKey] = useState<string | null>(null)
+  const [panelTab, setPanelTab] = useState<import('@/components/AssignmentResourcePanel').ResourcePanelTab>('edit')
+  // Staged student files keyed by `mi-ai` (issue #114)
+  const [stagedFiles, setStagedFiles] = useState<Record<string, import('@/components/AssignmentResourcePanel').StagedFile[]>>({})
+  // Preview modal (issue #125)
+  const [previewKey, setPreviewKey] = useState<string | null>(null)
+  // Dirty flag for data-loss guard (issue #122)
+  const blocksAreDirtyRef = useRef(false)
+
   const [aiInstructions, setAiInstructions] = useState(draft?.aiInstructions ?? '')
   const [aiInstructionsOpen, setAiInstructionsOpen] = useState(Boolean(draft?.aiInstructions))
+  const [activeChip, setActiveChip] = useState<'start-date' | 'duration' | null>(null)
+  const [chipDate, setChipDate] = useState('')
+  const [chipWeeks, setChipWeeks] = useState('')
+  const [chipDays, setChipDays] = useState('')
   const [resumedFromSessionDraft, setResumedFromSessionDraft] = useState(false)
   const [isGeneratingSyllabus, setIsGeneratingSyllabus] = useState(false)
   const [syllabusGenError, setSyllabusGenError] = useState('')
@@ -283,6 +305,13 @@ export function GenerateFlow({ draft }: Props) {
 
   const handleRegenerateFromSyllabus = () => {
     if (!syllabusRef.current.trim()) return
+    if (blocksAreDirtyRef.current) {
+      const ok = window.confirm(
+        'Regenerating will replace the course structure. Your content block edits will be lost. Continue?'
+      )
+      if (!ok) return
+    }
+    blocksAreDirtyRef.current = false
     setFlowState('generating')
     submit({
       syllabus: syllabusRef.current,
@@ -334,6 +363,7 @@ export function GenerateFlow({ draft }: Props) {
     setFlowState('saving')
     try {
       const { courseId: id } = await saveCourseToDB(courseId, editablePreview, metadata)
+      blocksAreDirtyRef.current = false
       router.push(`/course/${id}`)
     } catch {
       setErrorMsg('Save failed. Please try again.')
@@ -408,6 +438,16 @@ export function GenerateFlow({ draft }: Props) {
     // Fill only empty fields from the current AI instruction text.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiInstructions])
+
+  // Before-unload guard — warn when unsaved block edits exist (issue #122)
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!blocksAreDirtyRef.current) return
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
 
   const setCourseDurationFromDates = (startDate: string | undefined, endDate: string | undefined) => {
     if (!startDate || !endDate) return
@@ -577,6 +617,20 @@ export function GenerateFlow({ draft }: Props) {
       }
     })
 
+  const updateAssignmentBlocks = (mi: number, ai: number, blocks: ContentBlock[]) => {
+    blocksAreDirtyRef.current = true
+    setEditablePreview((p) => {
+      if (!p) return p
+      return {
+        ...p,
+        modules: p.modules.map((m, i) => {
+          if (i !== mi) return m
+          return { ...m, assignments: m.assignments.map((a, j) => j === ai ? { ...a, content_blocks: blocks } : a) }
+        }),
+      }
+    })
+  }
+
   const apply = (fn: (p: typeof editablePreview) => typeof editablePreview) =>
     setEditablePreview(fn)
 
@@ -735,17 +789,137 @@ export function GenerateFlow({ draft }: Props) {
                     style={{ borderColor: LI.outlineVariant, color: LI.onSurface, background: LI.surfaceLow }}
                   />
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {SHORTCUTS.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => appendAiInstruction(s)}
-                        className="rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-80"
-                        style={{ borderColor: LI.alumosPurple + '44', color: LI.alumosPurple, background: LI.alumosPurple + '0d' }}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    {SHORTCUTS.map((s) => {
+                      const chipStyle = {
+                        borderColor: LI.alumosPurple + '44',
+                        color: LI.alumosPurple,
+                        background: LI.alumosPurple + '0d',
+                      }
+                      const inputStyle: React.CSSProperties = {
+                        border: `1px solid ${LI.alumosPurple}66`,
+                        borderRadius: 6,
+                        padding: '1px 6px',
+                        fontSize: 12,
+                        color: LI.onSurface,
+                        background: '#fff',
+                        outline: 'none',
+                        width: 52,
+                      }
+
+                      if (s.type === 'plain') {
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => appendAiInstruction(s.label)}
+                            className="rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-80"
+                            style={chipStyle}
+                          >
+                            {s.label}
+                          </button>
+                        )
+                      }
+
+                      if (s.type === 'date') {
+                        if (activeChip === 'start-date') {
+                          return (
+                            <form
+                              key={s.id}
+                              className="flex items-center gap-1.5 rounded-full border px-3 py-1"
+                              style={{ borderColor: LI.alumosPurple + '44', background: LI.alumosPurple + '0d' }}
+                              onSubmit={(e) => {
+                                e.preventDefault()
+                                if (chipDate.trim()) {
+                                  appendAiInstruction(`Set the course start date ${chipDate.trim()}`)
+                                  setChipDate('')
+                                  setActiveChip(null)
+                                }
+                              }}
+                            >
+                              <span className="text-xs font-semibold" style={{ color: LI.alumosPurple }}>Start date</span>
+                              <input
+                                autoFocus
+                                value={chipDate}
+                                onChange={(e) => setChipDate(e.target.value)}
+                                placeholder="e.g. Mon Jun 1"
+                                style={{ ...inputStyle, width: 110 }}
+                              />
+                              <button type="submit" className="text-xs font-bold" style={{ color: LI.alumosPurple }}>✓</button>
+                              <button type="button" className="text-xs" style={{ color: LI.onSurfaceVariant }} onClick={() => setActiveChip(null)}>✕</button>
+                            </form>
+                          )
+                        }
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setActiveChip('start-date')}
+                            className="rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-80"
+                            style={chipStyle}
+                          >
+                            {s.label} __
+                          </button>
+                        )
+                      }
+
+                      if (s.type === 'duration') {
+                        if (activeChip === 'duration') {
+                          return (
+                            <form
+                              key={s.id}
+                              className="flex items-center gap-1.5 rounded-full border px-3 py-1"
+                              style={{ borderColor: LI.alumosPurple + '44', background: LI.alumosPurple + '0d' }}
+                              onSubmit={(e) => {
+                                e.preventDefault()
+                                const w = chipWeeks.trim() || '0'
+                                const d = chipDays.trim() || '0'
+                                appendAiInstruction(`Course length is ${w} weeks and ${d} days`)
+                                setChipWeeks('')
+                                setChipDays('')
+                                setActiveChip(null)
+                              }}
+                            >
+                              <span className="text-xs font-semibold" style={{ color: LI.alumosPurple }}>Length</span>
+                              <input
+                                autoFocus
+                                type="number"
+                                min={1}
+                                value={chipWeeks}
+                                onChange={(e) => setChipWeeks(e.target.value)}
+                                placeholder="wks"
+                                style={inputStyle}
+                              />
+                              <span className="text-xs" style={{ color: LI.alumosPurple }}>wks</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={6}
+                                value={chipDays}
+                                onChange={(e) => setChipDays(e.target.value)}
+                                placeholder="days"
+                                style={inputStyle}
+                              />
+                              <span className="text-xs" style={{ color: LI.alumosPurple }}>days</span>
+                              <button type="submit" className="text-xs font-bold" style={{ color: LI.alumosPurple }}>✓</button>
+                              <button type="button" className="text-xs" style={{ color: LI.onSurfaceVariant }} onClick={() => setActiveChip(null)}>✕</button>
+                            </form>
+                          )
+                        }
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setActiveChip('duration')}
+                            className="rounded-full border px-3 py-1 text-xs font-semibold transition hover:opacity-80"
+                            style={chipStyle}
+                          >
+                            Course length __ wks __ days
+                          </button>
+                        )
+                      }
+
+                      return null
+                    })}
                   </div>
                 </section>
               )}
@@ -896,7 +1070,7 @@ export function GenerateFlow({ draft }: Props) {
     return (
       <>
         <TeacherCoachContextBridge context={{ syllabus }} />
-        <div className="mx-auto max-w-3xl pb-80">
+        <div className="mx-auto max-w-3xl pb-80" style={{ transition: 'margin-right 0.25s ease', marginRight: panelAssignmentKey ? '576px' : undefined }}>
         {/* Back / Clear row */}
         <div className="mb-4 flex items-center justify-between">
           <button
@@ -949,8 +1123,8 @@ export function GenerateFlow({ draft }: Props) {
             </button>
           </div>
 
-          {/* Optional course details — term, section, dates */}
-          <div className="flex flex-wrap gap-2">
+          {/* Optional course details — row 1: term, section, duration */}
+          <div className="flex flex-wrap items-center gap-2">
             <input
               value={metadata.term ?? ''}
               onChange={(e) => setMetadata((m) => ({ ...m, term: e.target.value || undefined }))}
@@ -972,7 +1146,7 @@ export function GenerateFlow({ draft }: Props) {
                 value={courseDuration.weeks}
                 onChange={(e) => handleDurationChange('weeks', e.target.value)}
                 placeholder="Weeks"
-                className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+                className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
               />
               <span className="text-xs text-slate-400">weeks</span>
               <input
@@ -983,10 +1157,13 @@ export function GenerateFlow({ draft }: Props) {
                 value={courseDuration.days}
                 onChange={(e) => handleDurationChange('days', e.target.value)}
                 placeholder="Days"
-                className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+                className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
               />
               <span className="text-xs text-slate-400">days</span>
             </div>
+          </div>
+          {/* Row 2: start and end dates */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-slate-400">Start</span>
               <input
@@ -1125,8 +1302,11 @@ export function GenerateFlow({ draft }: Props) {
 
               {/* Assignments */}
               <div className="divide-y divide-slate-100 border-t border-slate-100">
-                {mod.assignments.map((a, ai) => (
-                  <div key={ai} className="px-5 py-4">
+                {mod.assignments.map((a, ai) => {
+                  const assignmentKey = `${mi}-${ai}`
+                  const isPanelTarget = panelAssignmentKey === assignmentKey
+                  return (
+                  <div key={ai} className="px-5 py-4 transition-colors" style={{ background: isPanelTarget ? '#7C3AED14' : undefined }}>
                     <div className="grid grid-cols-[1fr_auto_auto_auto] items-start gap-3">
                       <input
                         value={a.title}
@@ -1159,13 +1339,58 @@ export function GenerateFlow({ draft }: Props) {
                         ✕
                       </button>
                     </div>
+                    <div className="relative mt-2">
                     <textarea
                       value={a.instructions}
                       onChange={(e) => updateAssignment(mi, ai, 'instructions', e.target.value)}
                       rows={2}
                       placeholder="Assignment instructions"
                       className="mt-2 w-full resize-none rounded border border-transparent bg-slate-50 px-2 py-1.5 text-xs leading-relaxed text-slate-500 focus:border-slate-300 focus:outline-none"
+                      style={{ paddingRight: '110px' }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => { setPanelAssignmentKey(assignmentKey); setPanelTab('edit') }}
+                      className="absolute right-2 top-2 cursor-pointer rounded-md border px-2 py-1 text-[10px] font-semibold transition hover:opacity-80"
+                      style={{
+                        borderColor: isPanelTarget ? '#7C3AED' : '#e2e8f0',
+                        color: isPanelTarget ? '#7C3AED' : '#45464d',
+                        background: '#fff',
+                      }}
+                    >
+                      Advanced Edit ↗
+                    </button>
+                    </div>
+                    {/* Resource chips — always visible, v2 style */}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <ResourceChip
+                        icon="%" label="Math"
+                        count={a.content_blocks?.filter(b => b.kind === 'math').length ?? 0}
+                        active={isPanelTarget && panelTab === 'math'}
+                        onClick={() => { setPanelAssignmentKey(assignmentKey); setPanelTab('math') }}
+                      />
+                      <ResourceChip
+                        icon="doc" label="PDF files"
+                        count={0}
+                        active={isPanelTarget && panelTab === 'pdf'}
+                        onClick={() => { setPanelAssignmentKey(assignmentKey); setPanelTab('pdf') }}
+                        showDrop
+                      />
+                      <ResourceChip
+                        icon="dl" label="Student files"
+                        count={stagedFiles[assignmentKey]?.length ?? 0}
+                        active={isPanelTarget && panelTab === 'files'}
+                        onClick={() => { setPanelAssignmentKey(assignmentKey); setPanelTab('files') }}
+                        showDrop
+                      />
+                      <ResourceChip
+                        icon="eye" label="Preview"
+                        count={0}
+                        active={false}
+                        onClick={() => setPreviewKey(assignmentKey)}
+                        accent
+                      />
+                    </div>
                     {/* Rubric criteria */}
                     <div className="mt-2 space-y-1">
                       {a.rubric.criteria.map((c, ci) => (
@@ -1242,7 +1467,8 @@ export function GenerateFlow({ draft }: Props) {
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
                 <div className="px-5 py-3">
                   <button
                     type="button"
@@ -1275,11 +1501,99 @@ export function GenerateFlow({ draft }: Props) {
           </button>
         </div>
         </div>
+
+      {/* Resource Side Panel (issue #111) */}
+      {panelAssignmentKey !== null && (() => {
+        const [mi, ai] = panelAssignmentKey.split('-').map(Number)
+        const mod = editablePreview?.modules[mi]
+        const assignment = mod?.assignments[ai]
+        if (!assignment) return null
+        return (
+          <AssignmentResourcePanel
+            key={panelAssignmentKey}
+            assignmentTitle={assignment.title || 'Untitled Assignment'}
+            dueDate={assignment.due_date}
+            pointsPossible={assignment.points_possible}
+            instructions={assignment.instructions}
+            contentBlocks={getAssignmentBlocks(assignment)}
+            onBlocksChange={(blocks) => updateAssignmentBlocks(mi, ai, blocks)}
+            stagedFiles={stagedFiles[panelAssignmentKey] ?? []}
+            activeTab={panelTab}
+            onTabChange={setPanelTab}
+            onInstructionsChange={(val) => updateAssignment(mi, ai, 'instructions', val)}
+            onAddFile={(file) => setStagedFiles((prev) => ({ ...prev, [panelAssignmentKey]: [...(prev[panelAssignmentKey] ?? []), file] }))}
+            onRemoveFile={(id) => setStagedFiles((prev) => ({ ...prev, [panelAssignmentKey]: (prev[panelAssignmentKey] ?? []).filter((f) => f.id !== id) }))}
+            onClose={() => setPanelAssignmentKey(null)}
+          />
+        )
+      })()}
+      {previewKey !== null && (() => {
+        const [pmi, pai] = previewKey.split('-').map(Number)
+        const pa = editablePreview?.modules[pmi]?.assignments[pai]
+        if (!pa) return null
+        return (
+          <StudentViewPreviewModal
+            title={pa.title || 'Untitled Assignment'}
+            dueDate={pa.due_date}
+            pointsPossible={pa.points_possible}
+            instructions={pa.instructions}
+            contentBlocks={getAssignmentBlocks(pa)}
+            onClose={() => setPreviewKey(null)}
+          />
+        )
+      })()}
       </>
     )
   }
 
   return null
+}
+
+// ── Resource chip ────────────────────────────────────────────────────────────
+
+function ResourceChip({
+  icon, label, count, active, onClick, showDrop, accent,
+}: {
+  icon: string; label: string; count: number; active: boolean
+  onClick: () => void; showDrop?: boolean; accent?: boolean
+}) {
+  const [dragging, setDragging] = useState(false)
+  const purple = '#7C3AED'
+
+  const iconEl = icon === '%'
+    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="5" x2="5" y2="19" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" /></svg>
+    : icon === 'doc'
+    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+    : icon === 'dl'
+    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onDragOver={showDrop ? (e) => { e.preventDefault(); setDragging(true) } : undefined}
+      onDragLeave={showDrop ? () => setDragging(false) : undefined}
+      onDrop={showDrop ? (e) => { e.preventDefault(); setDragging(false) } : undefined}
+      className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition"
+      style={{
+        borderColor: dragging ? purple : accent ? purple + '55' : active ? purple : '#e2e8f0',
+        color: dragging || accent || active ? purple : '#45464d',
+        background: dragging ? '#7C3AED14' : active && !accent ? '#7C3AED14' : '#fff',
+        borderStyle: dragging ? 'dashed' : 'solid',
+        minWidth: showDrop ? 110 : undefined,
+      }}
+    >
+      <span className="flex h-3.5 w-3.5 items-center justify-center opacity-70">{iconEl}</span>
+      {label}
+      {count > 0 && (
+        <span className="flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white" style={{ background: purple }}>
+          {count}
+        </span>
+      )}
+      {showDrop && count === 0 && <span className="ml-auto text-[9px] opacity-40">drop</span>}
+    </button>
+  )
 }
 
 // ── Folder-aware file reading ────────────────────────────────────────────

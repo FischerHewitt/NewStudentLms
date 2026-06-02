@@ -38,6 +38,8 @@ const mockCourse: CourseWithModules = {
   title: 'Biology 101',
   term: 'Fall 2024',
   section: 'A',
+  startDate: null,
+  endDate: null,
   status: 'published',
   teacherName: 'Dr. Smith',
   rawSyllabus: '## Week 1\nIntroduction to cells.',

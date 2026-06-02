@@ -453,7 +453,18 @@ function GradingRow({ row }: { row: AssignmentGradingRow }) {
         <p className="font-semibold" style={{ color: LI.onSurface }}>
           {row.gradedCount}/{row.totalSubmissions} Graded
         </p>
-        <p style={{ color: healthColor }}>{row.gradedPct}%</p>
+        <div className="mt-1 flex items-center justify-end gap-1.5">
+          <div
+            className="h-1.5 w-16 overflow-hidden rounded-full"
+            style={{ background: LI.outlineVariant }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${row.gradedPct}%`, background: healthColor }}
+            />
+          </div>
+          <span style={{ color: healthColor }}>{row.gradedPct}%</span>
+        </div>
       </div>
 
       <Link

@@ -3,6 +3,7 @@ import { SpeedGrader } from '@/components/SpeedGrader'
 import { getSpeedGraderData } from '@/app/actions/speedgrader'
 import { getTeacherAutorunSetting } from '@/app/actions/settings'
 import { SetBreadcrumb } from '@/components/SetBreadcrumb'
+import { RoleGuard } from '@/components/RoleGuard'
 
 export const dynamic = 'force-dynamic'
 // Give the AI call enough headroom on Vercel
@@ -23,7 +24,10 @@ export default async function SpeedGraderPage({
   if (!data) notFound()
 
   return (
-    <>
+    <RoleGuard
+      requiredRole="teacher"
+      redirectTo={`/course/${courseId}/assignment/${data.assignment.id}`}
+    >
       <SetBreadcrumb items={[
         { label: data.course.title, href: `/course/${courseId}` },
         { label: data.assignment.title, href: `/course/${courseId}/assignment/${data.assignment.id}` },
@@ -32,6 +36,6 @@ export default async function SpeedGraderPage({
       <div className="px-4 py-8">
         <SpeedGrader courseId={courseId} data={data} autorun={autorun} />
       </div>
-    </>
+    </RoleGuard>
   )
 }

@@ -5,6 +5,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitAssignment } from '@/app/actions/assignment'
 import { MarkdownContent } from '@/components/MarkdownContent'
+import { getAssignmentBlocks } from '@/lib/content-blocks'
+import { renderContentBlocks } from '@/lib/content-block-renderer'
 import { RichTextarea } from '@/components/RichTextarea'
 import {
   formatAttachmentBytes,
@@ -117,15 +119,8 @@ export function StudentAssignmentView({
         )}
       </div>
 
-      {/* ── Instructions ─────────────────────────────────── */}
-      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
-          Instructions
-        </h2>
-        <p className="text-sm leading-relaxed text-slate-700">
-          {assignment.instructions}
-        </p>
-      </div>
+      {/* ── Content Blocks (instructions, math, downloads) ── */}
+      {renderContentBlocks(getAssignmentBlocks({ instructions: assignment.instructions, content_blocks: assignment.content_blocks }))}
 
       {/* ── Rubric ───────────────────────────────────────── */}
       {assignment.rubric && assignment.rubric.criteria.length > 0 && (
