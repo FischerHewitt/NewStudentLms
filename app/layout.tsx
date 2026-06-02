@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Syne, DM_Sans, Hanken_Grotesk, Inter } from 'next/font/google'
+import { Syne, DM_Sans, Hanken_Grotesk, Inter, Orbitron } from 'next/font/google'
 import './globals.css'
 
 // Root layout: bare html/body shell + fonts only.
@@ -32,6 +32,12 @@ const inter = Inter({
   weight: ['400', '500', '600', '700'],
 })
 
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  variable: '--font-orbitron',
+  weight: ['600'],
+})
+
 export const metadata: Metadata = {
   title: 'ALUMOS',
   description: 'A Brighter Path Through Every Class.',
@@ -47,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
         />
       </head>
-      <body className={`${syne.variable} ${dmSans.variable} ${hanken.variable} ${inter.variable} bg-slate-50 text-slate-900 antialiased`}>
+      <body className={`${syne.variable} ${dmSans.variable} ${hanken.variable} ${inter.variable} ${orbitron.variable} bg-slate-50 text-slate-900 antialiased`}>
         {children}
       </body>
     </html>

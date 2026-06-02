@@ -3,6 +3,7 @@ import {
   addCourseDurationToStartDate,
   buildGeneratePrompt,
   courseDurationBetweenDates,
+  extractCourseMetadataHintsFromInstructions,
   rescheduleDateForCourseRange,
   subtractCourseDurationFromEndDate,
   totalCourseDurationDays,
@@ -130,6 +131,32 @@ describe('course duration date helpers', () => {
   })
 })
 
+describe('extractCourseMetadataHintsFromInstructions', () => {
+  it('extracts course duration and a weekday-prefixed start date', () => {
+    expect(
+      extractCourseMetadataHintsFromInstructions(
+        'Course length is 11 weeks 0 days\nSet the course start date mon jun 1',
+        2026,
+      ),
+    ).toEqual({
+      duration: { weeks: 11, days: 0 },
+      start_date: '2026-06-01',
+    })
+  })
+
+  it('extracts an explicit end date from AI instructions', () => {
+    expect(
+      extractCourseMetadataHintsFromInstructions(
+        'Duration: 4 weeks and 2 days\nCourse ends on 12/18/2026',
+        2026,
+      ),
+    ).toEqual({
+      duration: { weeks: 4, days: 2 },
+      end_date: '2026-12-18',
+    })
+  })
+})
+
 describe('buildGeneratePrompt', () => {
   it('includes syllabus text', () => {
     const prompt = buildGeneratePrompt('Week 1: intro', null)
@@ -168,5 +195,6 @@ describe('buildGeneratePrompt', () => {
     )
     expect(prompt).toContain('Teacher instructions')
     expect(prompt).toContain('10 weeks')
+    expect(prompt).toContain('requirements for the generated draft')
   })
 })

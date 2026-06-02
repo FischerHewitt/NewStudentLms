@@ -1,4 +1,4 @@
-import { streamObject } from 'ai'
+import { generateObject } from 'ai'
 import { coursePreviewSchema } from '@/lib/schemas/course'
 import { getDefaultAiModel, LMS_STRUCTURED_OBJECT_MODE } from '@/lib/ai-model'
 import { buildGeneratePrompt } from '@/lib/course-metadata'
@@ -38,18 +38,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = streamObject({
+    const { object } = await generateObject({
       model: getDefaultAiModel(),
       mode: LMS_STRUCTURED_OBJECT_MODE,
       schema: coursePreviewSchema,
       system: SYSTEM_PROMPT,
       prompt: buildGeneratePrompt(syllabus, start_date ?? null, instructions ?? null),
-      onError: (error) => {
-        console.error('[generate-course] stream error:', error)
-      },
     })
 
-    return result.toTextStreamResponse()
+    return new Response(JSON.stringify(object), {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    })
   } catch (error) {
     console.error('[generate-course] error:', error)
     return new Response(

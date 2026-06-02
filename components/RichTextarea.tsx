@@ -1,6 +1,52 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import katex from 'katex'
+import 'katex/dist/katex.min.css'
+
+function latexWithPlaceholders(latex: string) {
+  // Replace □ placeholder with a highlighted square box in KaTeX
+  return latex.replace(/□/g, '{\\square}')
+}
+
+/** Build the inner HTML for a rendered math span. */
+function buildMathInnerHtml(latex: string): string {
+  try {
+    return katex.renderToString(latexWithPlaceholders(latex), {
+      throwOnError: false,
+      displayMode: false,
+      trust: false,
+      strict: false,
+    })
+  } catch {
+    return escapeHtml(latex)
+  }
+}
+
+/** Build a complete atomic math span element string. */
+function buildMathSpanHtml(latex: string): string {
+  const inner = buildMathInnerHtml(latex)
+  return `<span contenteditable="false" data-editor-math="true" data-math="${escapeHtml(latex)}" style="display:inline-block;cursor:pointer;padding:1px 4px;border-radius:4px;border:1px solid #e2e8f0;background:#f8fafc;user-select:none;vertical-align:middle;">${inner}</span>`
+}
+
+/** Re-render KaTeX for every math span in a container (e.g. after loading saved HTML). */
+function renderMathSpans(container: HTMLElement) {
+  const spans = container.querySelectorAll<HTMLSpanElement>('[data-editor-math]')
+  for (const span of Array.from(spans)) {
+    const latex = span.getAttribute('data-math') ?? ''
+    span.innerHTML = buildMathInnerHtml(latex)
+    span.contentEditable = 'false'
+    span.style.display = 'inline-block'
+    span.style.cursor = 'pointer'
+    span.style.padding = '1px 4px'
+    span.style.borderRadius = '4px'
+    span.style.border = '1px solid #e2e8f0'
+    span.style.background = '#f8fafc'
+    span.style.userSelect = 'none'
+    span.style.verticalAlign = 'middle'
+    span.style.fontFamily = ''
+  }
+}
 
 interface Props {
   value: string
@@ -277,6 +323,8 @@ function sanitizeHtml(html: string) {
           if (/^(https?:|mailto:|#)/i.test(attr.value)) continue
         }
         if (name === 'data-math' || name === 'data-editor-math') continue
+        // Keep contenteditable="false" on math spans so they stay atomic
+        if (name === 'contenteditable' && element.getAttribute('data-editor-math')) continue
         if (name === 'style') continue
         element.removeAttribute(attr.name)
       }
@@ -348,6 +396,8 @@ export function RichTextarea({
   // Which popover is open
   const [openPanel, setOpenPanel] = useState<null | 'table' | 'math'>(null)
   const [tableHover, setTableHover] = useState<{ cols: number; rows: number } | null>(null)
+  // Inline math editor popover
+  const [mathEdit, setMathEdit] = useState<{ span: HTMLSpanElement; latex: string } | null>(null)
 
   useEffect(() => {
     const editor = ref.current
@@ -355,6 +405,7 @@ export function RichTextarea({
     editor.innerHTML = editorValueToHtml(value)
     lastEmittedValueRef.current = value
     setIsEmpty(!editor.textContent?.trim() && editor.querySelectorAll('img, table, hr').length === 0)
+    renderMathSpans(editor)
   }, [value])
 
   useEffect(() => {
@@ -363,6 +414,8 @@ export function RichTextarea({
     editor.innerHTML = editorValueToHtml(initialValueRef.current)
     setIsEmpty(!editor.textContent?.trim() && editor.querySelectorAll('img, table, hr').length === 0)
     if (initialAutoFocusRef.current) editor.focus()
+    // Render any math in the initial content
+    renderMathSpans(editor)
   }, [])
 
   const saveSelection = () => {
@@ -385,8 +438,20 @@ export function RichTextarea({
   const emitChange = () => {
     const editor = ref.current
     if (!editor) return
-    const nextValue = sanitizeHtml(editor.innerHTML)
-    if (nextValue !== editor.innerHTML) editor.innerHTML = nextValue
+    // Clone and strip KaTeX-rendered content back to just the raw latex text
+    // so the stored value is clean — data-math is the source of truth.
+    const clone = editor.cloneNode(true) as HTMLElement
+    for (const span of Array.from(clone.querySelectorAll<HTMLSpanElement>('[data-editor-math]'))) {
+      const latex = span.getAttribute('data-math') ?? ''
+      span.removeAttribute('contenteditable')
+      span.textContent = latex
+      span.style.fontFamily = 'Menlo, Monaco, Consolas, monospace'
+      span.style.backgroundColor = '#f8fafc'
+      span.style.cursor = ''
+      span.style.userSelect = ''
+      span.style.verticalAlign = ''
+    }
+    const nextValue = sanitizeHtml(clone.innerHTML)
     lastEmittedValueRef.current = nextValue
     setIsEmpty(!editor.textContent?.trim() && editor.querySelectorAll('img, table, hr').length === 0)
     onChange(nextValue)
@@ -494,7 +559,7 @@ export function RichTextarea({
   const insertMathFn = useCallback((key: MathFnKey) => {
     setOpenPanel(null)
     const template = buildMathTemplate(key)
-    insertHtml(`<span data-editor-math="true" data-math="${escapeHtml(template)}" style="font-family: Menlo, Monaco, Consolas, monospace; background-color: #f8fafc;">${escapeHtml(template)}</span>`)
+    insertHtml(buildMathSpanHtml(template))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -504,7 +569,45 @@ export function RichTextarea({
       if (e.key === 'i') { e.preventDefault(); handleAction('italic') }
       if (e.key === 'u') { e.preventDefault(); handleAction('underline') }
     }
+    // Close math edit on Escape
+    if (e.key === 'Escape' && mathEdit) {
+      setMathEdit(null)
+    }
   }
+
+  /** Click on the editor area — open inline math editor if a math span was clicked. */
+  const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (disabled) return
+    const target = e.target as HTMLElement
+    const mathSpan = target.closest<HTMLSpanElement>('[data-editor-math]')
+    if (mathSpan) {
+      e.preventDefault()
+      e.stopPropagation()
+      setMathEdit({ span: mathSpan, latex: mathSpan.getAttribute('data-math') ?? '' })
+    } else {
+      setMathEdit(null)
+    }
+  }
+
+  /** Commit an edited latex value back to the span and re-render. */
+  const commitMathEdit = useCallback((latex: string) => {
+    if (!mathEdit) return
+    const { span } = mathEdit
+    span.setAttribute('data-math', latex)
+    span.innerHTML = buildMathInnerHtml(latex)
+    setMathEdit(null)
+    emitChange()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mathEdit])
+
+  /** Delete a math span from the editor. */
+  const deleteMathSpan = useCallback(() => {
+    if (!mathEdit) return
+    mathEdit.span.remove()
+    setMathEdit(null)
+    emitChange()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mathEdit])
 
   const minHeight = `${Math.max(rows, 4) * 1.5 + 1.5}rem`
 
@@ -612,6 +715,16 @@ export function RichTextarea({
             {placeholder}
           </div>
         )}
+        {mathEdit && (
+          <MathEditPopover
+            span={mathEdit.span}
+            latex={mathEdit.latex}
+            editorRef={ref}
+            onCommit={commitMathEdit}
+            onDelete={deleteMathSpan}
+            onClose={() => setMathEdit(null)}
+          />
+        )}
         <div
           ref={ref}
           contentEditable={!disabled}
@@ -623,9 +736,10 @@ export function RichTextarea({
           onKeyUp={saveSelection}
           onMouseUp={saveSelection}
           onKeyDown={handleKeyDown}
+          onClick={handleEditorClick}
           suppressContentEditableWarning
           style={{ minHeight }}
-          className="w-full resize-y overflow-auto border-0 bg-white p-3 text-sm leading-relaxed text-slate-700 outline-none disabled:opacity-50 [&_a]:text-indigo-600 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-3 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_span[data-editor-math]]:rounded [&_span[data-editor-math]]:border [&_span[data-editor-math]]:border-slate-200 [&_span[data-editor-math]]:px-1 [&_strong]:font-semibold [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:min-w-24 [&_td]:border [&_td]:border-slate-300 [&_td]:p-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-50 [&_th]:p-2 [&_u]:underline [&_ul]:list-disc"
+          className="w-full resize-y overflow-auto border-0 bg-white p-3 text-sm leading-relaxed text-slate-700 outline-none disabled:opacity-50 [&_a]:text-indigo-600 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_hr]:my-3 [&_li]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_span[data-editor-math]]:cursor-pointer [&_span[data-editor-math]]:rounded [&_span[data-editor-math]]:border [&_span[data-editor-math]]:border-indigo-200 [&_span[data-editor-math]]:bg-indigo-50 [&_span[data-editor-math]]:px-1 [&_span[data-editor-math]]:transition-colors hover:[&_span[data-editor-math]]:border-indigo-400 [&_strong]:font-semibold [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:min-w-24 [&_td]:border [&_td]:border-slate-300 [&_td]:p-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-50 [&_th]:p-2 [&_u]:underline [&_ul]:list-disc"
         />
       </div>
     </div>
@@ -833,6 +947,136 @@ function TablePicker({
       <p className="mt-2 text-center text-xs font-medium text-slate-500">
         {hCols > 0 && hRows > 0 ? `${hCols} × ${hRows}` : 'Hover to select'}
       </p>
+    </div>
+  )
+}
+
+// ── Inline math editor popover ────────────────────────────────────────────
+
+function MathEditPopover({
+  span,
+  latex,
+  editorRef,
+  onCommit,
+  onDelete,
+  onClose,
+}: {
+  span: HTMLSpanElement
+  latex: string
+  editorRef: React.RefObject<HTMLDivElement | null>
+  onCommit: (latex: string) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  const [draft, setDraft] = useState(latex)
+  const [preview, setPreview] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Position popover below the span
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  useEffect(() => {
+    const spanRect = span.getBoundingClientRect()
+    const editorRect = editorRef.current?.getBoundingClientRect()
+    if (!editorRect) return
+    setPos({
+      top: spanRect.bottom - editorRect.top + (editorRef.current?.scrollTop ?? 0) + 6,
+      left: Math.min(
+        spanRect.left - editorRect.left,
+        (editorRect.width ?? 300) - 260
+      ),
+    })
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [span, editorRef])
+
+  // Live KaTeX preview
+  useEffect(() => {
+    try {
+      setPreview(katex.renderToString(latexWithPlaceholders(draft), {
+        throwOnError: false, displayMode: false, trust: false, strict: false,
+      }))
+    } catch {
+      setPreview(escapeHtml(draft))
+    }
+  }, [draft])
+
+  if (!pos) return null
+
+  return (
+    <div
+      className="absolute z-50 w-64 rounded-lg border border-indigo-200 bg-white shadow-xl"
+      style={{ top: pos.top, left: Math.max(0, pos.left) }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="p-2">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Edit LaTeX</p>
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={(e) => {
+            const newVal = e.target.value
+            const cursor = e.target.selectionStart ?? newVal.length
+
+            // Smart "/" → \frac{numerator}{□}
+            // Trigger when the character just typed is "/"
+            if (newVal[cursor - 1] === '/') {
+              const before = newVal.slice(0, cursor - 1)
+              const after = newVal.slice(cursor)
+              // Grab the token immediately before the slash as the numerator.
+              // Match: a brace-balanced group, a word/number, or empty.
+              const tokenMatch = before.match(/(\{[^}]*\}|\w+(?:\^\{[^}]*\})?|\S*)$/)
+              const numerator = tokenMatch ? tokenMatch[0] : ''
+              const prefix = before.slice(0, before.length - numerator.length)
+              const replacement = `\\frac{${numerator}}{□}`
+              const nextVal = prefix + replacement + after
+              setDraft(nextVal)
+              // Place cursor inside the denominator braces: after "{"
+              const denomStart = (prefix + `\\frac{${numerator}}{`).length
+              requestAnimationFrame(() => {
+                inputRef.current?.setSelectionRange(denomStart, denomStart + 1) // select the □
+              })
+              return
+            }
+
+            setDraft(newVal)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); onCommit(draft) }
+            if (e.key === 'Escape') { e.preventDefault(); onClose() }
+          }}
+          className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+          spellCheck={false}
+        />
+        {/* Live preview */}
+        <div
+          className="mt-2 min-h-8 rounded border border-slate-100 bg-slate-50 px-2 py-1 text-center text-sm"
+          dangerouslySetInnerHTML={{ __html: preview }}
+        />
+        <div className="mt-2 flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => onCommit(draft)}
+            className="flex-1 rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-indigo-700"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

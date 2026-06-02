@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { GenerateFlow } from './GenerateFlow'
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
 
 vi.mock('ai/react', () => ({
@@ -11,6 +11,8 @@ vi.mock('ai/react', () => ({
 }))
 
 vi.mock('@/app/actions/course', () => ({
+  deleteCourseDraft: vi.fn(),
+  getCourseDraftByKey: vi.fn(),
   saveCoursePreview: vi.fn(),
   saveCourseToDB: vi.fn(),
 }))
@@ -22,6 +24,7 @@ describe('GenerateFlow Teacher Coach context', () => {
         draft={{
           courseId: 'course-draft-1',
           syllabus: 'BIO 111 syllabus',
+          aiInstructions: 'Course length is 11 weeks',
           draftKey: 'test-draft-key',
           metadata: { title: 'Biology 111', term: 'Fall 2026' },
           preview: {
@@ -40,5 +43,7 @@ describe('GenerateFlow Teacher Coach context', () => {
     )
 
     expect(html).toContain('data-teacher-coach-context="syllabus"')
+    expect(html).toContain('Course length is 11 weeks')
+    expect(html).toContain('Delete draft')
   })
 })

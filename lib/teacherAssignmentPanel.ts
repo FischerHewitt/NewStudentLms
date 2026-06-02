@@ -60,6 +60,12 @@ export function markSubmissionGraded<T extends TeacherPanelSubmission>(
   )
 }
 
+export function displaySubmissionStatus<T extends TeacherPanelSubmission>(
+  submission: T,
+): T['status'] {
+  return submission.finalScore != null ? 'graded' : submission.status
+}
+
 export function gradeFormFromGrade(grade: TeacherPanelView): {
   score: number
   feedback: string

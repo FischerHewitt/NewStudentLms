@@ -4,12 +4,36 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
+import {
+  // STEM
+  Calculator, Dna, FlaskConical, Atom, Code2, Leaf, BarChart2,
+  Microscope, TestTube, Telescope, CircuitBoard, Waves, TreePine,
+  Flower2, Bug, Fish, Bird, Mountain, Zap, Flame, Rocket,
+  // Humanities / Social
+  BookOpen, Landmark, Globe, Globe2, Brain, Users, Lightbulb, TrendingUp,
+  Map, Compass, ScrollText, Newspaper, Scale, Gavel, Shield,
+  // Arts & Electives
+  Palette, Music, Drama, Dumbbell, Heart, Camera, PenLine,
+  Mic, Headphones, Guitar, Drum, Piano, Film, Clapperboard,
+  Paintbrush, Scissors, Feather, Trophy, Medal, Volleyball, Bike,
+  // Career / Vocational
+  ChefHat, Utensils, Hammer, Wrench, Ruler, Stethoscope, HeartPulse,
+  Pill, DollarSign, Banknote, Building2, Terminal, FileCode, Server,
+  // UI
+  MoreHorizontal, Check, X,
+} from 'lucide-react'
 import { checkOffAssignment } from '@/app/actions/assignment'
 import { filterOpenAssignments } from '@/lib/studentDashboard'
+import { inferCourseIcon } from '@/lib/course-card-icon'
+import { getCourseCardPrefs, setCourseCardPrefs, type CourseCardPrefs } from '@/lib/course-card-prefs'
+import { usePopoverPosition } from '@/lib/use-popover-position'
+import { ALUMOSGradientLogo } from './ALUMOSGradientLogo'
+import { GradesCommandCenter } from './GradesCommandCenter'
 import type {
   StudentDashboardAssignment,
   StudentDashboardCourse,
 } from '@/app/actions/dashboard'
+import type { GradeWithFeedback } from '@/lib/grade-summary'
 
 type StudentTab = 'overview' | 'grades' | 'messages'
 type WorkView = 'todo' | 'completed'
@@ -22,66 +46,330 @@ const COMPLETED_VISIBLE_LIMIT = 9
 interface Props {
   courses: StudentDashboardCourse[]
   assignments: StudentDashboardAssignment[]
+  recentGrades?: GradeWithFeedback[]
+  initialTargetGpa?: number | null
   initialTab?: StudentTab
   initialCourseId?: string | null
   initialWorkView?: WorkView
 }
 
-const PALETTE = ['purple', 'emerald', 'orange', 'pink', 'slate'] as const
+const PALETTE = [
+  'violet', 'blue', 'emerald', 'amber', 'rose', 'sky', 'orange', 'pink',
+  'indigo', 'teal', 'cyan', 'lime', 'yellow', 'red', 'fuchsia', 'slate',
+] as const
 type PaletteColor = (typeof PALETTE)[number]
 
-const COLORS: Record<PaletteColor, {
+type ColorTokens = {
   accent: string
   border: string
   bar: string
   pill: string
   dot: string
   soft: string
-}> = {
-  purple: {
-    accent: 'text-[#7C3AED]',
-    border: 'border-l-[#7C3AED]',
-    bar: 'bg-[#7C3AED]',
-    pill: 'bg-violet-100 text-violet-700',
-    dot: 'bg-[#7C3AED]',
-    soft: 'bg-violet-50',
-  },
-  emerald: {
-    accent: 'text-emerald-600',
-    border: 'border-l-emerald-500',
-    bar: 'bg-emerald-500',
-    pill: 'bg-emerald-100 text-emerald-700',
-    dot: 'bg-emerald-500',
-    soft: 'bg-emerald-50',
-  },
-  orange: {
-    accent: 'text-orange-600',
-    border: 'border-l-orange-500',
-    bar: 'bg-orange-500',
-    pill: 'bg-orange-100 text-orange-700',
-    dot: 'bg-orange-500',
-    soft: 'bg-orange-50',
-  },
-  pink: {
-    accent: 'text-pink-600',
-    border: 'border-l-pink-500',
-    bar: 'bg-pink-500',
-    pill: 'bg-pink-100 text-pink-700',
-    dot: 'bg-pink-500',
-    soft: 'bg-pink-50',
-  },
-  slate: {
-    accent: 'text-slate-600',
-    border: 'border-l-slate-500',
-    bar: 'bg-slate-500',
-    pill: 'bg-slate-100 text-slate-700',
-    dot: 'bg-slate-500',
-    soft: 'bg-slate-50',
-  },
+  iconBg: string
+  hex: string
+}
+
+const COLORS: Record<PaletteColor, ColorTokens> = {
+  violet:  { accent: 'text-violet-700',  border: 'border-l-violet-500',  bar: 'bg-violet-500',  pill: 'bg-violet-100 text-violet-700',   dot: 'bg-violet-500',  soft: 'bg-violet-50',  iconBg: 'bg-violet-100',  hex: '#7c3aed' },
+  blue:    { accent: 'text-blue-700',    border: 'border-l-blue-500',    bar: 'bg-blue-500',    pill: 'bg-blue-100 text-blue-700',        dot: 'bg-blue-500',    soft: 'bg-blue-50',    iconBg: 'bg-blue-100',    hex: '#2563eb' },
+  emerald: { accent: 'text-emerald-700', border: 'border-l-emerald-500', bar: 'bg-emerald-500', pill: 'bg-emerald-100 text-emerald-700',  dot: 'bg-emerald-500', soft: 'bg-emerald-50', iconBg: 'bg-emerald-100', hex: '#059669' },
+  amber:   { accent: 'text-amber-700',   border: 'border-l-amber-500',   bar: 'bg-amber-500',   pill: 'bg-amber-100 text-amber-700',      dot: 'bg-amber-500',   soft: 'bg-amber-50',   iconBg: 'bg-amber-100',   hex: '#d97706' },
+  rose:    { accent: 'text-rose-700',    border: 'border-l-rose-500',    bar: 'bg-rose-500',    pill: 'bg-rose-100 text-rose-700',        dot: 'bg-rose-500',    soft: 'bg-rose-50',    iconBg: 'bg-rose-100',    hex: '#e11d48' },
+  sky:     { accent: 'text-sky-700',     border: 'border-l-sky-500',     bar: 'bg-sky-500',     pill: 'bg-sky-100 text-sky-700',          dot: 'bg-sky-500',     soft: 'bg-sky-50',     iconBg: 'bg-sky-100',     hex: '#0284c7' },
+  orange:  { accent: 'text-orange-700',  border: 'border-l-orange-500',  bar: 'bg-orange-500',  pill: 'bg-orange-100 text-orange-700',    dot: 'bg-orange-500',  soft: 'bg-orange-50',  iconBg: 'bg-orange-100',  hex: '#ea580c' },
+  pink:    { accent: 'text-pink-700',    border: 'border-l-pink-500',    bar: 'bg-pink-500',    pill: 'bg-pink-100 text-pink-700',        dot: 'bg-pink-500',    soft: 'bg-pink-50',    iconBg: 'bg-pink-100',    hex: '#db2777' },
+  indigo:  { accent: 'text-indigo-700',  border: 'border-l-indigo-500',  bar: 'bg-indigo-500',  pill: 'bg-indigo-100 text-indigo-700',    dot: 'bg-indigo-500',  soft: 'bg-indigo-50',  iconBg: 'bg-indigo-100',  hex: '#4338ca' },
+  teal:    { accent: 'text-teal-700',    border: 'border-l-teal-500',    bar: 'bg-teal-500',    pill: 'bg-teal-100 text-teal-700',        dot: 'bg-teal-500',    soft: 'bg-teal-50',    iconBg: 'bg-teal-100',    hex: '#0d9488' },
+  cyan:    { accent: 'text-cyan-700',    border: 'border-l-cyan-500',    bar: 'bg-cyan-500',    pill: 'bg-cyan-100 text-cyan-700',        dot: 'bg-cyan-500',    soft: 'bg-cyan-50',    iconBg: 'bg-cyan-100',    hex: '#0891b2' },
+  lime:    { accent: 'text-lime-700',    border: 'border-l-lime-500',    bar: 'bg-lime-500',    pill: 'bg-lime-100 text-lime-700',        dot: 'bg-lime-500',    soft: 'bg-lime-50',    iconBg: 'bg-lime-100',    hex: '#65a30d' },
+  yellow:  { accent: 'text-yellow-700',  border: 'border-l-yellow-500',  bar: 'bg-yellow-500',  pill: 'bg-yellow-100 text-yellow-700',    dot: 'bg-yellow-500',  soft: 'bg-yellow-50',  iconBg: 'bg-yellow-100',  hex: '#ca8a04' },
+  red:     { accent: 'text-red-700',     border: 'border-l-red-500',     bar: 'bg-red-500',     pill: 'bg-red-100 text-red-700',          dot: 'bg-red-500',     soft: 'bg-red-50',     iconBg: 'bg-red-100',     hex: '#dc2626' },
+  fuchsia: { accent: 'text-fuchsia-700', border: 'border-l-fuchsia-500', bar: 'bg-fuchsia-500', pill: 'bg-fuchsia-100 text-fuchsia-700',  dot: 'bg-fuchsia-500', soft: 'bg-fuchsia-50', iconBg: 'bg-fuchsia-100', hex: '#a21caf' },
+  slate:   { accent: 'text-slate-700',   border: 'border-l-slate-500',   bar: 'bg-slate-500',   pill: 'bg-slate-100 text-slate-700',      dot: 'bg-slate-500',   soft: 'bg-slate-50',   iconBg: 'bg-slate-100',   hex: '#475569' },
 }
 
 function assignColor(index: number): PaletteColor {
   return PALETTE[index % PALETTE.length]
+}
+
+// ── Icon component map ────────────────────────────────────────────────────────
+
+const ICON_COMPONENT_MAP: Record<string, React.ElementType> = {
+  Calculator, Dna, FlaskConical, Atom, Code2, Leaf, BarChart2,
+  Microscope, TestTube, Telescope, CircuitBoard, Waves, TreePine,
+  Flower2, Bug, Fish, Bird, Mountain, Zap, Flame, Rocket,
+  BookOpen, Landmark, Globe, Globe2, Brain, Users, Lightbulb, TrendingUp,
+  Map, Compass, ScrollText, Newspaper, Scale, Gavel, Shield,
+  Palette, Music, Drama, Dumbbell, Heart, Camera, PenLine,
+  Mic, Headphones, Guitar, Drum, Piano, Film, Clapperboard,
+  Paintbrush, Scissors, Feather, Trophy, Medal, Volleyball, Bike,
+  ChefHat, Utensils, Hammer, Wrench, Ruler, Stethoscope, HeartPulse,
+  Pill, DollarSign, Banknote, Building2, Terminal, FileCode, Server,
+}
+
+// ── CourseIconSquare ──────────────────────────────────────────────────────────
+
+function CourseIconSquare({
+  courseId,
+  courseTitle,
+  colorKey,
+}: {
+  courseId: string
+  courseTitle: string
+  colorKey: PaletteColor
+}) {
+  const prefs = getCourseCardPrefs(courseId)
+  const tokens = COLORS[colorKey]
+
+  let iconEl: React.ReactNode
+  if (prefs?.iconKey === 'Flag') {
+    iconEl = <span style={{ fontSize: 20, lineHeight: 1 }}>{prefs.flagEmoji ?? '🏳️'}</span>
+  } else if (prefs?.iconKey && ICON_COMPONENT_MAP[prefs.iconKey]) {
+    const Icon = ICON_COMPONENT_MAP[prefs.iconKey]
+    iconEl = <Icon size={20} color={tokens.hex} strokeWidth={2} />
+  } else {
+    const def = inferCourseIcon(courseTitle)
+    if (def.type === 'emoji') {
+      iconEl = <span style={{ fontSize: 20, lineHeight: 1 }}>{def.char}</span>
+    } else {
+      const Icon = ICON_COMPONENT_MAP[def.iconKey] ?? BookOpen
+      iconEl = <Icon size={20} color={tokens.hex} strokeWidth={2} />
+    }
+  }
+
+  return (
+    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${tokens.iconBg}`}>
+      {iconEl}
+    </div>
+  )
+}
+
+// ── Icon picker data ──────────────────────────────────────────────────────────
+
+type IconOption = { key: string; label: string }
+type IconGroup  = { group: string; icons: IconOption[] }
+
+const ICON_GROUPS: IconGroup[] = [
+  { group: 'Science', icons: [
+    { key: 'Dna', label: 'Biology' }, { key: 'Microscope', label: 'Microscope' },
+    { key: 'FlaskConical', label: 'Chemistry' }, { key: 'TestTube', label: 'Lab' },
+    { key: 'Atom', label: 'Physics' }, { key: 'Zap', label: 'Energy' },
+    { key: 'Waves', label: 'Waves' }, { key: 'Telescope', label: 'Astronomy' },
+    { key: 'Rocket', label: 'Space' }, { key: 'Flame', label: 'Flame' },
+  ]},
+  { group: 'Nature', icons: [
+    { key: 'Leaf', label: 'Leaf' }, { key: 'TreePine', label: 'Tree' },
+    { key: 'Flower2', label: 'Flower' }, { key: 'Mountain', label: 'Mountain' },
+    { key: 'Bug', label: 'Bug' }, { key: 'Fish', label: 'Fish' }, { key: 'Bird', label: 'Bird' },
+  ]},
+  { group: 'Math & Tech', icons: [
+    { key: 'Calculator', label: 'Math' }, { key: 'BarChart2', label: 'Stats' },
+    { key: 'Code2', label: 'Code' }, { key: 'Terminal', label: 'Terminal' },
+    { key: 'FileCode', label: 'Script' }, { key: 'CircuitBoard', label: 'Circuit' },
+    { key: 'Server', label: 'Server' },
+  ]},
+  { group: 'Humanities', icons: [
+    { key: 'BookOpen', label: 'English' }, { key: 'ScrollText', label: 'Scroll' },
+    { key: 'Feather', label: 'Writing' }, { key: 'PenLine', label: 'Pen' },
+    { key: 'Newspaper', label: 'News' }, { key: 'Landmark', label: 'History' },
+    { key: 'Globe', label: 'Globe' }, { key: 'Globe2', label: 'World' },
+    { key: 'Map', label: 'Map' }, { key: 'Compass', label: 'Compass' },
+  ]},
+  { group: 'Social & Law', icons: [
+    { key: 'Brain', label: 'Psychology' }, { key: 'Users', label: 'Sociology' },
+    { key: 'Lightbulb', label: 'Philosophy' }, { key: 'TrendingUp', label: 'Economics' },
+    { key: 'Scale', label: 'Law' }, { key: 'Gavel', label: 'Gavel' }, { key: 'Shield', label: 'Civics' },
+  ]},
+  { group: 'Arts & Music', icons: [
+    { key: 'Palette', label: 'Art' }, { key: 'Paintbrush', label: 'Paint' },
+    { key: 'Scissors', label: 'Craft' }, { key: 'Camera', label: 'Photo' },
+    { key: 'Film', label: 'Film' }, { key: 'Clapperboard', label: 'Drama' },
+    { key: 'Drama', label: 'Theater' }, { key: 'Mic', label: 'Speech' },
+    { key: 'Music', label: 'Music' }, { key: 'Headphones', label: 'Audio' },
+    { key: 'Guitar', label: 'Guitar' }, { key: 'Piano', label: 'Piano' }, { key: 'Drum', label: 'Drums' },
+  ]},
+  { group: 'Sports & Health', icons: [
+    { key: 'Dumbbell', label: 'PE' }, { key: 'Volleyball', label: 'Sports' },
+    { key: 'Bike', label: 'Cycling' }, { key: 'Heart', label: 'Health' },
+    { key: 'HeartPulse', label: 'Cardio' }, { key: 'Stethoscope', label: 'Medical' },
+    { key: 'Pill', label: 'Pharma' }, { key: 'Trophy', label: 'Trophy' }, { key: 'Medal', label: 'Medal' },
+  ]},
+  { group: 'Career & Trade', icons: [
+    { key: 'ChefHat', label: 'Culinary' }, { key: 'Utensils', label: 'Food' },
+    { key: 'Hammer', label: 'Shop' }, { key: 'Wrench', label: 'Mech.' },
+    { key: 'Ruler', label: 'Design' }, { key: 'DollarSign', label: 'Finance' },
+    { key: 'Banknote', label: 'Banking' }, { key: 'Building2', label: 'Business' },
+  ]},
+  { group: 'Languages', icons: [
+    { key: 'Flag', label: 'Flag' },
+  ]},
+]
+
+const FLAG_EMOJIS = ['🇪🇸', '🇫🇷', '🇩🇪', '🇯🇵', '🇧🇷', '🇮🇹', '🇨🇳', '🇰🇷']
+const ACCENT_SWATCHES = PALETTE.map((key) => ({ key, hex: COLORS[key].hex }))
+
+// ── CourseCardEditPopover ─────────────────────────────────────────────────────
+
+function CourseCardEditPopover({
+  courseId,
+  defaultNickname,
+  defaultColorKey,
+  defaultIconKey,
+  defaultFlagEmoji,
+  onSave,
+  onClose,
+  triggerRef,
+}: {
+  courseId: string
+  defaultNickname: string
+  defaultColorKey: PaletteColor
+  defaultIconKey: string
+  defaultFlagEmoji?: string
+  onSave: (prefs: CourseCardPrefs) => void
+  onClose: () => void
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+}) {
+  const [nickname, setNickname] = useState(defaultNickname)
+  const [colorKey, setColorKey] = useState<PaletteColor>(defaultColorKey)
+  const [iconKey, setIconKey] = useState(defaultIconKey)
+  const [flagEmoji, setFlagEmoji] = useState(defaultFlagEmoji ?? '🇪🇸')
+
+  const position = usePopoverPosition(
+    triggerRef as React.RefObject<HTMLElement | null>,
+    { width: 288, height: 460 },
+    true,
+  )
+  const tokens = COLORS[colorKey] ?? COLORS.violet
+
+  // Live preview icon
+  let previewIcon: React.ReactNode
+  if (iconKey === 'Flag') {
+    previewIcon = <span style={{ fontSize: 18, lineHeight: 1 }}>{flagEmoji}</span>
+  } else {
+    const Icon = ICON_COMPONENT_MAP[iconKey] ?? BookOpen
+    previewIcon = <Icon size={18} color={tokens.hex} strokeWidth={2} />
+  }
+
+  function handleSave() {
+    const prefs: CourseCardPrefs = {
+      iconKey,
+      colorKey,
+      nickname: nickname.trim() || defaultNickname,
+      ...(iconKey === 'Flag' ? { flagEmoji } : {}),
+    }
+    setCourseCardPrefs(courseId, prefs)
+    onSave(prefs)
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed z-50 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl"
+      style={{ top: position.top, left: position.left }}
+    >
+      {/* Header with live preview */}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${tokens.iconBg}`}>
+            {previewIcon}
+          </div>
+          <p className="text-sm font-bold text-slate-900">Edit tile</p>
+        </div>
+        <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100">
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Nickname */}
+      <label className="mb-1 block text-xs font-semibold text-slate-500">Nickname</label>
+      <input
+        className="mb-3 w-full rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none"
+        value={nickname}
+        placeholder={defaultNickname}
+        onChange={(e) => setNickname(e.target.value)}
+      />
+
+      {/* Color swatches */}
+      <label className="mb-2 block text-xs font-semibold text-slate-500">Color</label>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        {ACCENT_SWATCHES.map((s) => (
+          <button
+            key={s.key}
+            title={s.key}
+            onClick={() => setColorKey(s.key as PaletteColor)}
+            style={{ backgroundColor: s.hex }}
+            className="relative h-6 w-6 rounded-full transition hover:scale-110"
+          >
+            {colorKey === s.key && (
+              <Check size={12} color="white" className="absolute inset-0 m-auto" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Icon picker — grouped, scrollable */}
+      <label className="mb-2 block text-xs font-semibold text-slate-500">Icon</label>
+      <div className="mb-1 max-h-44 overflow-y-auto rounded-md border border-slate-100 bg-slate-50 p-2">
+        {ICON_GROUPS.map((group) => (
+          <div key={group.group} className="mb-2 last:mb-0">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              {group.group}
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {group.icons.map((opt) => {
+                const isFlag = opt.key === 'Flag'
+                const IconComp = !isFlag ? ICON_COMPONENT_MAP[opt.key] : null
+                const selected = iconKey === opt.key
+                return (
+                  <button
+                    key={opt.key}
+                    title={opt.label}
+                    onClick={() => setIconKey(opt.key)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-md transition hover:bg-white ${
+                      selected ? tokens.iconBg : ''
+                    }`}
+                    style={selected ? { outline: `2px solid ${tokens.hex}`, outlineOffset: 1 } : {}}
+                  >
+                    {isFlag
+                      ? <span className="text-sm leading-none">{flagEmoji}</span>
+                      : IconComp
+                        ? <IconComp size={15} color={selected ? tokens.hex : '#64748b'} strokeWidth={2} />
+                        : null
+                    }
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Flag emoji sub-row */}
+      {iconKey === 'Flag' && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {FLAG_EMOJIS.map((flag) => (
+            <button
+              key={flag}
+              onClick={() => setFlagEmoji(flag)}
+              className={`rounded p-1 text-lg transition hover:bg-slate-100 ${
+                flagEmoji === flag ? 'ring-2 ring-indigo-400' : ''
+              }`}
+            >
+              {flag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={handleSave}
+        className="mt-2 w-full rounded-md bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+      >
+        Save
+      </button>
+    </div>
+  )
 }
 
 function courseCode(title: string): string {
@@ -181,6 +469,12 @@ function buildAiCoachInsight(
   return `Your next priority is ${nextOpen.title}${course ? ` in ${course.title}` : ''}. Review the materials before ${dateLabel(nextOpen.due!)} so the assignment does not sneak up on you.`
 }
 
+function findNextOpenAssignment(assignments: StudentDashboardAssignment[]): StudentDashboardAssignment | null {
+  return assignments
+    .filter((assignment) => isOpenAssignment(assignment) && assignment.due)
+    .sort((a, b) => new Date(a.due!).getTime() - new Date(b.due!).getTime())[0] ?? null
+}
+
 function groupOpenAssignments(assignments: StudentDashboardAssignment[]) {
   const groups: Record<string, StudentDashboardAssignment[]> = {}
   for (const assignment of assignments) {
@@ -218,19 +512,15 @@ function switchToTeacher() {
 function StudentSidebar() {
   const navItems = [
     ['dashboard', 'Dashboard'],
-    ['school', 'My Courses'],
-    ['assignment', 'Assignments'],
     ['psychology', 'AI Coach'],
     ['calendar_month', 'Calendar'],
-    ['local_library', 'Library'],
   ]
 
   return (
     <aside className="flex border-slate-200 bg-white lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:border-r">
       <div className="hidden h-full flex-col p-6 lg:flex">
         <div className="mb-8 flex items-center gap-3">
-          <Image src="/alumos-icon.png" alt="" width={40} height={40} className="h-10 w-10 rounded-lg" />
-          <span className="font-heading text-2xl font-bold text-slate-950">Alumos</span>
+          <ALUMOSGradientLogo iconSize={32} />
         </div>
 
         <div className="mb-8 flex items-center gap-3 rounded-xl bg-slate-50 p-4">
@@ -238,7 +528,7 @@ function StudentSidebar() {
             <span className="material-symbols-outlined text-slate-700">person</span>
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-950">Alex Rivers</p>
+            <p className="text-sm font-bold text-slate-950">Alex Rivera</p>
             <p className="text-xs text-slate-500">Computer Science Year 2</p>
           </div>
         </div>
@@ -280,11 +570,7 @@ function StudentSidebar() {
 
       <div className="flex w-full items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 lg:hidden">
         <div className="flex items-center gap-2">
-          <Image src="/alumos-icon.png" alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
-          <div>
-            <span className="text-xl font-bold leading-tight text-slate-950">Alumos</span>
-            <p className="text-xs font-semibold text-slate-500">Alex Rivers</p>
-          </div>
+          <ALUMOSGradientLogo iconSize={28} />
         </div>
         <button
           type="button"
@@ -349,9 +635,15 @@ function StudentTopBar({
 function InsightBanner({
   courses,
   assignments,
+  accepted,
+  onAccept,
+  onDismiss,
 }: {
   courses: StudentDashboardCourse[]
   assignments: StudentDashboardAssignment[]
+  accepted: boolean
+  onAccept: () => void
+  onDismiss: () => void
 }) {
   return (
     <section className="rounded-2xl border-2 border-transparent bg-gradient-to-r from-orange-500 via-pink-500 to-violet-600 p-[3px]">
@@ -365,19 +657,136 @@ function InsightBanner({
             <span className="material-symbols-outlined text-[20px] text-violet-600">auto_awesome</span>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-slate-700 sm:text-base">
-            {buildAiCoachInsight(courses, assignments)}
+            {accepted ? 'Schedule accepted. I focused your dashboard on the recommended work window.' : buildAiCoachInsight(courses, assignments)}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button type="button" className="rounded-lg bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-700">
-            Accept Schedule
+          <button
+            type="button"
+            onClick={onAccept}
+            disabled={accepted}
+            className="rounded-lg bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-700 disabled:cursor-default disabled:bg-emerald-600"
+          >
+            {accepted ? 'Schedule accepted' : 'Accept Schedule'}
           </button>
-          <button type="button" className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
             Dismiss
           </button>
         </div>
       </div>
     </section>
+  )
+}
+
+// ── CourseCard ────────────────────────────────────────────────────────────────
+
+function CourseCard({
+  course,
+  color,
+  activeColorKey,
+  defaultColorKey,
+  stats,
+  openCount,
+  selected,
+  nickname,
+  defaultIconKey,
+  defaultFlagEmoji,
+  onSelect,
+}: {
+  course: StudentDashboardCourse
+  color: ColorTokens
+  activeColorKey: PaletteColor
+  defaultColorKey: PaletteColor
+  stats: { pct: number } | null
+  openCount: number
+  selected: boolean
+  nickname: string
+  defaultIconKey: string
+  defaultFlagEmoji?: string
+  onSelect: () => void
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [localPrefs, setLocalPrefs] = useState<CourseCardPrefs | null>(() => getCourseCardPrefs(course.id))
+  const triggerRef = useState<React.RefObject<HTMLButtonElement | null>>(() => ({ current: null }))[0]
+
+  const activeColor = localPrefs?.colorKey
+    ? (COLORS[localPrefs.colorKey as PaletteColor] ?? color)
+    : color
+  const activeNickname = localPrefs?.nickname ?? nickname
+  const resolvedColorKey = (localPrefs?.colorKey as PaletteColor | undefined) ?? activeColorKey
+
+  function handleSave(prefs: CourseCardPrefs) {
+    setLocalPrefs(prefs)
+  }
+
+  return (
+    <div className="relative min-w-0">
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`w-full min-w-0 rounded-xl border border-l-4 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${activeColor.border} ${
+          selected ? 'ring-2 ring-violet-300' : ''
+        }`}
+      >
+        {/* Top row: pill + icon square + grade */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${activeColor.pill}`}>
+              {activeNickname}
+            </span>
+            <CourseIconSquare
+              courseId={course.id}
+              courseTitle={course.title}
+              colorKey={resolvedColorKey}
+            />
+          </div>
+          {stats ? (
+            <div className="text-right">
+              <p className="text-sm font-bold text-emerald-600">{letterGrade(stats.pct)}</p>
+              <p className="text-xs text-slate-600">{stats.pct}%</p>
+            </div>
+          ) : (
+            <p className="text-sm italic text-slate-500">No grades</p>
+          )}
+        </div>
+        <h3 className="text-base font-semibold leading-tight text-slate-950">{course.title}</h3>
+        <p className="mt-1.5 text-sm text-slate-600">{course.teacherName}</p>
+        {stats && (
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${stats.pct}%` }} />
+          </div>
+        )}
+        <p className="mt-4 text-sm font-semibold text-orange-600">{openCount} open</p>
+      </button>
+
+      {/* Three-dot menu — bottom right, outside the selectable button */}
+      <button
+        ref={triggerRef as React.RefObject<HTMLButtonElement>}
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o) }}
+        className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+        aria-label="Edit course tile"
+      >
+        <MoreHorizontal size={15} />
+      </button>
+
+      {menuOpen && (
+        <CourseCardEditPopover
+          courseId={course.id}
+          defaultNickname={activeNickname}
+          defaultColorKey={resolvedColorKey}
+          defaultIconKey={localPrefs?.iconKey ?? defaultIconKey}
+          defaultFlagEmoji={localPrefs?.flagEmoji ?? defaultFlagEmoji}
+          onSave={handleSave}
+          onClose={() => setMenuOpen(false)}
+          triggerRef={triggerRef as React.RefObject<HTMLButtonElement | null>}
+        />
+      )}
+    </div>
   )
 }
 
@@ -409,44 +818,37 @@ function CourseCards({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
         {courses.map((course) => {
-          const color = COLORS[colorByCourse[course.id]]
+          const defaultColorKey = colorByCourse[course.id]
+          const prefs = getCourseCardPrefs(course.id)
+          const activeColorKey = (prefs?.colorKey as PaletteColor | undefined) ?? defaultColorKey
+          const color = COLORS[activeColorKey]
           const stats = courseGradeStats(assignments, course.id)
           const openCount = assignments.filter(
             (assignment) => assignment.courseId === course.id && isOpenAssignment(assignment),
           ).length
           const selected = selectedCourseId === course.id
+          const nickname = prefs?.nickname ?? codeByCourse[course.id]
+
+          // Default icon key for the popover
+          const defIcon = inferCourseIcon(course.title)
+          const defaultIconKey = defIcon.type === 'lucide' ? defIcon.iconKey : 'Flag'
+          const defaultFlagEmoji = defIcon.type === 'emoji' ? defIcon.char : undefined
 
           return (
-            <button
+            <CourseCard
               key={course.id}
-              type="button"
-              onClick={() => setSelectedCourseId(selected ? null : course.id)}
-              className={`min-w-0 rounded-xl border border-l-4 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${color.border} ${
-                selected ? 'ring-2 ring-violet-300' : ''
-              }`}
-            >
-              <div className="mb-6 flex items-start justify-between gap-4">
-                <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${color.pill}`}>
-                  {codeByCourse[course.id]}
-                </span>
-                {stats ? (
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-emerald-600">{letterGrade(stats.pct)}</p>
-                    <p className="text-xs text-slate-600">{stats.pct}%</p>
-                  </div>
-                ) : (
-                  <p className="text-sm italic text-slate-500">No grades</p>
-                )}
-              </div>
-              <h3 className="text-lg font-semibold leading-tight text-slate-950">{course.title}</h3>
-              <p className="mt-2 text-sm text-slate-600">{course.teacherName}</p>
-              {stats && (
-                <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${stats.pct}%` }} />
-                </div>
-              )}
-              <p className="mt-6 text-sm font-semibold text-orange-600">{openCount} open</p>
-            </button>
+              course={course}
+              color={color}
+              activeColorKey={activeColorKey}
+              defaultColorKey={defaultColorKey}
+              stats={stats}
+              openCount={openCount}
+              selected={selected}
+              nickname={nickname}
+              defaultIconKey={prefs?.iconKey ?? defaultIconKey}
+              defaultFlagEmoji={prefs?.flagEmoji ?? defaultFlagEmoji}
+              onSelect={() => setSelectedCourseId(selected ? null : course.id)}
+            />
           )
         })}
       </div>
@@ -770,6 +1172,8 @@ function OverviewPanel({
 }) {
   const [dayFilter, setDayFilter] = useState<string | null>(null)
   const [workView, setWorkView] = useState<WorkView>(initialWorkView)
+  const [isInsightDismissed, setIsInsightDismissed] = useState(false)
+  const [isScheduleAccepted, setIsScheduleAccepted] = useState(false)
   const visibleAssignments = selectedCourseId
     ? assignments.filter((assignment) => assignment.courseId === selectedCourseId)
     : assignments
@@ -793,6 +1197,20 @@ function OverviewPanel({
   const hiddenCompletedCount = allCompletedAssignments.length - completedAssignments.length
   const openCount = openAssignments.length
   const completedCount = Math.min(completedAssignments.length, COMPLETED_VISIBLE_LIMIT)
+  const nextOpenAssignment = findNextOpenAssignment(assignments)
+
+  function acceptSchedule() {
+    setWorkView('todo')
+    setIsScheduleAccepted(true)
+
+    if (nextOpenAssignment?.due) {
+      setSelectedCourseId(nextOpenAssignment.courseId)
+      setDayFilter(nextOpenAssignment.due)
+    } else {
+      setSelectedCourseId(null)
+      setDayFilter(null)
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -801,7 +1219,15 @@ function OverviewPanel({
         <p className="mt-3 text-lg text-slate-700">Here is your academic compass for the week.</p>
       </div>
 
-      <InsightBanner courses={courses} assignments={assignments} />
+      {!isInsightDismissed && (
+        <InsightBanner
+          courses={courses}
+          assignments={assignments}
+          accepted={isScheduleAccepted}
+          onAccept={acceptSchedule}
+          onDismiss={() => setIsInsightDismissed(true)}
+        />
+      )}
 
       <div className="grid min-w-0 gap-8 xl:grid-cols-[370px_minmax(0,1fr)]">
         <CourseCards
@@ -949,6 +1375,8 @@ function MessagesPanel() {
 export function StudentDashboard({
   courses,
   assignments,
+  recentGrades = [],
+  initialTargetGpa = null,
   initialTab = 'overview',
   initialCourseId = null,
   initialWorkView = 'todo',
@@ -962,6 +1390,10 @@ export function StudentDashboard({
   )
   const codeByCourse = useMemo(
     () => Object.fromEntries(courses.map((course) => [course.id, courseCode(course.title)])) as Record<string, string>,
+    [courses],
+  )
+  const colorTokensByCourse = useMemo(
+    () => Object.fromEntries(courses.map((course, index) => [course.id, COLORS[assignColor(index)]])),
     [courses],
   )
 
@@ -985,12 +1417,13 @@ export function StudentDashboard({
           )}
 
           {activeTab === 'grades' && (
-            <GradesPanel
+            <GradesCommandCenter
               courses={courses}
               assignments={assignments}
-              colorByCourse={colorByCourse}
+              recentGrades={recentGrades}
+              colorTokensByCourse={colorTokensByCourse}
               codeByCourse={codeByCourse}
-              selectedCourseId={selectedCourseId}
+              initialTargetGpa={initialTargetGpa}
             />
           )}
 

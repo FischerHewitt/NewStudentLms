@@ -96,7 +96,7 @@ export function StudentAssignmentView({
     <div className="mx-auto max-w-3xl">
       {/* Back link */}
       <Link
-        href="/"
+        href="/studentview"
         className="mb-6 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-indigo-600"
       >
         ← Back to dashboard

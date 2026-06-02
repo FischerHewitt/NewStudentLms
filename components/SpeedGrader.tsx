@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { runSpeedGrader, publishManualGrade } from '@/app/actions/speedgrader'
+import { runSpeedGrader, publishManualGrade, restoreGradeSnapshot } from '@/app/actions/speedgrader'
 import type { SpeedGraderData, GradeData } from '@/app/actions/speedgrader'
 import {
   formatAttachmentBytes,
@@ -12,7 +12,7 @@ import {
 } from '@/lib/submission-attachment'
 import { TeacherCoachContextBridge } from '@/components/TeacherCoachContextBridge'
 import { MarkdownContent } from '@/components/MarkdownContent'
-import { assignmentHref } from '@/lib/routes'
+import { assignmentHref, speedgraderHref } from '@/lib/routes'
 
 const C = {
   surface: '#F8FAFC', card: '#ffffff', border: '#E2E8F0',
@@ -27,7 +27,7 @@ interface Props {
   autorun: boolean
 }
 
-type PanelState = 'idle' | 'running' | 'pending' | 'approved'
+type PanelState = 'idle' | 'running' | 'pending' | 'approved' | 'editing'
 
 function getInitialState(grade: GradeData | null): PanelState {
   if (!grade) return 'idle'
@@ -91,20 +91,54 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
   const [isRunning, startRunTransition] = useTransition()
   const [isPublishing, startPublishTransition] = useTransition()
 
+  // Snapshot of grade before an AI re-run — held in memory for one-level undo
+  const [previousGrade, setPreviousGrade] = useState<GradeData | null>(null)
+  const [previousCriteriaScores, setPreviousCriteriaScores] = useState<number[]>([])
+  const [previousSingleScore, setPreviousSingleScore] = useState(0)
+  const [previousFeedback, setPreviousFeedback] = useState('')
+
   // Fallback single score for assignments without rubric
   const [singleScore, setSingleScore] = useState<number>(
     data.grade?.final_score ?? data.grade?.ai_suggested_score ?? 0,
   )
   const finalScore = criteria.length > 0 ? totalScore : singleScore
+  const previousSubmissionHref = data.navigation.previousSubmissionId
+    ? speedgraderHref(courseId, data.navigation.previousSubmissionId)
+    : null
+  const nextSubmissionHref = data.navigation.nextSubmissionId
+    ? speedgraderHref(courseId, data.navigation.nextSubmissionId)
+    : null
+  const isBusy = isRunning || isPublishing || panelState === 'running'
+  const publishLabel = grade?.approved_at || panelState === 'editing' ? 'Update Grade' : 'Publish Grade'
 
   const handleRunSpeedGrader = () => {
     setErrorMsg('')
+    // Snapshot current state for undo before overwriting
+    const gradeSnapshot = grade
+    const scoreSnapshot = [...criteriaScores]
+    const singleScoreSnapshot = singleScore
+    const feedbackSnapshot = feedback
+    if (gradeSnapshot) {
+      setPreviousGrade(gradeSnapshot)
+      setPreviousCriteriaScores(scoreSnapshot)
+      setPreviousSingleScore(singleScoreSnapshot)
+      setPreviousFeedback(feedbackSnapshot)
+    }
     startRunTransition(async () => {
       setPanelState('running')
       const result = await runSpeedGrader(submission.id)
       if (result.error) {
         setErrorMsg(result.error)
-        setPanelState(grade ? 'pending' : 'idle')
+        setGrade(gradeSnapshot)
+        setCriteriaScores(scoreSnapshot)
+        setSingleScore(singleScoreSnapshot)
+        setFeedback(feedbackSnapshot)
+        setPanelState(getInitialState(gradeSnapshot))
+        // Restore snapshot on failure
+        setPreviousGrade(null)
+        setPreviousCriteriaScores([])
+        setPreviousSingleScore(0)
+        setPreviousFeedback('')
         return
       }
       if (result.grade) {
@@ -127,13 +161,62 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
     })
   }
 
-  const handlePublish = () => {
+  const handlePublish = (advance = false) => {
     setErrorMsg('')
     startPublishTransition(async () => {
       const result = await publishManualGrade(submission.id, finalScore, feedback)
       if (result.error) { setErrorMsg(result.error); return }
       if (result.grade) setGrade(result.grade)
+      // Clear undo snapshot — once published, re-run AI to get a new suggestion
+      setPreviousGrade(null)
+      setPreviousCriteriaScores([])
+      setPreviousSingleScore(0)
+      setPreviousFeedback('')
       setPanelState('approved')
+      if (advance && nextSubmissionHref) {
+        router.push(nextSubmissionHref)
+      } else {
+        router.refresh()
+      }
+    })
+  }
+
+  const handleEditGrade = () => {
+    if (grade) {
+      if (criteria.length > 0 && grade.ai_criterion_scores && grade.ai_criterion_scores.length === criteria.length) {
+        setCriteriaScores(grade.ai_criterion_scores.map((c) => c.points_awarded))
+      } else if (criteria.length > 0) {
+        setCriteriaScores(distributeAiScore(grade.final_score ?? 0, criteria, assignment.points_possible))
+      } else {
+        setSingleScore(grade.final_score ?? 0)
+      }
+      setFeedback(grade.final_feedback ?? '')
+    }
+    setPanelState('editing')
+  }
+
+  const handleUndoAiSuggest = () => {
+    if (!previousGrade) return
+    setErrorMsg('')
+    const snapshot = previousGrade
+    const scoreSnapshot = previousCriteriaScores
+    const singleScoreSnapshot = previousSingleScore
+    const feedbackSnapshot = previousFeedback
+    startPublishTransition(async () => {
+      const result = await restoreGradeSnapshot(snapshot)
+      if (result.error) { setErrorMsg(result.error); return }
+      setGrade(result.grade ?? snapshot)
+      setFeedback(feedbackSnapshot)
+      if (criteria.length > 0) {
+        setCriteriaScores(scoreSnapshot)
+      } else {
+        setSingleScore(singleScoreSnapshot)
+      }
+      setPreviousGrade(null)
+      setPreviousCriteriaScores([])
+      setPreviousSingleScore(0)
+      setPreviousFeedback('')
+      setPanelState(snapshot.approved_at ? 'approved' : 'pending')
       router.refresh()
     })
   }
@@ -215,7 +298,13 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
               <p style={{ fontSize: 28, fontWeight: 800, color: C.text, margin: '0 0 12px' }}>
                 {grade?.final_score}<span style={{ fontSize: 16, fontWeight: 400, color: C.muted }}>/{assignment.points_possible}</span>
               </p>
-              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{grade?.final_feedback}</p>
+              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, margin: '0 0 16px' }}>{grade?.final_feedback}</p>
+              <button
+                onClick={handleEditGrade}
+                style={{ padding: '7px 16px', border: `1px solid ${C.border}`, background: C.surface, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.muted, cursor: 'pointer' }}
+              >
+                Edit grade
+              </button>
             </div>
           ) : (
             <>
@@ -328,29 +417,74 @@ export function SpeedGrader({ courseId, data, autorun }: Props) {
                 />
               </div>
 
-              {errorMsg && <p style={{ fontSize: 13, color: 'red', margin: 0 }}>{errorMsg}</p>}
-
-              {/* Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                {panelState === 'idle' && (
-                  <button
-                    onClick={handleRunSpeedGrader}
-                    disabled={isRunning}
-                    style={{ padding: '9px 18px', border: `1px solid ${C.purple}`, background: 'transparent', borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.purple, cursor: 'pointer', opacity: isRunning ? 0.6 : 1 }}
-                  >
-                    {isRunning ? 'Analyzing…' : '✦ AI Suggest'}
-                  </button>
-                )}
-                <button
-                  onClick={handlePublish}
-                  disabled={isPublishing || isRunning}
-                  style={{ flex: 1, padding: '10px 0', background: C.green, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', opacity: isPublishing || isRunning ? 0.6 : 1 }}
-                >
-                  {isPublishing ? 'Publishing…' : 'Publish & Next →'}
-                </button>
-              </div>
             </>
           )}
+
+          {errorMsg && <p style={{ fontSize: 13, color: 'red', margin: 0 }}>{errorMsg}</p>}
+
+          {/* Actions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Link
+                href={previousSubmissionHref ?? '#'}
+                aria-disabled={!previousSubmissionHref || isBusy}
+                style={{ flex: 1, padding: '8px 10px', border: `1px solid ${C.border}`, background: C.surface, borderRadius: 8, fontSize: 12, fontWeight: 600, color: previousSubmissionHref && !isBusy ? C.muted : '#94A3B8', cursor: previousSubmissionHref && !isBusy ? 'pointer' : 'not-allowed', textAlign: 'center', textDecoration: 'none', pointerEvents: previousSubmissionHref && !isBusy ? 'auto' : 'none' }}
+              >
+                Previous
+              </Link>
+              <Link
+                href={nextSubmissionHref ?? '#'}
+                aria-disabled={!nextSubmissionHref || isBusy}
+                style={{ flex: 1, padding: '8px 10px', border: `1px solid ${C.border}`, background: C.surface, borderRadius: 8, fontSize: 12, fontWeight: 600, color: nextSubmissionHref && !isBusy ? C.muted : '#94A3B8', cursor: nextSubmissionHref && !isBusy ? 'pointer' : 'not-allowed', textAlign: 'center', textDecoration: 'none', pointerEvents: nextSubmissionHref && !isBusy ? 'auto' : 'none' }}
+              >
+                Next
+              </Link>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleRunSpeedGrader}
+                  disabled={isBusy}
+                  style={{ padding: '9px 14px', border: `1px solid ${C.purple}`, background: 'transparent', borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.purple, cursor: 'pointer', opacity: isBusy ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                >
+                  {isRunning || panelState === 'running' ? 'Analyzing…' : '✦ AI Suggest'}
+                </button>
+                {previousGrade && panelState === 'pending' && (
+                  <button
+                    onClick={handleUndoAiSuggest}
+                    style={{ padding: '9px 14px', border: `1px solid ${C.border}`, background: C.surface, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.muted, cursor: 'pointer' }}
+                    title="Restore previous grade"
+                  >
+                    ↩ Undo
+                  </button>
+                )}
+                {panelState === 'editing' && (
+                  <button
+                    onClick={() => setPanelState('approved')}
+                    style={{ padding: '9px 14px', border: `1px solid ${C.border}`, background: C.surface, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.muted, cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                <button
+                  onClick={() => handlePublish(false)}
+                  disabled={isBusy}
+                  style={{ flex: 1, padding: '10px 0', background: C.surface, border: `1px solid ${C.green}`, borderRadius: 8, fontSize: 13, fontWeight: 700, color: C.green, cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                >
+                  {isPublishing ? 'Saving…' : publishLabel}
+                </button>
+                <button
+                  onClick={() => handlePublish(true)}
+                  disabled={isBusy}
+                  style={{ flex: 1, padding: '10px 0', background: C.green, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'white', cursor: 'pointer', opacity: isBusy ? 0.6 : 1 }}
+                >
+                  {isPublishing ? 'Saving…' : 'Publish & Next →'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </>

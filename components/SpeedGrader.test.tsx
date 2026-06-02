@@ -3,12 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { SpeedGrader } from './SpeedGrader'
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
 }))
 
 vi.mock('@/app/actions/speedgrader', () => ({
   runSpeedGrader: vi.fn(),
   publishManualGrade: vi.fn(),
+  restoreGradeSnapshot: vi.fn(),
 }))
 
 const RUBRIC_DATA = {
@@ -26,6 +27,14 @@ const RUBRIC_DATA = {
         { description: 'Formatting', points: 15 },
       ],
     },
+  },
+  course: {
+    id: 'c-1',
+    title: 'English',
+  },
+  navigation: {
+    previousSubmissionId: 'sub-0',
+    nextSubmissionId: 'sub-2',
   },
   grade: {
     id: 'grade-1',
@@ -96,11 +105,45 @@ describe('SpeedGrader Teacher Coach context', () => {
             points_possible: 20,
             rubric: null,
           },
+          course: {
+            id: 'course-1',
+            title: 'English',
+          },
+          navigation: {
+            previousSubmissionId: null,
+            nextSubmissionId: null,
+          },
           grade: null,
         }}
       />,
     )
 
     expect(html).toContain('data-teacher-coach-context="submission"')
+  })
+})
+
+describe('SpeedGrader grading actions', () => {
+  it('renders separate navigation, AI suggest, update, and publish-next controls', () => {
+    const html = renderToStaticMarkup(
+      <SpeedGrader
+        courseId="c-1"
+        autorun={false}
+        data={{
+          ...RUBRIC_DATA,
+          grade: {
+            ...RUBRIC_DATA.grade,
+            final_score: 72,
+            final_feedback: 'Published feedback.',
+            approved_at: '2026-06-01T12:00:00.000Z',
+          },
+        }}
+      />,
+    )
+
+    expect(html).toContain('Previous')
+    expect(html).toContain('Next')
+    expect(html).toContain('AI Suggest')
+    expect(html).toContain('Update Grade')
+    expect(html).toContain('Publish &amp; Next')
   })
 })

@@ -22,6 +22,8 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.8",
     "ai": "^4.3.16",
+    "katex": "0.16.21",
+    "lucide-react": "^1.17.0",
     "mammoth": "^1.12.0",
     "next": "^15.5.18",
     "pdf-parse": "^2.4.5",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@types/katex": "0.16.8",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",

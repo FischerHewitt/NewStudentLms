@@ -141,29 +141,33 @@ export async function getAllSubmissionsForAssignment(
     (gradesResult.data ?? []).map((grade) => [grade.submission_id, grade]),
   )
 
-  return submissions.map((s) => ({
-    grade: gradeMap[s.id]
-      ? {
-          id: gradeMap[s.id].id,
-          ai_suggested_score: gradeMap[s.id].ai_suggested_score,
-          ai_suggested_feedback: gradeMap[s.id].ai_suggested_feedback,
-          final_score: gradeMap[s.id].final_score,
-          final_feedback: gradeMap[s.id].final_feedback,
-          approved_at: gradeMap[s.id].approved_at,
-        }
-      : null,
-    finalScore:
-      gradeMap[s.id]?.approved_at && gradeMap[s.id]?.final_score != null
-        ? gradeMap[s.id].final_score
+  return submissions.map((s) => {
+    const grade = gradeMap[s.id]
+    const finalScore = grade?.approved_at && grade.final_score != null
+      ? grade.final_score
+      : null
+
+    return {
+      grade: grade
+        ? {
+            id: grade.id,
+            ai_suggested_score: grade.ai_suggested_score,
+            ai_suggested_feedback: grade.ai_suggested_feedback,
+            final_score: grade.final_score,
+            final_feedback: grade.final_feedback,
+            approved_at: grade.approved_at,
+          }
         : null,
-    id: s.id,
-    student_id: s.student_id,
-    studentName: nameMap[s.student_id] ?? 'Unknown',
-    body: s.body,
-    status: s.status as 'draft' | 'submitted' | 'graded',
-    submitted_at: s.submitted_at,
-    attachment: submissionAttachmentFromRow(s),
-  }))
+      finalScore,
+      id: s.id,
+      student_id: s.student_id,
+      studentName: nameMap[s.student_id] ?? 'Unknown',
+      body: s.body,
+      status: finalScore != null ? 'graded' : (s.status as 'draft' | 'submitted' | 'graded'),
+      submitted_at: s.submitted_at,
+      attachment: submissionAttachmentFromRow(s),
+    }
+  })
 }
 
 /**

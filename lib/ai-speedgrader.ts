@@ -53,6 +53,14 @@ type SubmissionForSpeedGrader = {
 
 type QueryResult<T> = PromiseLike<{ data: T | null; error?: unknown }>
 
+type UpdateBuilder = {
+  eq: (column: string, value: unknown) => {
+    select: (columns?: string) => {
+      single: () => QueryResult<Record<string, unknown>>
+    }
+  } & { then?: never }
+}
+
 export type AiSpeedGraderDb = {
   from: (table: string) => {
     select: (columns?: string) => {
@@ -65,6 +73,7 @@ export type AiSpeedGraderDb = {
         single: () => QueryResult<Record<string, unknown>>
       }
     }
+    update: (data: Record<string, unknown>) => UpdateBuilder
   }
 }
 
@@ -160,6 +169,42 @@ async function insertPendingGrade(
   return { grade: toGrade(data) }
 }
 
+async function updatePendingGrade(
+  db: AiSpeedGraderDb,
+  existingId: string,
+  submissionId: string,
+  draft: PendingGradeDraft,
+): Promise<{ grade?: Grade; error?: string }> {
+  // Overwrite AI suggestion fields only — reset approval so the teacher
+  // must re-publish after a fresh AI run.
+  const { data, error } = await db
+    .from('grades')
+    .update({
+      ai_suggested_score: draft.ai_suggested_score,
+      ai_suggested_feedback: draft.ai_suggested_feedback,
+      final_feedback: draft.final_feedback,
+      ai_criterion_scores: draft.ai_criterion_scores ?? null,
+      // Clear any prior approval so the teacher reviews the new suggestion
+      final_score: null,
+      approved_by: null,
+      approved_at: null,
+    })
+    .eq('id', existingId)
+    .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by, ai_criterion_scores')
+    .single()
+
+  if (error || !data) return { error: 'Failed to save grade. Please try again.' }
+
+  // If the submission was previously graded, revert it to submitted so the
+  // teacher sees it as pending review again.
+  await db
+    .from('submissions')
+    .update({ status: 'submitted' })
+    .eq('id', submissionId)
+
+  return { grade: toGrade(data) }
+}
+
 export async function createPendingGradeFromAiSpeedGrader(
   db: AiSpeedGraderDb,
   submissionId: string,
@@ -170,9 +215,8 @@ export async function createPendingGradeFromAiSpeedGrader(
     .eq('submission_id', submissionId)
     .single()
 
-  if (existingGrade) {
-    return { error: 'A grade already exists for this submission.' }
-  }
+  // If a grade already exists (AI or manual), re-run AI and overwrite it
+  // rather than blocking. The caller holds a snapshot for undo.
 
   const { data: submission } = await db
     .from('submissions')
@@ -218,6 +262,10 @@ export async function createPendingGradeFromAiSpeedGrader(
     assignment,
     aiResult,
   )
+
+  if (existingGrade) {
+    return updatePendingGrade(db, existingGrade.id as string, submissionId, draft)
+  }
 
   return insertPendingGrade(db, submissionId, draft)
 }

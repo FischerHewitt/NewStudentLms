@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { experimental_useObject as useObject } from 'ai/react'
 import { coursePreviewSchema, type CoursePreview } from '@/lib/schemas/course'
-import { saveCoursePreview, saveCourseToDB } from '@/app/actions/course'
+import { deleteCourseDraft, getCourseDraftByKey, saveCoursePreview, saveCourseToDB, type CourseDraft } from '@/app/actions/course'
 import { TeacherCoachContextBridge } from '@/components/TeacherCoachContextBridge'
 import {
   addCourseDurationToStartDate,
   courseDurationBetweenDates,
+  extractCourseMetadataHintsFromInstructions,
   rescheduleDateForCourseRange,
   subtractCourseDurationFromEndDate,
   type CourseDurationInput,
@@ -49,7 +50,7 @@ const SHORTCUTS = [
 
 interface Props {
   /** Pre-loaded draft from an explicit Resume action on the home page */
-  draft?: { courseId: string; preview: CoursePreview; syllabus: string; metadata: CourseMetadataInput; draftKey: string | null } | null
+  draft?: CourseDraft | null
 }
 
 async function parseFile(file: File): Promise<string> {
@@ -108,7 +109,9 @@ export function GenerateFlow({ draft }: Props) {
   const [rubricPending, setRubricPending] = useState<string | null>(null)
   const [rubricSuggestions, setRubricSuggestions] = useState<Record<string, { description: string; points: number }[]>>({})
 
-  const [aiInstructions, setAiInstructions] = useState('')
+  const [aiInstructions, setAiInstructions] = useState(draft?.aiInstructions ?? '')
+  const [aiInstructionsOpen, setAiInstructionsOpen] = useState(Boolean(draft?.aiInstructions))
+  const [resumedFromSessionDraft, setResumedFromSessionDraft] = useState(false)
   const [isGeneratingSyllabus, setIsGeneratingSyllabus] = useState(false)
   const [syllabusGenError, setSyllabusGenError] = useState('')
 
@@ -122,6 +125,8 @@ export function GenerateFlow({ draft }: Props) {
   // ── AI streaming ─────────────────────────────────────────────────────────
   const metadataRef = useRef(metadata)
   metadataRef.current = metadata
+  const aiInstructionsRef = useRef(aiInstructions)
+  aiInstructionsRef.current = aiInstructions
   // Prevents a background stream from transitioning state after the user cancels
   const generationCancelledRef = useRef(false)
 
@@ -136,9 +141,16 @@ export function GenerateFlow({ draft }: Props) {
         return
       }
       try {
-        const { courseId: id } = await saveCoursePreview(syllabusRef.current, object, metadataRef.current, draftKeyRef.current)
+        const { courseId: id } = await saveCoursePreview(
+          syllabusRef.current,
+          object,
+          metadataRef.current,
+          draftKeyRef.current,
+          aiInstructionsRef.current,
+        )
         setCourseId(id)
         setEditablePreview(object)
+        setAiInstructionsOpen(Boolean(aiInstructionsRef.current.trim()))
         setFlowState('review')
       } catch {
         setErrorMsg('Failed to save preview. Please try again.')
@@ -159,11 +171,49 @@ export function GenerateFlow({ draft }: Props) {
     syllabusRef.current = text
   }
 
-  const appendAiInstruction = (instruction: string) => {
-    setAiInstructions((current) => {
-      const trimmed = current.trim()
-      return trimmed ? `${trimmed}\n${instruction}` : instruction
+  const loadDraft = (courseDraft: CourseDraft, source: 'link' | 'session') => {
+    if (courseDraft.draftKey) {
+      draftKeyRef.current = courseDraft.draftKey
+      sessionStorage.setItem('generate-draft-key', courseDraft.draftKey)
+    }
+    setCourseId(courseDraft.courseId)
+    setMetadata(courseDraft.metadata)
+    setSyllabusAndRef(courseDraft.syllabus)
+    setEditablePreview(courseDraft.preview)
+    setAiInstructions(courseDraft.aiInstructions)
+    setAiInstructionsOpen(Boolean(courseDraft.aiInstructions))
+    setFlowState('review')
+    if (source === 'session') setResumedFromSessionDraft(true)
+  }
+
+  useEffect(() => {
+    if (draft) loadDraft(draft, 'link')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.courseId])
+
+  useEffect(() => {
+    if (draft || editablePreview || flowState !== 'idle') return
+
+    const stored = sessionStorage.getItem('generate-draft-key')
+    if (!stored) return
+
+    let cancelled = false
+    getCourseDraftByKey(stored).then((courseDraft) => {
+      if (cancelled || !courseDraft) return
+      loadDraft(courseDraft, 'session')
     })
+
+    return () => {
+      cancelled = true
+    }
+    // Run once after the initial sessionStorage draft-key setup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const appendAiInstruction = (instruction: string) => {
+    const trimmed = aiInstructions.trim()
+    const next = trimmed ? `${trimmed}\n${instruction}` : instruction
+    setAiInstructions(next)
   }
 
   // ── handlers ─────────────────────────────────────────────────────────────
@@ -182,7 +232,7 @@ export function GenerateFlow({ draft }: Props) {
       if (!syllabus.trim()) return
       syllabusRef.current = syllabus
       setFlowState('generating')
-      submit({ syllabus, start_date: startDate, instructions: aiInstructions })
+      submit({ syllabus, start_date: startDate, instructions: aiInstructionsRef.current })
       return
     }
 
@@ -195,7 +245,7 @@ export function GenerateFlow({ draft }: Props) {
       const combined = texts.join('\n\n---\n\n')
       if (combined) setSyllabusAndRef(combined)
       setFlowState('generating')
-      submit({ syllabus: combined, start_date: startDate, instructions: aiInstructions })
+      submit({ syllabus: combined, start_date: startDate, instructions: aiInstructionsRef.current })
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Failed to parse file')
       setIsParsing(false)
@@ -209,7 +259,13 @@ export function GenerateFlow({ draft }: Props) {
     }
     setFlowState('saving') // reuse saving spinner while we create the DB row
     try {
-      const { courseId: id } = await saveCoursePreview(null, emptyPreview, metadata, draftKeyRef.current)
+      const { courseId: id } = await saveCoursePreview(
+        null,
+        emptyPreview,
+        metadata,
+        draftKeyRef.current,
+        aiInstructionsRef.current,
+      )
       setCourseId(id)
       setEditablePreview(emptyPreview)
       updateCourseTitle('Untitled Course')
@@ -228,7 +284,11 @@ export function GenerateFlow({ draft }: Props) {
   const handleRegenerateFromSyllabus = () => {
     if (!syllabusRef.current.trim()) return
     setFlowState('generating')
-    submit({ syllabus: syllabusRef.current, start_date: metadata.start_date ?? null, instructions: aiInstructions })
+    submit({
+      syllabus: syllabusRef.current,
+      start_date: metadata.start_date ?? null,
+      instructions: aiInstructionsRef.current,
+    })
   }
 
   const handleGenerateSyllabusFromStructure = async () => {
@@ -295,6 +355,60 @@ export function GenerateFlow({ draft }: Props) {
 
   const hasDuration = (duration: CourseDurationInput) => duration.weeks > 0 || duration.days > 0
 
+  const applyAiInstructionHints = (instructions: string) => {
+    const hints = extractCourseMetadataHintsFromInstructions(instructions)
+    if (!hints.duration && !hints.start_date && !hints.end_date) return
+
+    const nextDuration = { ...courseDuration }
+    let durationChanged = false
+
+    if (hints.duration) {
+      if (!nextDuration.weeks.trim()) {
+        nextDuration.weeks = String(hints.duration.weeks)
+        durationChanged = true
+      }
+      if (!nextDuration.days.trim()) {
+        nextDuration.days = String(hints.duration.days)
+        durationChanged = true
+      }
+    }
+
+    if (durationChanged) setCourseDuration(nextDuration)
+
+    const duration = normalizeDuration(nextDuration)
+    updateMetadataAndDueDates((m) => {
+      let next = m
+
+      if (hints.start_date && !next.start_date) {
+        next = { ...next, start_date: hints.start_date }
+      }
+      if (hints.end_date && !next.end_date) {
+        next = { ...next, end_date: hints.end_date }
+      }
+      if (!next.end_date && next.start_date && hasDuration(duration)) {
+        next = {
+          ...next,
+          end_date: addCourseDurationToStartDate(next.start_date, duration) ?? next.end_date,
+        }
+      }
+      if (!next.start_date && next.end_date && hasDuration(duration)) {
+        next = {
+          ...next,
+          start_date: subtractCourseDurationFromEndDate(next.end_date, duration) ?? next.start_date,
+        }
+      }
+
+      return next
+    })
+  }
+
+  useEffect(() => {
+    if (!aiInstructions.trim()) return
+    applyAiInstructionHints(aiInstructions)
+    // Fill only empty fields from the current AI instruction text.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiInstructions])
+
   const setCourseDurationFromDates = (startDate: string | undefined, endDate: string | undefined) => {
     if (!startDate || !endDate) return
     const duration = courseDurationBetweenDates(startDate, endDate)
@@ -334,7 +448,9 @@ export function GenerateFlow({ draft }: Props) {
     const previousMetadata = metadata
     const nextMetadata = getNextMetadata(previousMetadata)
     setMetadata(nextMetadata)
-    rescheduleAssignmentDueDates(previousMetadata, nextMetadata)
+    if (nextMetadata !== previousMetadata) {
+      rescheduleAssignmentDueDates(previousMetadata, nextMetadata)
+    }
   }
 
   const handleStartDateChange = (value: string) => {
@@ -400,6 +516,42 @@ export function GenerateFlow({ draft }: Props) {
       }
       return m
     })
+  }
+
+  const handleAiInstructionsChange = (value: string) => {
+    setAiInstructions(value)
+  }
+
+  const resetDraftState = () => {
+    const key = crypto.randomUUID()
+    sessionStorage.setItem('generate-draft-key', key)
+    draftKeyRef.current = key
+    setCourseId(null)
+    setMetadata({ title: '' })
+    setCourseDuration({ weeks: '', days: '' })
+    setSyllabusAndRef('')
+    setEditablePreview(null)
+    setAiInstructions('')
+    setAiInstructionsOpen(false)
+    setResumedFromSessionDraft(false)
+    setInputMode('upload')
+    setUploadedFiles([])
+    setErrorMsg('')
+    setParseError('')
+    setFlowState('idle')
+  }
+
+  const handleDeleteDraft = async () => {
+    if (!courseId) return
+    if (!window.confirm('Delete this draft? This cannot be undone.')) return
+    try {
+      await deleteCourseDraft(courseId)
+      resetDraftState()
+      router.push('/generate')
+      router.refresh()
+    } catch {
+      setErrorMsg('Failed to delete draft. Please try again.')
+    }
   }
 
   const updateModule = (mi: number, field: 'title' | 'description', value: string) =>
@@ -576,7 +728,7 @@ export function GenerateFlow({ draft }: Props) {
                   </div>
                   <textarea
                     value={aiInstructions}
-                    onChange={(e) => setAiInstructions(e.target.value)}
+                    onChange={(e) => handleAiInstructionsChange(e.target.value)}
                     placeholder="Tell AI what to do with the uploaded or pasted material…"
                     rows={4}
                     className="w-full resize-y rounded-xl border p-4 text-sm leading-relaxed focus:outline-none focus:ring-2"
@@ -763,9 +915,16 @@ export function GenerateFlow({ draft }: Props) {
           </button>
         </div>
 
-        {draft && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            ↩ Resuming draft — your changes are saved automatically.
+        {(draft || resumedFromSessionDraft) && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span>↩ Resuming draft — your changes are saved automatically.</span>
+            <button
+              type="button"
+              onClick={handleDeleteDraft}
+              className="flex-shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 transition hover:border-red-300 hover:text-red-600"
+            >
+              Delete draft
+            </button>
           </div>
         )}
 
@@ -847,6 +1006,42 @@ export function GenerateFlow({ draft }: Props) {
               />
             </div>
           </div>
+        </div>
+
+        {/* Collapsible AI instructions editor */}
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => setAiInstructionsOpen((o) => !o)}
+            className="flex w-full items-center justify-between px-5 py-3 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <span>AI Instructions</span>
+            <span className="text-slate-400">{aiInstructionsOpen ? '▲' : '▼'}</span>
+          </button>
+          {aiInstructionsOpen && (
+            <div className="border-t border-slate-100 px-5 py-4">
+              <textarea
+                value={aiInstructions}
+                onChange={(e) => handleAiInstructionsChange(e.target.value)}
+                rows={4}
+                placeholder="Tell AI what to preserve or change when regenerating…"
+                className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-relaxed text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200"
+              />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs text-slate-400">
+                  These instructions are saved with this draft and reused when you regenerate.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRegenerateFromSyllabus}
+                  disabled={!syllabus.trim() || isGeneratingSyllabus}
+                  className="flex-shrink-0 rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Generate course →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Collapsible syllabus editor */}

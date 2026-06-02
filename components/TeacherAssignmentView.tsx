@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { speedgraderHref } from '@/lib/routes'
+import { displaySubmissionStatus } from '@/lib/teacherAssignmentPanel'
 import type { AssignmentWithDetails, SubmissionData } from '@/app/actions/assignment'
 
 const C = {
@@ -417,6 +418,7 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
               ) : (
                 allSubmissions.map((sub, i) => {
                   const score = scoreLabel(sub)
+                  const displayStatus = displaySubmissionStatus(sub)
                   const isLast = i === allSubmissions.length - 1
                   return (
                     <div key={sub.id} style={{
@@ -438,7 +440,7 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
                       </div>
 
                       {/* Status */}
-                      <StatusPill status={sub.status} />
+                      <StatusPill status={displayStatus} />
 
                       {/* Score — only show if actually graded */}
                       <span style={{
@@ -450,7 +452,7 @@ export function TeacherAssignmentView({ courseId, assignment, allSubmissions }: 
                       </span>
 
                       {/* Action */}
-                      {sub.status === 'draft' ? (
+                      {displayStatus === 'draft' ? (
                         <Link href={speedgraderHref(courseId, sub.id)} style={{
                           fontSize: 12, fontWeight: 500, color: C.text,
                           border: `1px solid ${C.border}`, borderRadius: 6,

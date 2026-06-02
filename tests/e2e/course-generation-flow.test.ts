@@ -29,6 +29,8 @@ Week 2: Integration testing. Assignment: Explain an integration test scenario (t
 Week 3: End-to-end testing. Assignment: Describe an e2e test you would write (text, 10 pts).
 Final: Reflection on what makes a complete test suite (text, 20 pts).`
 
+const TEST_AI_INSTRUCTIONS = 'Course length is 4 weeks'
+
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Flow B — course generation from syllabus', () => {
@@ -45,16 +47,28 @@ test.describe('Flow B — course generation from syllabus', () => {
     // Switch from upload mode (default) to paste mode
     await page.getByRole('button', { name: 'Paste text' }).click()
 
-    await page.getByPlaceholder('Paste your syllabus here…').fill(TEST_SYLLABUS)
+    await page
+      .getByRole('textbox', { name: 'Paste your syllabus here…' })
+      .fill(TEST_SYLLABUS)
+    await page
+      .getByPlaceholder('Tell AI what to do with the uploaded or pasted material…')
+      .fill(TEST_AI_INSTRUCTIONS)
 
     await page.getByRole('button', { name: 'Generate Course →' }).click()
 
-    // Spinner appears while streaming; "Save Course →" appears when review state is reached
-    await expect(page.getByRole('button', { name: /Save Course/ })).toBeVisible({
+    // "Save Course →" appears when review state is reached
+    const saveCourseButton = page.getByRole('button', { name: /Save Course/ }).first()
+    await expect(saveCourseButton).toBeVisible({
       timeout: 120_000,
     })
+    await expect(page.getByText(TEST_AI_INSTRUCTIONS)).toBeVisible()
 
-    await page.getByRole('button', { name: /Save Course/ }).click()
+    // Same tab can reopen /generate and revive the draft from sessionStorage.
+    await page.goto('/generate')
+    await expect(saveCourseButton).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText(TEST_AI_INSTRUCTIONS)).toBeVisible()
+
+    await saveCourseButton.click()
 
     // Navigates to /course/[id] after save
     await page.waitForURL(/\/course\/[0-9a-f-]{36}$/, { timeout: 15_000 })

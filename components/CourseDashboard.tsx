@@ -46,7 +46,7 @@ export function CourseDashboard({ course, studentSubmissions, allSubmissions, en
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-600">
+        <Link href="/studentview" className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-600">
           ← All courses
         </Link>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">{course.title}</h1>

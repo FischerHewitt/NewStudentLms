@@ -1,6 +1,26 @@
 Deferred items — not in scope for current sprint
 ==================================================
 
+## Grades Command Center — real Category Breakdown (replace mock)
+The Grades Command Center ships with a hardcoded mock Category Breakdown panel
+(Quizzes / Exams / Labs with placeholder percentages) so the layout is complete.
+Replace it with real data once the following is decided and implemented:
+
+  Design decision: add an `assignment_type` column to the assignments table
+  (enum: quiz | exam | lab | homework | other) vs. infer category from assignment
+  title/content via AI on the fly. The schema approach is more reliable; the AI
+  approach requires no migration but may be inconsistent.
+
+  Implementation steps (once design decision is made):
+  1. Migration: add `assignment_type` to assignments (nullable, default 'other')
+  2. Teacher UI: assignment creation / edit form gets a type selector
+  3. Server action: `getGradesCommandCenterData()` groups assignments by type
+  4. `lib/grade-summary.ts`: add `computeCategoryBreakdown(assignments)` pure function
+  5. Replace mock `CategoryBreakdown` component with real computed data
+  6. Unit test for `computeCategoryBreakdown()`
+
+  See: PRD Issue #101, user story 12
+
 ## SpeedGrader version mismatch warning
 When the teacher grades a Submission, SpeedGrader should display the Assignment Version
 that was live at the time of submission (the snapshot whose `published_at` is closest to
@@ -311,3 +331,23 @@ less like an endless wall of work.
   - Verify the check-off action still works after simplifying the To-Do list.
   - Browser-test desktop and mobile so the weekly panel does not become cramped or
     visually overwhelming.
+
+
+## Define grading scale from the syllabus
+When a teacher generates a course from a syllabus, the AI should extract the grading
+scale (e.g. A = 90–100%, B = 80–89%, etc.) and store it on the Course. The gradebook
+and student grade view should then display the letter grade alongside the numeric score.
+
+Design decisions to make:
+  - Where to store the grading scale: a JSONB column on the courses table
+    (e.g. grading_scale: [{ letter: "A", min: 90 }, { letter: "B", min: 80 }, ...])
+    is the simplest approach.
+  - Generator behavior: if the syllabus contains an explicit grading scale, extract it.
+    If not, default to a standard scale (A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 60, F < 60).
+  - SpeedGrader: show the letter grade next to the numeric score when approving a grade.
+  - Student grade view: show letter grade alongside final score on published grades.
+  - Gradebook: add a letter grade column or show it in each cell tooltip.
+  - Teacher editing: allow the teacher to edit the grading scale after course generation
+    (e.g. if the syllabus used a non-standard scale or the AI extracted it incorrectly).
+  - Edge case: plus/minus grades (A+, A-, B+, etc.) — decide whether to support them
+    or flatten to whole letters for the MVP.

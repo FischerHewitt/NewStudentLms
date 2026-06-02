@@ -260,3 +260,20 @@ This is a first-pass heuristic. Revisit after seeing real teacher syllabi and re
 submissions to check whether the AI is classifying method-required vs outcome-based correctly,
 and whether the rule needs more nuance (e.g. partial credit for wrong method but right answer,
 or subject-specific overrides for STEM vs humanities).
+
+
+## Caret dropdown on course cards (teacher dashboard)
+On the teacher dashboard, each course card in the "Active Courses Overview" section should
+have a caret/chevron button that expands an inline dropdown showing the course's modules and
+their assignments. Each module is a collapsible row; each assignment is a direct link that
+takes the teacher straight to that assignment's grading/detail page without having to navigate
+into the course first. This lets teachers jump directly from the dashboard to any specific
+assignment in one click rather than: dashboard → course → expand module → click assignment.
+
+Design notes:
+  - The caret should sit in the top-right corner of the course card (or next to the course title)
+  - Expanding one card's dropdown should not collapse others (independent state per card)
+  - Modules show their week number and title; assignments show title, point value, and a
+    "Grade" badge if there are pending submissions
+  - The dropdown should be keyboard-accessible and close on outside click
+  - On mobile the dropdown could open as a bottom sheet instead of inline

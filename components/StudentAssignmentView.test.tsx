@@ -42,7 +42,6 @@ describe('StudentAssignmentView', () => {
       />,
     )
 
-    expect(html).toContain('href="/"')
     expect(html).toContain('Back to dashboard')
     expect(html).not.toContain('href="/course/c1')
   })

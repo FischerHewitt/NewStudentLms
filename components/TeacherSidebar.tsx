@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useCallback } from 'react'
+import { ALUMOSGradientLogo } from './ALUMOSGradientLogo'
 
 const SURFACE = '#fcf8fa'
 const SURFACE_CONTAINER_LOW = '#f6f3f5'
@@ -30,6 +32,11 @@ interface TeacherSidebarProps {
 export function TeacherSidebar({ collapsed, onToggle }: TeacherSidebarProps) {
   const pathname = usePathname()
 
+  const switchToStudent = useCallback(() => {
+    localStorage.setItem('lms_active_role', 'student')
+    window.location.href = '/studentview'
+  }, [])
+
   return (
     <nav
       className="fixed left-0 top-0 hidden h-full flex-col py-6 md:flex transition-[width] duration-300 ease-in-out overflow-hidden"
@@ -41,20 +48,10 @@ export function TeacherSidebar({ collapsed, onToggle }: TeacherSidebarProps) {
     >
       {/* Logo + collapse toggle */}
       <div className={`mb-8 flex items-center px-4 ${collapsed ? 'flex-col gap-3' : 'gap-1.5'}`}>
-        <Image src="/alumos-icon.png" alt="Alumos" width={26} height={26} className="shrink-0 object-contain" />
-        {!collapsed && (
-          <h1
-            className="text-lg font-bold leading-none"
-            style={{
-              fontFamily: 'var(--font-syne, system-ui)',
-              background: 'linear-gradient(135deg, #F59E0B 0%, #EC4899 50%, #7C3AED 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            lumos
-          </h1>
+        {collapsed ? (
+          <Image src="/alogo-trans.png" alt="Alumos" width={26} height={26} className="shrink-0 object-contain" />
+        ) : (
+          <ALUMOSGradientLogo iconSize={26} />
         )}
         <button
           onClick={onToggle}
@@ -132,6 +129,28 @@ export function TeacherSidebar({ collapsed, onToggle }: TeacherSidebarProps) {
             {!collapsed && label}
           </Link>
         ))}
+
+        {/* Switch to Student View */}
+        <button
+          onClick={switchToStudent}
+          title={collapsed ? 'Student View' : undefined}
+          className={`mt-1 flex items-center rounded-lg py-2 text-sm font-semibold transition-colors ${collapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
+          style={{ color: SECONDARY }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = SURFACE_CONTAINER_LOW
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = 'transparent'
+          }}
+        >
+          <span className="material-symbols-outlined shrink-0 text-[20px]">school</span>
+          {!collapsed && (
+            <span className="flex items-center gap-1">
+              Student View
+              <span className="text-xs opacity-60">⇄</span>
+            </span>
+          )}
+        </button>
 
       </div>
     </nav>

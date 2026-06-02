@@ -84,12 +84,25 @@ describe('StudentDashboard redesign', () => {
       <StudentDashboard courses={courses} assignments={assignments} />,
     )
 
-    expect(html).toContain('Alumos')
-    expect(html).toContain('Alex Rivers')
+    expect(html).toContain('ALUMOS')
+    expect(html).toContain('Alex Rivera')
     expect(html).toContain('Overview')
     expect(html).toContain('Grades')
     expect(html).toContain('Messages')
     expect(html).toContain('Teacher View')
+  })
+
+  it('keeps the student sidebar focused on active tools only', () => {
+    const html = renderToStaticMarkup(
+      <StudentDashboard courses={courses} assignments={assignments} />,
+    )
+
+    expect(html).toContain('Dashboard')
+    expect(html).toContain('AI Coach')
+    expect(html).toContain('Calendar')
+    expect(html).not.toContain('My Courses')
+    expect(html).not.toContain('local_library')
+    expect(html).not.toContain('material-symbols-outlined text-[22px]">assignment</span>Assignments')
   })
 
   it('renders an AI Coach insight from dashboard data and a calm empty-data fallback', () => {
@@ -104,6 +117,7 @@ describe('StudentDashboard redesign', () => {
     expect(populatedHtml).toContain('Your next priority is')
     expect(populatedHtml).toContain('Accept Schedule')
     expect(populatedHtml).toContain('Dismiss')
+    expect(populatedHtml).not.toContain('Schedule accepted')
 
     expect(emptyHtml).toContain('Once your teacher publishes a Course')
   })
@@ -227,7 +241,7 @@ describe('StudentDashboard redesign', () => {
     expect(completedHtml).toContain('1 older completed assignment tucked away')
   })
 
-  it('renders the Grades tab with Published Grades and awaiting-grade states only', () => {
+  it('renders the Grades tab as the Grades Command Center with course-level grade cards', () => {
     const html = renderToStaticMarkup(
       <StudentDashboard
         courses={courses}
@@ -236,27 +250,36 @@ describe('StudentDashboard redesign', () => {
       />,
     )
 
-    expect(html).toContain('Only Published Grades are shown here')
-    expect(html).toContain('Connect Homework 1')
-    expect(html).toContain('9/10')
-    expect(html).toContain('Speech Round 1')
-    expect(html).toContain('Awaiting grade')
+    expect(html).toContain('Grades Command Center')
+    // Both courses appear
+    expect(html).toContain('BIO 111 - General Biology')
+    expect(html).toContain('COMS 101 - Public Speaking')
+    // BIO 111 has two graded assignments: 9/10 + 5/5 = 14/15 = 93.3% = A
+    expect(html).toContain('93.3%')
+    // COMS 101 has no graded assignments
+    expect(html).toContain('No grades yet')
+    // Sidebar widgets
+    expect(html).toContain('Semester Goal')
+    expect(html).toContain('Coach Insight')
+    // Course filter tabs
+    expect(html).toContain('All Courses')
   })
 
-  it('filters the Grades tab by the selected course', () => {
+  it('renders the Grades tab with course filter pill tabs for each enrolled course', () => {
     const html = renderToStaticMarkup(
       <StudentDashboard
         courses={courses}
         assignments={assignments}
         initialTab="grades"
-        initialCourseId="bio-111"
       />,
     )
 
+    // Filter tabs labelled by course code
+    expect(html).toContain('BIO111')
+    expect(html).toContain('COMS101')
+    // Both courses visible with default all-courses filter
     expect(html).toContain('BIO 111 - General Biology')
-    expect(html).toContain('Connect Homework 1')
-    expect(html).not.toContain('COMS 101 - Public Speaking')
-    expect(html).not.toContain('Speech Round 1')
+    expect(html).toContain('COMS 101 - Public Speaking')
   })
 
   it('renders the Messages tab as a polished non-functional empty state', () => {

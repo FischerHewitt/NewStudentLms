@@ -1,7 +1,7 @@
 import { createGroq } from '@ai-sdk/groq'
 
 export const LMS_AI_MODEL = 'llama-3.3-70b-versatile'
-export const LMS_STRUCTURED_OBJECT_MODE = 'tool'
+export const LMS_STRUCTURED_OBJECT_MODE = 'json'
 
 type GroqProvider = ReturnType<typeof createGroq>
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  displaySubmissionStatus,
   gradeFormFromGrade,
   getTeacherAssignmentPanelState,
   markSubmissionGraded,
@@ -29,6 +30,15 @@ describe('teacher assignment panel state', () => {
       finalScore: 9,
     })
     expect(updated.find((submission) => submission.id === 'sub-1')?.status).toBe('submitted')
+  })
+
+  it('displays submitted submissions with visible final scores as graded', () => {
+    expect(displaySubmissionStatus({
+      id: 'sub-4',
+      studentName: 'Maya Patel',
+      status: 'submitted',
+      finalScore: 100,
+    })).toBe('graded')
   })
 
   it('builds editable grade fields from an AI Suggested Grade', () => {

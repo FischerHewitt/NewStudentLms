@@ -1,5 +1,34 @@
 # Product Context
 
+## Demo Pitch
+
+Alumos is a proof-of-concept AI-native LMS that challenges Canvas.
+
+Canvas has become old, bloated, and difficult to extend with AI. Teachers often struggle to build organized courses because they have to manually turn syllabi, assignments, modules, rubrics, and grading policies into a course structure. As Canvas keeps adding more features, it becomes more confusing for teachers, which then makes it harder for students to stay organized.
+
+Alumos is an AI-native LMS designed to reduce ambiguity in course creation while still giving teachers creative control. Instead of forcing teachers to manually build everything, it helps generate a structured course from existing materials like syllabi, assignments, and teacher prompts.
+
+**The demo loop (under two minutes):**
+
+1. A teacher uploads a math course syllabus
+2. The AI generates a course structure with ~11 weekly modules
+3. The AI creates or imports a math assignment based on the teacher's input
+4. The demo switches to student view
+5. The student completes the math assignment using a math-input feature
+6. The student submits work with a small mistake
+7. The teacher view shows the submitted assignment
+8. The AI grades the work like a teacher would — giving partial credit rather than only marking answers right or wrong
+9. The teacher reviews or edits the grade
+10. The student sees the final grade and feedback
+
+**The core innovation** is not "AI grading" or "AI course generation" in isolation. The real value is the full loop: syllabus → course → assignment → student submission → AI-assisted grading → teacher approval → student feedback.
+
+The product should feel like a simpler, smarter Canvas built around AI from the beginning. The goal is not to remove teacher control — it is to reduce repetitive setup work and help teachers create clearer courses faster.
+
+For the demo, the most important thing is to show a complete working flow in under two minutes. It does not need to be a fully finished LMS. It needs to prove the concept: teachers can go from a syllabus to a working course quickly, students get a clean learning experience, and teachers get AI-assisted grading that still allows human judgment.
+
+---
+
 ## Pitch
 
 Alumos is a smarter LMS built around clarity. It reads the syllabus, assignments, grades, and course updates, then turns them into a simple command center for students and teachers. Instead of making people search through course pages, Alumos tells them what changed, what matters, and what to do next.

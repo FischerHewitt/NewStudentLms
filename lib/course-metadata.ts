@@ -11,6 +11,12 @@ export type CourseDurationInput = {
   days: number
 }
 
+export type CourseMetadataHints = {
+  start_date?: string
+  end_date?: string
+  duration?: CourseDurationInput
+}
+
 type ValidationResult = { ok: true } | { ok: false; error: string }
 
 export function validateCourseMetadata(input: CourseMetadataInput): ValidationResult {
@@ -35,6 +41,67 @@ function dateFromIso(date: string): Date | null {
 
 function dateToIso(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+const MONTHS: Record<string, number> = {
+  jan: 0,
+  january: 0,
+  feb: 1,
+  february: 1,
+  mar: 2,
+  march: 2,
+  apr: 3,
+  april: 3,
+  may: 4,
+  jun: 5,
+  june: 5,
+  jul: 6,
+  july: 6,
+  aug: 7,
+  august: 7,
+  sep: 8,
+  sept: 8,
+  september: 8,
+  oct: 9,
+  october: 9,
+  nov: 10,
+  november: 10,
+  dec: 11,
+  december: 11,
+}
+
+function parseInstructionDate(value: string, referenceYear: number): string | null {
+  const trimmed = value
+    .trim()
+    .replace(/^(mon|monday|tue|tues|tuesday|wed|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday|sun|sunday)\b[,]?\s*/i, '')
+
+  const iso = trimmed.match(/\b(\d{4}-\d{2}-\d{2})\b/)
+  if (iso) return iso[1]
+
+  const slash = trimmed.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/)
+  if (slash) {
+    const month = Number(slash[1])
+    const day = Number(slash[2])
+    const rawYear = slash[3] ? Number(slash[3]) : referenceYear
+    const year = rawYear < 100 ? 2000 + rawYear : rawYear
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return dateToIso(new Date(Date.UTC(year, month - 1, day)))
+    }
+  }
+
+  const monthName = trimmed.match(
+    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i,
+  )
+  if (monthName) {
+    const month = MONTHS[monthName[1].toLowerCase().replace(/\.$/, '')]
+    const day = Number(monthName[2])
+    const year = monthName[3] ? Number(monthName[3]) : referenceYear
+    if (month != null && day >= 1 && day <= 31) {
+      return dateToIso(new Date(Date.UTC(year, month, day)))
+    }
+  }
+
+  return null
 }
 
 function daysBetween(start: Date, end: Date): number {
@@ -84,6 +151,42 @@ export function courseDurationBetweenDates(
     weeks: Math.floor(totalDays / 7),
     days: totalDays % 7,
   }
+}
+
+export function extractCourseMetadataHintsFromInstructions(
+  instructions: string,
+  referenceYear = new Date().getFullYear(),
+): CourseMetadataHints {
+  const hints: CourseMetadataHints = {}
+
+  const duration = instructions.match(
+    /(?:course\s+)?(?:length|duration)\s*(?:is|:)?\s*(\d+)\s*(?:weeks?|wks?)(?:\s*(?:and)?\s*(\d+)\s*(?:days?|d))?/i,
+  ) ?? instructions.match(
+    /\b(\d+)\s*(?:weeks?|wks?)(?:\s*(?:and)?\s*(\d+)\s*(?:days?|d))?\b/i,
+  )
+  if (duration) {
+    hints.duration = {
+      weeks: Number(duration[1]),
+      days: duration[2] ? Math.min(Number(duration[2]), 6) : 0,
+    }
+  }
+
+  const lines = instructions.split(/\r?\n/)
+  for (const line of lines) {
+    const start = line.match(/\b(?:set\s+the\s+)?(?:course\s+)?(?:start|starts|begin|begins)(?:\s+date)?\b\s*(?:on|to|is|:)?\s*(.+)$/i)
+    if (start && !hints.start_date) {
+      const parsed = parseInstructionDate(start[1], referenceYear)
+      if (parsed) hints.start_date = parsed
+    }
+
+    const end = line.match(/\b(?:set\s+the\s+)?(?:course\s+)?(?:end|ends|finish|finishes)(?:\s+date)?\b\s*(?:on|to|is|:)?\s*(.+)$/i)
+    if (end && !hints.end_date) {
+      const parsed = parseInstructionDate(end[1], referenceYear)
+      if (parsed) hints.end_date = parsed
+    }
+  }
+
+  return hints
 }
 
 export function rescheduleDateForCourseRange(
@@ -145,7 +248,7 @@ export function buildGeneratePrompt(syllabus: string, startDate: string | null, 
     ? `The course starts on ${safeDate}. Week 1 begins that date — anchor all due dates from there.\n\n`
     : ''
   const teacherInstructions = instructions?.trim()
-    ? `Teacher instructions:\n${syllabusTextForPrompt(instructions)}\n\n`
+    ? `Teacher instructions (requirements for the generated draft; preserve these when deciding course length, module count, due dates, assignment style, and page simplicity):\n${syllabusTextForPrompt(instructions)}\n\n`
     : ''
   return `${dateInstruction}${teacherInstructions}Here is the course syllabus or course source material. Extract the full course structure:\n\n${syllabusTextForPrompt(syllabus)}`
 }

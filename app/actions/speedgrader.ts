@@ -29,6 +29,10 @@ export type SpeedGraderData = {
     id: string
     title: string
   }
+  navigation: {
+    previousSubmissionId: string | null
+    nextSubmissionId: string | null
+  }
   grade: Grade | null
 }
 
@@ -80,6 +84,20 @@ export async function getSpeedGraderData(
   ])
   const rubric = rubricResult.data
   const course = courseResult.data
+  const { data: siblingSubmissions } = await db
+    .from('submissions')
+    .select('id, submitted_at')
+    .eq('assignment_id', submission.assignment_id)
+    .in('status', ['submitted', 'graded'])
+    .order('submitted_at', { ascending: false })
+
+  const siblingIds = (siblingSubmissions ?? []).map((row) => row.id)
+  const currentIndex = siblingIds.indexOf(submission.id)
+  const previousSubmissionId = currentIndex > 0 ? siblingIds[currentIndex - 1] : null
+  const nextSubmissionId =
+    currentIndex >= 0 && currentIndex < siblingIds.length - 1
+      ? siblingIds[currentIndex + 1]
+      : null
 
   return {
     submission: {
@@ -101,6 +119,10 @@ export async function getSpeedGraderData(
     course: {
       id: course?.id ?? assignmentResult.data.course_id,
       title: course?.title ?? 'Course',
+    },
+    navigation: {
+      previousSubmissionId,
+      nextSubmissionId,
     },
     grade: gradeResult.data
       ? {
@@ -197,19 +219,33 @@ export async function publishManualGrade(
     .single()
 
   if (existing) {
-    const { error } = await approveGrade(existing.id, score, feedback)
-    if (error) return { error }
-    return {
-      grade: {
-        id: existing.id,
-        submission_id: existing.submission_id,
-        ai_suggested_score: existing.ai_suggested_score,
-        ai_suggested_feedback: existing.ai_suggested_feedback,
+    const { data: updatedGrade, error } = await db
+      .from('grades')
+      .update({
         final_score: score,
         final_feedback: feedback,
-        approved_at: new Date().toISOString(),
         approved_by: TEACHER_ID,
-        ai_criterion_scores: (existing.ai_criterion_scores as CriterionScore[] | null) ?? null,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by, ai_criterion_scores')
+      .single()
+
+    if (error || !updatedGrade) return { error: 'Failed to save grade. Please try again.' }
+
+    await db.from('submissions').update({ status: 'graded' }).eq('id', submissionId)
+
+    return {
+      grade: {
+        id: updatedGrade.id,
+        submission_id: updatedGrade.submission_id,
+        ai_suggested_score: updatedGrade.ai_suggested_score,
+        ai_suggested_feedback: updatedGrade.ai_suggested_feedback,
+        final_score: updatedGrade.final_score,
+        final_feedback: updatedGrade.final_feedback,
+        approved_at: updatedGrade.approved_at,
+        approved_by: updatedGrade.approved_by ?? null,
+        ai_criterion_scores: (updatedGrade.ai_criterion_scores as CriterionScore[] | null) ?? null,
       },
     }
   }
@@ -245,6 +281,93 @@ export async function publishManualGrade(
       ai_criterion_scores: null,
     },
   }
+}
+
+/**
+ * Restores the previous in-session grade snapshot after an AI suggestion
+ * overwrote the persisted grade row.
+ */
+export async function restoreGradeSnapshot(
+  snapshot: Grade,
+): Promise<{ grade?: Grade; error?: string }> {
+  const db = createServerClient()
+
+  const { data: restoredGrade, error } = await db
+    .from('grades')
+    .update({
+      ai_suggested_score: snapshot.ai_suggested_score,
+      ai_suggested_feedback: snapshot.ai_suggested_feedback,
+      final_score: snapshot.final_score,
+      final_feedback: snapshot.final_feedback,
+      approved_by: snapshot.approved_by,
+      approved_at: snapshot.approved_at,
+      ai_criterion_scores: snapshot.ai_criterion_scores,
+    })
+    .eq('id', snapshot.id)
+    .select('id, submission_id, ai_suggested_score, ai_suggested_feedback, final_score, final_feedback, approved_at, approved_by, ai_criterion_scores')
+    .single()
+
+  if (error || !restoredGrade) return { error: 'Failed to restore previous grade. Please try again.' }
+
+  await db
+    .from('submissions')
+    .update({ status: snapshot.approved_at ? 'graded' : 'submitted' })
+    .eq('id', snapshot.submission_id)
+
+  return {
+    grade: {
+      id: restoredGrade.id,
+      submission_id: restoredGrade.submission_id,
+      ai_suggested_score: restoredGrade.ai_suggested_score,
+      ai_suggested_feedback: restoredGrade.ai_suggested_feedback,
+      final_score: restoredGrade.final_score,
+      final_feedback: restoredGrade.final_feedback,
+      approved_at: restoredGrade.approved_at,
+      approved_by: restoredGrade.approved_by ?? null,
+      ai_criterion_scores: (restoredGrade.ai_criterion_scores as CriterionScore[] | null) ?? null,
+    },
+  }
+}
+
+/**
+ * Updates an already-approved grade with new score and feedback.
+ * Use this for post-publish edits. Unlike approveGrade (which is idempotent),
+ * this explicitly overwrites final_score, final_feedback, and approved_at.
+ */
+export async function updateApprovedGrade(
+  gradeId: string,
+  finalScore: number,
+  finalFeedback: string,
+): Promise<{ error?: string }> {
+  const db = createServerClient()
+
+  const { data: grade } = await db
+    .from('grades')
+    .select('id, submission_id')
+    .eq('id', gradeId)
+    .single()
+
+  if (!grade) return { error: 'Grade not found.' }
+
+  const { error: gradeErr } = await db
+    .from('grades')
+    .update({
+      final_score: finalScore,
+      final_feedback: finalFeedback,
+      approved_by: TEACHER_ID,
+      approved_at: new Date().toISOString(),
+    })
+    .eq('id', gradeId)
+
+  if (gradeErr) return { error: 'Failed to update grade. Please try again.' }
+
+  // Ensure submission stays graded
+  await db
+    .from('submissions')
+    .update({ status: 'graded' })
+    .eq('id', grade.submission_id)
+
+  return {}
 }
 
 /**

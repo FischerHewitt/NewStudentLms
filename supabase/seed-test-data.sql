@@ -1589,3 +1589,92 @@ UPDATE assignments SET due_date = '2026-06-30' WHERE id = '00000000-0000-0000-00
 UPDATE assignments SET due_date = '2026-07-03' WHERE id = '00000000-0000-0000-0003-000000000064';
 UPDATE assignments SET due_date = '2026-07-14' WHERE id = '00000000-0000-0000-0003-000000000065';
 UPDATE assignments SET due_date = '2026-07-21' WHERE id = '00000000-0000-0000-0003-000000000066';
+
+-- =============================================================================
+-- FIX: sync submission status for approved grades
+-- Grade inserts above set approved_at but don't update submissions.status.
+-- These UPDATEs bring the two tables into agreement.
+-- Submission IDs with FINAL grades:
+--   A015 BIO Connect HW1 : 001–006
+--   A033 COMS Intro       : 015–020
+--   A035 COMS Quiz 1      : 029–034
+-- =============================================================================
+UPDATE submissions SET status = 'graded' WHERE id IN (
+  '00000000-0000-0000-0006-000000000001',
+  '00000000-0000-0000-0006-000000000002',
+  '00000000-0000-0000-0006-000000000003',
+  '00000000-0000-0000-0006-000000000004',
+  '00000000-0000-0000-0006-000000000005',
+  '00000000-0000-0000-0006-000000000006',
+  '00000000-0000-0000-0006-000000000015',
+  '00000000-0000-0000-0006-000000000016',
+  '00000000-0000-0000-0006-000000000017',
+  '00000000-0000-0000-0006-000000000018',
+  '00000000-0000-0000-0006-000000000019',
+  '00000000-0000-0000-0006-000000000020',
+  '00000000-0000-0000-0006-000000000029',
+  '00000000-0000-0000-0006-000000000030',
+  '00000000-0000-0000-0006-000000000031',
+  '00000000-0000-0000-0006-000000000032',
+  '00000000-0000-0000-0006-000000000033',
+  '00000000-0000-0000-0006-000000000034'
+);
+
+
+-- =============================================================================
+-- FILL-IN: Ensure every student has at least 1 submitted assignment per course
+-- Diego Flores (014) and Hannah Okafor (015) — upgrade drafts to submitted
+-- Liam Patel (016) — insert new submitted rows (was fully blank)
+-- =============================================================================
+
+-- Diego Flores: BIO A015 Connect HW1 (sub 013) — draft → submitted
+UPDATE submissions
+SET body        = 'The scientific method involves making an observation, forming a testable hypothesis, designing a controlled experiment, collecting data, and drawing conclusions. An example would be testing how the amount of water affects plant growth — one group of plants gets the normal amount, another gets twice as much, and all other conditions are kept the same.
+
+Prokaryotic cells do not have a nucleus. Examples include bacteria and archaea. Eukaryotic cells have a true nucleus and membrane-bound organelles. Animal cells and plant cells are both eukaryotic. The main differences between them are that plant cells have a cell wall and chloroplasts, which animal cells do not.',
+    status      = 'submitted',
+    submitted_at = NOW() - INTERVAL '12 hours'
+WHERE id = '00000000-0000-0000-0006-000000000013';
+
+-- Diego Flores: COMS A033 Introduction (sub 027) — draft → submitted
+UPDATE submissions
+SET body        = 'My name is Diego Flores and I am a Computer Engineering major. My biggest communication challenge is speaking up in group settings — I tend to hold back my ideas even when I think they are good. I want to work on building enough confidence to contribute more in class discussions and in team environments.',
+    status      = 'submitted',
+    submitted_at = NOW() - INTERVAL '10 hours'
+WHERE id = '00000000-0000-0000-0006-000000000027';
+
+-- Hannah Okafor: BIO A015 Connect HW1 (sub 014) — draft → submitted
+UPDATE submissions
+SET body        = 'The scientific method is a process scientists use to investigate questions about the world. You start with an observation, form a hypothesis, run a controlled experiment where you change only one variable, collect data, and decide if the hypothesis was supported or needs revision.
+
+Prokaryotic cells are simple cells that lack a nucleus. Bacteria and archaea are the two types of prokaryotes. Eukaryotic cells are more complex and contain a true nucleus as well as other organelles. Both animal cells and plant cells are eukaryotic. Plant cells differ from animal cells because they have a cell wall and chloroplasts.',
+    status      = 'submitted',
+    submitted_at = NOW() - INTERVAL '6 hours'
+WHERE id = '00000000-0000-0000-0006-000000000014';
+
+-- Hannah Okafor: COMS A033 Introduction (sub 028) — draft → submitted
+UPDATE submissions
+SET body        = 'My name is Hannah Okafor and I am majoring in Biochemistry. A communication challenge I want to work on this quarter is sounding more confident when I speak — I often second-guess myself mid-sentence and it comes through in my delivery. I hope this class gives me concrete tools for preparing and presenting ideas clearly and calmly.',
+    status      = 'submitted',
+    submitted_at = NOW() - INTERVAL '4 hours'
+WHERE id = '00000000-0000-0000-0006-000000000028';
+
+-- Liam Patel: BIO A015 Connect HW1 — new submitted row (sub 043)
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+  ('00000000-0000-0000-0006-000000000043',
+   '00000000-0000-0000-0003-000000000015',
+   '00000000-0000-0000-0000-000000000016',
+   'The scientific method is a process for answering questions. You observe something, form a hypothesis, test it with an experiment, and analyze the results to see if your hypothesis was correct.
+
+Prokaryotic cells do not have a nucleus. Bacteria and archaea are prokaryotes. Eukaryotic cells have a nucleus. Animal cells and plant cells are both eukaryotic. Plant cells also have a cell wall and chloroplasts.',
+   NOW() - INTERVAL '2 hours', 'submitted')
+ON CONFLICT (assignment_id, student_id) DO NOTHING;
+
+-- Liam Patel: COMS A033 Introduction — new submitted row (sub 044)
+INSERT INTO submissions (id, assignment_id, student_id, body, submitted_at, status) VALUES
+  ('00000000-0000-0000-0006-000000000044',
+   '00000000-0000-0000-0003-000000000033',
+   '00000000-0000-0000-0000-000000000016',
+   'Hi, I am Liam Patel and I am a Business Administration major. A communication challenge I want to work on is getting less nervous before I speak so I can stay focused and say what I actually mean.',
+   NOW() - INTERVAL '1 hour', 'submitted')
+ON CONFLICT (assignment_id, student_id) DO NOTHING;

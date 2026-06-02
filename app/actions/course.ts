@@ -8,6 +8,38 @@ import type { CourseMetadataInput } from '@/lib/course-metadata'
 
 export type { CourseMetadataInput }
 
+export type CourseDraft = {
+  courseId: string
+  preview: CoursePreview
+  syllabus: string
+  metadata: CourseMetadataInput
+  draftKey: string | null
+  aiInstructions: string
+}
+
+type StoredCoursePreview = CoursePreview & {
+  ai_instructions?: string | null
+}
+
+function withDraftAiInstructions(
+  preview: CoursePreview,
+  aiInstructions?: string | null,
+): StoredCoursePreview {
+  const trimmed = aiInstructions?.trim()
+  return trimmed ? { ...preview, ai_instructions: trimmed } : preview
+}
+
+function readDraftPreview(value: unknown): {
+  preview: CoursePreview
+  aiInstructions: string
+} {
+  const stored = value as StoredCoursePreview
+  return {
+    preview: stored as CoursePreview,
+    aiInstructions: stored.ai_instructions ?? '',
+  }
+}
+
 /**
  * Called after streaming completes or when manual mode starts.
  * When draftKey is provided (ADR-0008), upserts on (teacher_id, draft_key) so
@@ -18,13 +50,14 @@ export async function saveCoursePreview(
   preview: CoursePreview,
   metadata?: CourseMetadataInput,
   draftKey?: string | null,
+  aiInstructions?: string | null,
 ): Promise<{ courseId: string }> {
   const db = createServerClient()
 
   const row = {
     teacher_id: TEACHER_ID,
     raw_syllabus: syllabus,
-    generation_preview: preview,
+    generation_preview: withDraftAiInstructions(preview, aiInstructions),
     title: metadata?.title || preview.title,
     term: metadata?.term ?? null,
     section: metadata?.section ?? null,
@@ -93,6 +126,7 @@ export async function getCourseDraftById(courseId: string): Promise<{
   syllabus: string
   metadata: CourseMetadataInput
   draftKey: string | null
+  aiInstructions: string
 } | null> {
   const db = createServerClient()
 
@@ -106,11 +140,52 @@ export async function getCourseDraftById(courseId: string): Promise<{
 
   if (!data?.generation_preview) return null
 
+  const { preview, aiInstructions } = readDraftPreview(data.generation_preview)
+
   return {
     courseId: data.id,
-    preview: data.generation_preview as CoursePreview,
+    preview,
     syllabus: data.raw_syllabus ?? '',
     draftKey: data.draft_key ?? null,
+    aiInstructions,
+    metadata: {
+      title: data.title,
+      term: data.term ?? undefined,
+      section: data.section ?? undefined,
+      start_date: data.start_date ?? undefined,
+      end_date: data.end_date ?? undefined,
+    },
+  }
+}
+
+/**
+ * Fetches the current tab's draft by sessionStorage draft key.
+ * Used by /generate to revive an in-progress draft in the same browser tab
+ * without requiring a home-page Resume link.
+ */
+export async function getCourseDraftByKey(draftKey: string): Promise<CourseDraft | null> {
+  if (!draftKey.trim()) return null
+
+  const db = createServerClient()
+
+  const { data } = await db
+    .from('courses')
+    .select('id, title, raw_syllabus, generation_preview, draft_key, term, section, start_date, end_date')
+    .eq('teacher_id', TEACHER_ID)
+    .eq('draft_key', draftKey)
+    .not('generation_preview', 'is', null)
+    .single()
+
+  if (!data?.generation_preview) return null
+
+  const { preview, aiInstructions } = readDraftPreview(data.generation_preview)
+
+  return {
+    courseId: data.id,
+    preview,
+    syllabus: data.raw_syllabus ?? '',
+    draftKey: data.draft_key ?? null,
+    aiInstructions,
     metadata: {
       title: data.title,
       term: data.term ?? undefined,
@@ -151,6 +226,22 @@ export async function getCourseDrafts(): Promise<{
     draftKey: r.draft_key!,
     createdAt: r.created_at,
   }))
+}
+
+/**
+ * Deletes a saved generation draft. Scoped to the current teacher and only
+ * deletes courses that still have generation_preview populated.
+ */
+export async function deleteCourseDraft(courseId: string): Promise<void> {
+  const db = createServerClient()
+
+  await db
+    .from('courses')
+    .delete()
+    .eq('id', courseId)
+    .eq('teacher_id', TEACHER_ID)
+    .not('generation_preview', 'is', null)
+    .throwOnError()
 }
 
 /**
