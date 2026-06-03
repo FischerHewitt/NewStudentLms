@@ -189,7 +189,16 @@ export default function LoginPage() {
         background: GRADIENT,
       }} />
 
-      <p style={{ marginTop: 16, fontSize: 12, color: '#94a3b8' }}>
+      <a
+        href="/landing"
+        style={{ marginTop: 20, fontSize: 13, color: '#94a3b8', textDecoration: 'none', cursor: 'pointer' }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#64748b')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
+      >
+        ← Back to home
+      </a>
+
+      <p style={{ marginTop: 12, fontSize: 12, color: '#94a3b8' }}>
         © 2026 Alumos · All rights reserved
       </p>
     </div>

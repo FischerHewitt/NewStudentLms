@@ -94,6 +94,9 @@ export default function LandingPage() {
             <a href="#how-it-works" className="hover:text-slate-900 transition-colors cursor-pointer">
               How it works
             </a>
+            <Link href="/about" className="hover:text-slate-900 transition-colors cursor-pointer">
+              About
+            </Link>
           </div>
 
           <Link
