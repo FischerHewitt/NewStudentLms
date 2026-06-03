@@ -431,9 +431,167 @@ export default function AboutPage() {
           </Prose>
         </section>
 
-        {/* Section 8 — What's Next */}
+        {/* Section 8 — AI, Data & Consent */}
         <section>
-          <SectionLabel n="08" label="What's Next" />
+          <SectionLabel n="08" label="AI, Data & Consent" />
+          <Prose>
+            <p>
+              The more I built with AI, the more I kept running into a question I didn&apos;t
+              have a clean answer for: <em>what is the AI actually doing with this data?</em>
+            </p>
+            <p>
+              Every API call is a small surface area. A student&apos;s essay goes to a model.
+              A teacher&apos;s rubric goes to a model. Assignment instructions, grades, feedback —
+              all of it passes through an external system. Most of the time that feels fine.
+              But &ldquo;feels fine&rdquo; is not the same as &ldquo;is fine,&rdquo; and in an educational context
+              where the data belongs to real students, that distinction matters.
+            </p>
+            <p>
+              There is also a broader problem I keep thinking about. We live in a world where
+              companies can bury a data consent clause in a terms of service agreement, make
+              you click a box to use their product, and technically have your permission to use
+              everything you gave them. Most people never read it. Most people do not even
+              know it happened. That model of &ldquo;consent&rdquo; is broken — and it is especially
+              broken when the people affected are students who have no real choice but to use
+              the tool their school requires.
+            </p>
+          </Prose>
+
+          <blockquote
+            className="my-10 pl-6 border-l-4 text-xl font-semibold text-slate-700 leading-relaxed"
+            style={{ borderColor: '#10B981' }}
+          >
+            &ldquo;Clicking a box to agree to terms you didn&apos;t read is not consent.
+            It&apos;s just a liability shield.&rdquo;
+          </blockquote>
+
+          <Prose>
+            <p>
+              So one of the things I am actively thinking about with ALUMOS is how to do
+              this differently. A few principles I keep coming back to:
+            </p>
+          </Prose>
+
+          <div className="mt-6 space-y-4">
+            {[
+              {
+                icon: 'privacy_tip',
+                title: 'Extract as little as possible',
+                body: "The AI should only see what it actually needs for the task. Grading a submission does not require the student's name. Generating a course does not require knowing who uploaded the syllabus. Scoping what goes into each call limits the exposure if something goes wrong.",
+                color: '#10B981',
+              },
+              {
+                icon: 'how_to_reg',
+                title: 'Explicit consent, not buried consent',
+                body: "Before the AI references a student's work, a teacher's materials, or anything personal, there should be a clear and honest moment where that person understands what is happening and agrees to it. Not a ToS checkbox at sign-up. A real, contextual, in-the-moment ask.",
+                color: '#3B82F6',
+              },
+              {
+                icon: 'visibility',
+                title: 'Transparency over opacity',
+                body: "Students and teachers should be able to see exactly what the AI was given. Not a vague privacy policy — an actual log. What was sent, when, and why. If you would not be comfortable showing it to the person whose data it is, you should not be sending it.",
+                color: '#7C3AED',
+              },
+            ].map(p => (
+              <div
+                key={p.title}
+                className="rounded-2xl p-5 border flex gap-4"
+                style={{ borderColor: 'rgba(226,232,240,0.8)', background: '#fafafa' }}
+              >
+                <div
+                  className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center mt-0.5"
+                  style={{ background: `${p.color}12` }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: p.color }}>
+                    {p.icon}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-1">{p.title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{p.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Prose>
+            <p className="mt-8">
+              None of this is fully solved in the current version of ALUMOS. But it is shaping
+              how I think about every feature I add. The goal is not just to build an LMS that
+              uses AI — it is to build one where students and teachers can actually trust what
+              the AI is doing with their information.
+            </p>
+          </Prose>
+        </section>
+
+        {/* Section 9 — The Security Stack */}
+        <section>
+          <SectionLabel n="09" label="The Security Stack" />
+          <Prose>
+            <p>
+              Going into this project I had a surface-level understanding of API keys.
+              I knew what they were — strings that authenticate a request to an external
+              service — but I did not really understand what managing them looked like in
+              practice. What does it mean to keep a key secure? What happens when it leaks?
+              How do you think about the keys for five different services at once?
+            </p>
+            <p>
+              Building ALUMOS forced me to actually reckon with all of that. Groq for the
+              AI model, Supabase for the database and auth, environment variables to keep
+              keys out of the codebase, different keys for development and production — it
+              adds up fast. And in a world where third-party apps can integrate with multiple
+              AI providers through their own API layer, understanding what you are actually
+              handing over when you pass a key to one of those services became something I
+              took a lot more seriously.
+            </p>
+            <p>
+              OAuth 2.0 was another big one. I had heard the name but did not really
+              understand it until I had to implement it. There is a web version, an iOS
+              version, different flows depending on the context — and keeping track of
+              which tokens are alive, which have expired, and what permissions each one
+              carries is genuinely non-trivial. It was one of those things where the moment
+              you implement it yourself, the whole model clicks.
+            </p>
+          </Prose>
+
+          <div className="my-8 grid sm:grid-cols-3 gap-4">
+            {[
+              { word: 'Groq API', desc: 'LLM inference — scoped keys, never in the client', color: '#F59E0B' },
+              { word: 'OAuth 2.0', desc: 'Google + Microsoft login via Supabase SSR', color: '#3B82F6' },
+              { word: 'Snyk', desc: 'Open-source security scanning — found vulnerabilities I would have missed', color: '#10B981' },
+            ].map(k => (
+              <div key={k.word} className="rounded-2xl p-5 border" style={{ borderColor: `${k.color}25`, background: `${k.color}06` }}>
+                <div className="font-bold mb-1" style={{ fontFamily: 'var(--font-syne)', color: k.color }}>{k.word}</div>
+                <div className="text-xs text-slate-500 leading-relaxed">{k.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <Prose>
+            <p>
+              Snyk was a discovery I am especially glad I made. It is an open-source
+              security scanning tool that checks your dependencies and codebase for known
+              vulnerabilities. Running it on ALUMOS was eye-opening — not because it found
+              catastrophic issues, but because it showed me how many small exposure points
+              exist in any project that pulls in dependencies. It gave me a much more
+              concrete picture of what &ldquo;the security side&rdquo; actually means day to day.
+            </p>
+            <p>
+              The honest constraint was time and money. In my head, the ideal version of
+              this app had full end-to-end encryption for everything. In reality, with a
+              week to build, you have to prioritize. So instead of doing everything halfway,
+              I focused on what mattered most: row-level security in Supabase so data stays
+              scoped to the right users, keys never in client-side code, and auth that
+              does not store credentials on ALUMOS servers at all. Not perfect — but
+              deliberate. You don&apos;t get to cheat. You pick what you protect, and you protect
+              it well.
+            </p>
+          </Prose>
+        </section>
+
+        {/* Section 10 — What's Next */}
+        <section>
+          <SectionLabel n="10" label="What's Next" />
           <Prose>
             <p>
               ALUMOS is still very much a work in progress. The hackathon MVP proved the core
@@ -520,6 +678,60 @@ export default function AboutPage() {
             <p>
               There is still more to come. This is a living document — I&apos;ll keep updating it
               as the project grows.
+            </p>
+          </Prose>
+        </section>
+
+        {/* Section 11 — The Result */}
+        <section>
+          <SectionLabel n="11" label="The Result" />
+          <Prose>
+            <p>
+              I did not make top three.
+            </p>
+            <p>
+              That stung. Genuinely. I had spent a week on maybe five or six hours of sleep
+              a night, going into finals, pouring everything I had into something I actually
+              believed in. Losing a few points here and there along the way made it hurt
+              more. You build something, you care about it, you show it — and then you do
+              not win. That is hard no matter how you look at it.
+            </p>
+            <p>
+              But I do not regret a single hour of it.
+            </p>
+            <p>
+              I came into this project with a vague idea and a basic understanding of how
+              most of this worked. I left it knowing how to manage API keys, how OAuth
+              actually functions, how to think about database-level security, how to
+              calibrate an AI agent through example, how to use Claude not just as a
+              code generator but as a collaborator, and how to build a product that has
+              real structure underneath it. I learned how to prompt with intention, how to
+              prototype before committing, how to scope a roadmap honestly, and how to
+              say no to the features that would have sunk the whole thing.
+            </p>
+          </Prose>
+
+          <blockquote
+            className="my-10 pl-6 border-l-4 text-xl font-semibold text-slate-700 leading-relaxed"
+            style={{ borderColor: '#EC4899' }}
+          >
+            &ldquo;I came in with a vague idea. I left with a set of skills I am going to
+            use for the rest of my career.&rdquo;
+          </blockquote>
+
+          <Prose>
+            <p>
+              The hackathon was the deadline. ALUMOS is not done.
+            </p>
+            <p>
+              There is still a product here worth building — a real LMS built for the AI
+              era, with genuine security, teacher-trained grading, and an experience that
+              does not make students learn six different road maps every semester. That
+              idea did not go away when the judging ended. If anything, not winning made
+              me want to prove it out even more.
+            </p>
+            <p>
+              So this is not a retrospective. It is a starting point.
             </p>
           </Prose>
         </section>
