@@ -50,7 +50,7 @@ export default function AboutPage() {
           One week. A hackathon prompt. An idea that had been sitting in the back of my mind.
           This is how ALUMOS came to be, what I learned building it, and where it goes next.
         </p>
-        <p className="mt-6 text-sm text-slate-400">By Fischer Hewitt &nbsp;·&nbsp; Cal Poly &nbsp;·&nbsp; 2025</p>
+        <p className="mt-6 text-sm text-slate-400">By Fischer Hewitt &nbsp;·&nbsp; Cal Poly &nbsp;·&nbsp; 2026</p>
       </header>
 
       {/* Article body */}
@@ -559,7 +559,7 @@ export default function AboutPage() {
       <footer className="border-t border-slate-100 py-8">
         <div className="max-w-3xl mx-auto px-6 flex items-center justify-between">
           <ALUMOSGradientLogo iconSize={22} />
-          <p className="text-xs text-slate-400">© 2025 ALUMOS</p>
+          <p className="text-xs text-slate-400">© 2026 ALUMOS</p>
         </div>
       </footer>
     </div>

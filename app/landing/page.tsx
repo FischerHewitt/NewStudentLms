@@ -428,7 +428,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <ALUMOSGradientLogo iconSize={24} />
           <p className="text-sm text-slate-400">
-            &copy; 2025 ALUMOS. A Brighter Path Through Every Class.
+            &copy; 2026 ALUMOS. A Brighter Path Through Every Class.
           </p>
           <Link
             href="/login"
