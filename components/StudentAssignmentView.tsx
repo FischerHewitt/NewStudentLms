@@ -12,6 +12,7 @@ import {
   formatAttachmentBytes,
   SUBMISSION_ATTACHMENT_ACCEPT,
 } from '@/lib/submission-attachment'
+import { StudentCoach } from '@/components/StudentCoach'
 import type {
   AssignmentWithDetails,
   FileAttachment,
@@ -138,6 +139,18 @@ export function StudentAssignmentView({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── AI Coach ────────────────────────────────────── */}
+      {!isSubmitted && (
+        <div className="mb-5">
+          <StudentCoach
+            assignmentTitle={assignment.title}
+            instructions={assignment.instructions ?? ''}
+            rubricCriteria={assignment.rubric?.criteria}
+            studentDraft={body}
+          />
         </div>
       )}
 

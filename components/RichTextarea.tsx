@@ -132,90 +132,46 @@ const allowedTags = new Set([
 
 const allowedStyles = new Set([
   'background-color',
+  'border',
+  'border-radius',
   'color',
+  'display',
   'font-family',
   'font-size',
   'line-height',
+  'padding',
   'text-align',
+  'vertical-align',
 ])
 
 // ---------------------------------------------------------------------------
-// Math function templates — Desmos-style
+// Math input modal — quick-insert symbols
 // ---------------------------------------------------------------------------
 
-export type MathFnKey =
-  | 'sqrt' | 'nthroot' | 'abs' | 'floor' | 'ceil' | 'round' | 'mod' | 'sign'
-  | 'exp' | 'ln' | 'log' | 'log_a'
-  | 'derivative' | 'integral' | 'sum' | 'product' | 'limit'
-  | 'sin' | 'cos' | 'tan' | 'csc' | 'sec' | 'cot'
-  | 'arcsin' | 'arccos' | 'arctan'
-  | 'sinh' | 'cosh' | 'tanh' | 'csch' | 'sech' | 'coth'
-  | 'mean' | 'median' | 'stdev' | 'variance' | 'nCr' | 'nPr' | 'factorial'
-  | 'distance' | 'midpoint' | 'polygon'
-
-const MATH_TEMPLATES: Record<MathFnKey, string> = {
-  sqrt: '\\sqrt{□}', nthroot: '\\sqrt[□]{□}', abs: '|□|',
-  floor: '\\lfloor □ \\rfloor', ceil: '\\lceil □ \\rceil',
-  round: '\\text{round}(□)', mod: '□ \\mod □', sign: '\\text{sign}(□)',
-  exp: 'e^{□}', ln: '\\ln(□)', log: '\\log(□)', log_a: '\\log_{□}(□)',
-  derivative: '\\frac{d}{dx}(□)', integral: '\\int_{□}^{□} □ \\, d□',
-  sum: '\\sum_{□}^{□} □', product: '\\prod_{□}^{□} □', limit: '\\lim_{□ \\to □} □',
-  sin: '\\sin(□)', cos: '\\cos(□)', tan: '\\tan(□)',
-  csc: '\\csc(□)', sec: '\\sec(□)', cot: '\\cot(□)',
-  arcsin: '\\arcsin(□)', arccos: '\\arccos(□)', arctan: '\\arctan(□)',
-  sinh: '\\sinh(□)', cosh: '\\cosh(□)', tanh: '\\tanh(□)',
-  csch: '\\text{csch}(□)', sech: '\\text{sech}(□)', coth: '\\coth(□)',
-  mean: '\\bar{□}', median: '\\tilde{□}', stdev: '\\sigma(□)',
-  variance: '\\sigma^2(□)', nCr: '\\binom{□}{□}', nPr: 'P(□,□)', factorial: '□!',
-  distance: '\\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}',
-  midpoint: '\\left(\\frac{x_1+x_2}{2},\\frac{y_1+y_2}{2}\\right)',
-  polygon: '\\text{polygon}(□)',
-}
-
-export function buildMathTemplate(key: MathFnKey | string): string {
-  return MATH_TEMPLATES[key as MathFnKey] ?? `\\${key}(□)`
-}
-
-type MathCategory = { label: string; fns: { key: MathFnKey; display: string }[] }
-
-const MATH_CATEGORIES: MathCategory[] = [
-  { label: 'ARITHMETIC', fns: [
-    { key: 'sqrt', display: '√x' }, { key: 'nthroot', display: 'ⁿ√x' },
-    { key: 'abs', display: '|x|' }, { key: 'floor', display: '⌊x⌋' },
-    { key: 'ceil', display: '⌈x⌉' }, { key: 'round', display: 'round' },
-    { key: 'mod', display: 'mod' }, { key: 'sign', display: 'sign' },
-  ]},
-  { label: 'EXPONENTS & LOGS', fns: [
-    { key: 'exp', display: 'eˣ' }, { key: 'ln', display: 'ln' },
-    { key: 'log', display: 'log' }, { key: 'log_a', display: 'logₐ' },
-  ]},
-  { label: 'CALCULUS', fns: [
-    { key: 'derivative', display: 'd/dx' }, { key: 'integral', display: '∫' },
-    { key: 'sum', display: 'Σ' }, { key: 'product', display: 'Π' },
-    { key: 'limit', display: 'lim' },
-  ]},
-  { label: 'TRIG FUNCTIONS', fns: [
-    { key: 'sin', display: 'sin' }, { key: 'cos', display: 'cos' },
-    { key: 'tan', display: 'tan' }, { key: 'csc', display: 'csc' },
-    { key: 'sec', display: 'sec' }, { key: 'cot', display: 'cot' },
-    { key: 'arcsin', display: 'arcsin' }, { key: 'arccos', display: 'arccos' },
-    { key: 'arctan', display: 'arctan' },
-  ]},
-  { label: 'HYPERBOLIC TRIG', fns: [
-    { key: 'sinh', display: 'sinh' }, { key: 'cosh', display: 'cosh' },
-    { key: 'tanh', display: 'tanh' }, { key: 'csch', display: 'csch' },
-    { key: 'sech', display: 'sech' }, { key: 'coth', display: 'coth' },
-  ]},
-  { label: 'STATISTICS', fns: [
-    { key: 'mean', display: 'x̄' }, { key: 'median', display: 'x̃' },
-    { key: 'stdev', display: 'σ' }, { key: 'variance', display: 'σ²' },
-    { key: 'nCr', display: 'nCr' }, { key: 'nPr', display: 'nPr' },
-    { key: 'factorial', display: 'n!' },
-  ]},
-  { label: 'GEOMETRY', fns: [
-    { key: 'distance', display: 'dist' }, { key: 'midpoint', display: 'mid' },
-    { key: 'polygon', display: 'poly' },
-  ]},
+const MATH_SYMBOLS: Array<{ display: string; latex: string }> = [
+  { display: 'a/b',  latex: '\\frac{□}{□}' },
+  { display: '√x',   latex: '\\sqrt{□}' },
+  { display: 'xⁿ',  latex: '□^{□}' },
+  { display: 'xₙ',  latex: '□_{□}' },
+  { display: '∫',    latex: '\\int_{□}^{□}' },
+  { display: '∑',    latex: '\\sum_{□}^{□}' },
+  { display: 'lim',  latex: '\\lim_{□ \\to □}' },
+  { display: 'd/dx', latex: '\\frac{d}{dx}(□)' },
+  { display: '|x|',  latex: '|□|' },
+  { display: 'π',    latex: '\\pi' },
+  { display: '∞',    latex: '\\infty' },
+  { display: 'θ',    latex: '\\theta' },
+  { display: 'α',    latex: '\\alpha' },
+  { display: 'β',    latex: '\\beta' },
+  { display: 'Δ',    latex: '\\Delta' },
+  { display: 'μ',    latex: '\\mu' },
+  { display: 'σ',    latex: '\\sigma' },
+  { display: '≤',    latex: '\\leq' },
+  { display: '≥',    latex: '\\geq' },
+  { display: '≠',    latex: '\\neq' },
+  { display: '≈',    latex: '\\approx' },
+  { display: '→',    latex: '\\to' },
+  { display: '±',    latex: '\\pm' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -394,10 +350,14 @@ export function RichTextarea({
   const lastEmittedValueRef = useRef(value)
   const [isEmpty, setIsEmpty] = useState(!value.trim())
   // Which popover is open
-  const [openPanel, setOpenPanel] = useState<null | 'table' | 'math'>(null)
+  const [openPanel, setOpenPanel] = useState<null | 'table'>(null)
   const [tableHover, setTableHover] = useState<{ cols: number; rows: number } | null>(null)
-  // Inline math editor popover
-  const [mathEdit, setMathEdit] = useState<{ span: HTMLSpanElement; latex: string } | null>(null)
+  // Math input modal (insert or edit mode)
+  const [mathModal, setMathModal] = useState<
+    | { mode: 'insert' }
+    | { mode: 'edit'; span: HTMLSpanElement; latex: string }
+    | null
+  >(null)
 
   useEffect(() => {
     const editor = ref.current
@@ -540,7 +500,7 @@ export function RichTextarea({
       if (url) runCommand('createLink', url)
     } else if (action === 'math') {
       saveSelection()
-      setOpenPanel('math')
+      setMathModal({ mode: 'insert' })
     } else if (action === 'table') {
       saveSelection()
       setOpenPanel('table')
@@ -556,10 +516,9 @@ export function RichTextarea({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const insertMathFn = useCallback((key: MathFnKey) => {
-    setOpenPanel(null)
-    const template = buildMathTemplate(key)
-    insertHtml(buildMathSpanHtml(template))
+  const insertMathLatex = useCallback((latex: string) => {
+    setMathModal(null)
+    insertHtml(buildMathSpanHtml(latex))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -569,13 +528,31 @@ export function RichTextarea({
       if (e.key === 'i') { e.preventDefault(); handleAction('italic') }
       if (e.key === 'u') { e.preventDefault(); handleAction('underline') }
     }
-    // Close math edit on Escape
-    if (e.key === 'Escape' && mathEdit) {
-      setMathEdit(null)
+    // Close math modal on Escape
+    if (e.key === 'Escape' && mathModal) {
+      setMathModal(null)
     }
   }
 
-  /** Click on the editor area — open inline math editor if a math span was clicked. */
+  /**
+   * Paste handler — always inserts as plain text so that text copied from any
+   * source (PDF, text editor, terminal) arrives without unwanted HTML markup.
+   * Line breaks are preserved as paragraph elements.
+   */
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (disabled) return
+    e.preventDefault()
+    const text = e.clipboardData.getData('text/plain')
+    if (!text) return
+    const html = text
+      .split('\n')
+      .map((line) => (line.trim() ? `<p>${escapeHtml(line)}</p>` : '<p><br></p>'))
+      .join('')
+    document.execCommand('insertHTML', false, html)
+    emitChange()
+  }
+
+  /** Click on the editor area — open math modal if a math span was clicked. */
   const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (disabled) return
     const target = e.target as HTMLElement
@@ -583,31 +560,11 @@ export function RichTextarea({
     if (mathSpan) {
       e.preventDefault()
       e.stopPropagation()
-      setMathEdit({ span: mathSpan, latex: mathSpan.getAttribute('data-math') ?? '' })
+      setMathModal({ mode: 'edit', span: mathSpan, latex: mathSpan.getAttribute('data-math') ?? '' })
     } else {
-      setMathEdit(null)
+      setMathModal(null)
     }
   }
-
-  /** Commit an edited latex value back to the span and re-render. */
-  const commitMathEdit = useCallback((latex: string) => {
-    if (!mathEdit) return
-    const { span } = mathEdit
-    span.setAttribute('data-math', latex)
-    span.innerHTML = buildMathInnerHtml(latex)
-    setMathEdit(null)
-    emitChange()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mathEdit])
-
-  /** Delete a math span from the editor. */
-  const deleteMathSpan = useCallback(() => {
-    if (!mathEdit) return
-    mathEdit.span.remove()
-    setMathEdit(null)
-    emitChange()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mathEdit])
 
   const minHeight = `${Math.max(rows, 4) * 1.5 + 1.5}rem`
 
@@ -700,30 +657,39 @@ export function RichTextarea({
             />
           )}
         </div>
-        {openPanel === 'math' && (
-          <MathPanel
-            categories={MATH_CATEGORIES}
-            onInsert={insertMathFn}
-            onClose={() => setOpenPanel(null)}
-          />
-        )}
       </div>
+
+      {/* Math input modal — rendered outside the toolbar so it overlays the whole page */}
+      {mathModal && mathModal.mode === 'insert' && (
+        <MathInputModal
+          onInsert={insertMathLatex}
+          onClose={() => setMathModal(null)}
+        />
+      )}
+      {mathModal && mathModal.mode === 'edit' && (
+        <MathInputModal
+          initialLatex={mathModal.latex}
+          isEditing
+          onInsert={(latex) => {
+            mathModal.span.setAttribute('data-math', latex)
+            mathModal.span.innerHTML = buildMathInnerHtml(latex)
+            setMathModal(null)
+            emitChange()
+          }}
+          onDelete={() => {
+            mathModal.span.remove()
+            setMathModal(null)
+            emitChange()
+          }}
+          onClose={() => setMathModal(null)}
+        />
+      )}
 
       <div className="relative">
         {placeholder && isEmpty && (
           <div className="pointer-events-none absolute left-3 top-3 text-sm leading-relaxed text-slate-400">
             {placeholder}
           </div>
-        )}
-        {mathEdit && (
-          <MathEditPopover
-            span={mathEdit.span}
-            latex={mathEdit.latex}
-            editorRef={ref}
-            onCommit={commitMathEdit}
-            onDelete={deleteMathSpan}
-            onClose={() => setMathEdit(null)}
-          />
         )}
         <div
           ref={ref}
@@ -736,6 +702,7 @@ export function RichTextarea({
           onKeyUp={saveSelection}
           onMouseUp={saveSelection}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           onClick={handleEditorClick}
           suppressContentEditableWarning
           style={{ minHeight }}
@@ -951,171 +918,161 @@ function TablePicker({
   )
 }
 
-// ── Inline math editor popover ────────────────────────────────────────────
+// ── Desmos-style math input modal ────────────────────────────────────────────
 
-function MathEditPopover({
-  span,
-  latex,
-  editorRef,
-  onCommit,
+function MathInputModal({
+  initialLatex = '',
+  isEditing = false,
+  onInsert,
   onDelete,
   onClose,
 }: {
-  span: HTMLSpanElement
-  latex: string
-  editorRef: React.RefObject<HTMLDivElement | null>
-  onCommit: (latex: string) => void
-  onDelete: () => void
+  initialLatex?: string
+  isEditing?: boolean
+  onInsert: (latex: string) => void
+  onDelete?: () => void
   onClose: () => void
 }) {
-  const [draft, setDraft] = useState(latex)
+  const [draft, setDraft] = useState(initialLatex)
   const [preview, setPreview] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Position popover below the span
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
-    const spanRect = span.getBoundingClientRect()
-    const editorRect = editorRef.current?.getBoundingClientRect()
-    if (!editorRect) return
-    setPos({
-      top: spanRect.bottom - editorRect.top + (editorRef.current?.scrollTop ?? 0) + 6,
-      left: Math.min(
-        spanRect.left - editorRect.left,
-        (editorRect.width ?? 300) - 260
-      ),
-    })
-    inputRef.current?.focus()
-    inputRef.current?.select()
-  }, [span, editorRef])
+    requestAnimationFrame(() => inputRef.current?.focus())
+  }, [])
 
-  // Live KaTeX preview
   useEffect(() => {
     try {
-      setPreview(katex.renderToString(latexWithPlaceholders(draft), {
-        throwOnError: false, displayMode: false, trust: false, strict: false,
-      }))
+      setPreview(
+        katex.renderToString(
+          latexWithPlaceholders(draft) || '\\textcolor{#94a3b8}{\\text{type math above}}',
+          { throwOnError: false, displayMode: true, trust: false, strict: false }
+        )
+      )
     } catch {
-      setPreview(escapeHtml(draft))
+      setPreview(`<span style="color:#94a3b8;font-size:13px">${escapeHtml(draft)}</span>`)
     }
   }, [draft])
 
-  if (!pos) return null
+  const insertAtCursor = (sym: string) => {
+    const el = inputRef.current
+    if (!el) { setDraft(d => d + sym); return }
+    const start = el.selectionStart ?? draft.length
+    const end = el.selectionEnd ?? draft.length
+    const next = draft.slice(0, start) + sym + draft.slice(end)
+    setDraft(next)
+    requestAnimationFrame(() => {
+      const placeholderIdx = next.indexOf('□', start)
+      const newCursor = placeholderIdx !== -1 ? placeholderIdx : start + sym.length
+      el.setSelectionRange(newCursor, placeholderIdx !== -1 ? newCursor + 1 : newCursor)
+      el.focus()
+    })
+  }
 
   return (
     <div
-      className="absolute z-50 w-64 rounded-lg border border-indigo-200 bg-white shadow-xl"
-      style={{ top: pos.top, left: Math.max(0, pos.left) }}
-      onMouseDown={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="p-2">
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Edit LaTeX</p>
-        <input
-          ref={inputRef}
-          type="text"
-          value={draft}
-          onChange={(e) => {
-            const newVal = e.target.value
-            const cursor = e.target.selectionStart ?? newVal.length
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-            // Smart "/" → \frac{numerator}{□}
-            // Trigger when the character just typed is "/"
-            if (newVal[cursor - 1] === '/') {
-              const before = newVal.slice(0, cursor - 1)
-              const after = newVal.slice(cursor)
-              // Grab the token immediately before the slash as the numerator.
-              // Match: a brace-balanced group, a word/number, or empty.
-              const tokenMatch = before.match(/(\{[^}]*\}|\w+(?:\^\{[^}]*\})?|\S*)$/)
-              const numerator = tokenMatch ? tokenMatch[0] : ''
-              const prefix = before.slice(0, before.length - numerator.length)
-              const replacement = `\\frac{${numerator}}{□}`
-              const nextVal = prefix + replacement + after
-              setDraft(nextVal)
-              // Place cursor inside the denominator braces: after "{"
-              const denomStart = (prefix + `\\frac{${numerator}}{`).length
-              requestAnimationFrame(() => {
-                inputRef.current?.setSelectionRange(denomStart, denomStart + 1) // select the □
-              })
-              return
-            }
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
 
-            setDraft(newVal)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); onCommit(draft) }
-            if (e.key === 'Escape') { e.preventDefault(); onClose() }
-          }}
-          className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
-          spellCheck={false}
-        />
-        {/* Live preview */}
-        <div
-          className="mt-2 min-h-8 rounded border border-slate-100 bg-slate-50 px-2 py-1 text-center text-sm"
-          dangerouslySetInnerHTML={{ __html: preview }}
-        />
-        <div className="mt-2 flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => onCommit(draft)}
-            className="flex-1 rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-indigo-700"
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-500 transition hover:bg-red-50"
-          >
-            Delete
-          </button>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+          <div className="flex items-center gap-2 text-slate-700">
+            <svg viewBox="0 0 18 14" width="18" height="14" fill="none">
+              <text x="0" y="11" fontSize="11" fontFamily="serif" fontStyle="italic" fill="currentColor">f</text>
+              <text x="6" y="11" fontSize="9" fontFamily="serif" fill="currentColor">(x)</text>
+            </svg>
+            <span className="text-sm font-semibold">{isEditing ? 'Edit math' : 'Insert math'}</span>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 transition hover:bg-slate-50"
+            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
-            Cancel
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
           </button>
         </div>
-      </div>
-    </div>
-  )
-}
 
-// ── Math / functions panel ────────────────────────────────────────────────
+        {/* Live preview */}
+        <div className="flex min-h-[88px] items-center justify-center border-b border-slate-100 bg-slate-50 px-6 py-5">
+          <div
+            className="max-w-full overflow-x-auto [&_.katex-display]:my-0"
+            dangerouslySetInnerHTML={{ __html: preview }}
+          />
+        </div>
 
-function MathPanel({
-  categories,
-  onInsert,
-  onClose: _onClose,
-}: {
-  categories: MathCategory[]
-  onInsert: (key: MathFnKey) => void
-  onClose: () => void
-}) {
-  return (
-    <div
-      className="absolute right-0 top-full z-50 mt-1 max-h-80 w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl"
-      onMouseDown={(e) => e.preventDefault()}
-    >
-      {categories.map((cat) => (
-        <div key={cat.label} className="px-3 py-2">
-          <p className="mb-1.5 text-[10px] font-semibold tracking-widest text-slate-400">
-            {cat.label}
-          </p>
-          <div className="grid grid-cols-3 gap-1">
-            {cat.fns.map(({ key, display }) => (
+        {/* LaTeX input */}
+        <div className="px-5 pt-4 pb-2">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">LaTeX</p>
+          <textarea
+            ref={inputRef}
+            rows={2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onInsert(draft) }
+              if (e.key === 'Escape') { e.preventDefault(); onClose() }
+            }}
+            placeholder={isEditing ? '' : 'e.g. \\frac{3n - n^2}{n^2 + 4}'}
+            className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            spellCheck={false}
+          />
+        </div>
+
+        {/* Quick-insert symbols */}
+        <div className="px-5 pb-4">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Quick insert</p>
+          <div className="flex flex-wrap gap-1">
+            {MATH_SYMBOLS.map(({ display, latex }) => (
               <button
-                key={key}
+                key={latex}
                 type="button"
-                onClick={() => onInsert(key)}
-                className="rounded border border-slate-200 bg-slate-50 px-1 py-1.5 text-center text-xs font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                onMouseDown={(e) => { e.preventDefault(); insertAtCursor(latex) }}
+                className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
               >
                 {display}
               </button>
             ))}
           </div>
         </div>
-      ))}
+
+        {/* Footer */}
+        <div className={`flex border-t border-slate-100 px-5 py-3 gap-2 ${isEditing ? 'justify-between' : 'justify-end'}`}>
+          {isEditing && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50"
+            >
+              Remove
+            </button>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (draft.trim()) onInsert(draft) }}
+              disabled={!draft.trim()}
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isEditing ? 'Update' : 'Insert'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

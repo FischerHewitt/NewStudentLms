@@ -241,14 +241,14 @@ function EditTabContent({
       </div>
 
       {mode === 'quick' ? (
-        <textarea
-          value={instructions}
-          onChange={(e) => onInstructionsChange(e.target.value)}
-          rows={6}
-          placeholder="Assignment instructions…"
+        <div
+          contentEditable
+          suppressContentEditableWarning
+          onInput={(e) => onInstructionsChange(e.currentTarget.innerHTML)}
           aria-label="Assignment instructions"
-          className="w-full resize-y rounded-xl border p-4 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-200"
+          className="min-h-[144px] w-full rounded-xl border p-4 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-200"
           style={{ borderColor: LI.border, background: LI.surface, color: LI.text }}
+          dangerouslySetInnerHTML={{ __html: instructions }}
         />
       ) : (
         <div>

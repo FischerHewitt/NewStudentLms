@@ -37,7 +37,6 @@ import type { GradeWithFeedback } from '@/lib/grade-summary'
 type StudentTab = 'overview' | 'grades' | 'messages'
 type WorkView = 'todo' | 'completed'
 
-const TODO_AHEAD_DAYS = 10
 const TODO_VISIBLE_LIMIT = 9
 const COMPLETED_LOOKBACK_DAYS = 21
 const COMPLETED_VISIBLE_LIMIT = 9
@@ -496,12 +495,6 @@ function groupOpenAssignments(assignments: StudentDashboardAssignment[]) {
     }))
 }
 
-function isInTodoWindow(assignment: StudentDashboardAssignment): boolean {
-  // Undated assignments always appear — they have no concrete deadline to miss.
-  if (!assignment.due) return true
-  return daysUntil(assignment.due) <= TODO_AHEAD_DAYS
-}
-
 function completedReferenceDate(assignment: StudentDashboardAssignment): string | null {
   return assignment.submittedAt?.slice(0, 10) ?? assignment.due
 }
@@ -575,6 +568,13 @@ function StudentSidebar() {
           >
             Teacher View
           </button>
+          <Link
+            href="/"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+          >
+            <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
+            Switch role
+          </Link>
         </div>
       </div>
 
@@ -582,13 +582,21 @@ function StudentSidebar() {
         <div className="flex items-center gap-2">
           <ALUMOSGradientLogo iconSize={28} />
         </div>
-        <button
-          type="button"
-          onClick={switchToTeacher}
-          className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white"
-        >
-          Teacher View
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Switch role
+          </Link>
+          <button
+            type="button"
+            onClick={switchToTeacher}
+            className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Teacher View
+          </button>
+        </div>
       </div>
     </aside>
   )
@@ -894,8 +902,8 @@ function WeekStrip({
           <button type="button" onClick={() => setWeekOffset((value) => value - 7)} className="rounded-full p-2 text-slate-500 hover:bg-slate-50">
             <span className="material-symbols-outlined text-[18px]">chevron_left</span>
           </button>
-          <button type="button" onClick={() => setWeekOffset(0)} className="rounded-full px-3 py-1 text-xs font-semibold text-violet-600 hover:bg-violet-50">
-            Today
+          <button type="button" onClick={() => { setWeekOffset(0); setDayFilter(null) }} className="rounded-full px-3 py-1 text-xs font-semibold text-violet-600 hover:bg-violet-50">
+            {dayFilter ? 'Reset' : 'Today'}
           </button>
           <button type="button" onClick={() => setWeekOffset((value) => value + 7)} className="rounded-full p-2 text-slate-500 hover:bg-slate-50">
             <span className="material-symbols-outlined text-[18px]">chevron_right</span>
@@ -1185,6 +1193,12 @@ function OverviewPanel({
     ? assignments.filter((assignment) => assignment.courseId === selectedCourseId)
     : assignments
   const allOpenAssignments = filterOpenAssignments(visibleAssignments, null, dayFilter)
+    .sort((a, b) => {
+      if (!a.due && !b.due) return 0
+      if (!a.due) return 1
+      if (!b.due) return -1
+      return a.due.localeCompare(b.due)
+    })
   // isInTodoWindow only controls calendar-dot visibility in WeekStrip.
   // The checklist shows ALL open assignments so newly-published courses are never hidden.
   const openAssignments = allOpenAssignments.slice(0, TODO_VISIBLE_LIMIT)

@@ -45,7 +45,7 @@ export function StudentViewPreviewModal({
   title,
   dueDate,
   pointsPossible,
-  instructions,
+  instructions: _instructions,
   contentBlocks,
   courseName,
   weekNumber,

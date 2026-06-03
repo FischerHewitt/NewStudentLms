@@ -61,6 +61,16 @@ export function TeacherHeader() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Back to Continue As page */}
+        <Link
+          href="/"
+          aria-label="Switch role"
+          title="Switch role"
+          className="hidden h-9 w-9 items-center justify-center rounded-full border border-outline-variant bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900 sm:inline-flex"
+        >
+          <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
+        </Link>
+
         {/* Quick Announcement — icon only */}
         <button
           type="button"

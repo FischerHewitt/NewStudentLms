@@ -327,6 +327,81 @@ export default function BusinessMetricsPage() {
           </table>
         </div>
 
+        {/* ── SECURITY ─────────────────────────────────────────────────── */}
+        <SectionHeader>How We Built It Secure</SectionHeader>
+        <div
+          style={{
+            background: C.card,
+            border: `1px solid ${C.border}`,
+            borderRadius: 16,
+            padding: '28px 32px',
+            marginBottom: 40,
+          }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+            {[
+              {
+                icon: '🔑',
+                title: 'API keys never leave the server',
+                body: 'GROQ and Supabase service keys live in server-only environment variables. Every AI call goes through a Next.js API Route or Server Action — the browser never sees a key.',
+              },
+              {
+                icon: '🛡️',
+                title: 'All writes through Server Actions',
+                body: 'No client-side Supabase mutations. Every database write (submissions, grades, course structure) is gated behind a typed Server Action that runs on the server.',
+              },
+              {
+                icon: '🧑‍⚖️',
+                title: 'AI is advisory — humans approve everything',
+                body: 'AI-suggested grades, feedback drafts, and generated course structure are never auto-applied. A teacher must explicitly confirm before anything is saved to the database.',
+              },
+              {
+                icon: '🔐',
+                title: 'Row-level security model designed',
+                body: 'The database schema enforces a teacher/student permission boundary. Students can only read their own submissions and grades. Only teachers can approve final grades.',
+              },
+              {
+                icon: '📭',
+                title: 'No real student PII in the demo',
+                body: 'The demo environment is seeded entirely with synthetic data. No real student names, emails, or submissions are used at any point in the demo loop.',
+              },
+              {
+                icon: '✉️',
+                title: 'Invite-before-access enrollment',
+                body: 'Student accounts created by a teacher are marked pending until the student activates via email. Pending accounts have no session and inherit no permissions.',
+              },
+            ].map(({ icon, title, body }) => (
+              <div
+                key={title}
+                style={{
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: '18px 20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 18 }}>{icon}</span>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0 }}>{title}</p>
+                </div>
+                <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.6, margin: 0 }}>{body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{
+            marginTop: 20, padding: '14px 20px', borderRadius: 12,
+            background: '#EFF6FF', border: '1px solid #BFDBFE',
+          }}>
+            <p style={{ fontSize: 13, color: '#1e40af', margin: 0 }}>
+              <strong>On the roadmap:</strong>{' '}
+              <span style={{ fontWeight: 400 }}>
+                Full Supabase Auth with session tokens, Row Level Security policies enforced at the database layer, institution-level SSO, and detailed audit logs for grade changes.
+              </span>
+            </p>
+          </div>
+        </div>
+
         {/* Footer */}
         <p style={{ textAlign: 'center', fontSize: 12, color: C.muted }}>
           Alumos · AI-native LMS · Grading time statistics sourced from Learnosity (2024) and Education Week (2022)

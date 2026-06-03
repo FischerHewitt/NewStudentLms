@@ -53,22 +53,14 @@ test.describe.configure({ mode: 'serial' })
 
 test.describe('Demo Loop — full hackathon script', () => {
 
-  // ── Step 1a: Teacher home shows BIO 111 ─────────────────────────────────────
+  // ── Step 1: Teacher dashboard shows BIO 111 and COMS 101 ───────────────────
 
-  test('Step 1: teacher home shows pre-loaded BIO 111 course', async ({ page }) => {
-    await page.goto('/')
+  test('Step 1: teacher dashboard shows pre-loaded BIO 111 and COMS 101 courses', async ({ page }) => {
+    await page.goto('/dashboard')
     await setRole(page, 'teacher')
 
-    await expect(page.getByText('BIO 111', { exact: false })).toBeVisible({ timeout: 10_000 })
-  })
-
-  // ── Step 1b: Teacher home shows COMS 101 ────────────────────────────────────
-
-  test('Step 1: teacher home shows pre-loaded COMS 101 course', async ({ page }) => {
-    await page.goto('/')
-    await setRole(page, 'teacher')
-
-    await expect(page.getByText('COMS 101', { exact: false })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /BIO 111/i }).first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: /COMS 101/i }).first()).toBeVisible({ timeout: 10_000 })
   })
 
   // ── Step 2: Generate MATH 143 from syllabus ──────────────────────────────────

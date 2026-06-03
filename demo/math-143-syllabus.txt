@@ -73,7 +73,7 @@ Week 11: Review and Final Exam
 ## Assignments
 
 Wednesday Problem – Week 1
-Instructions: Find the limit of the sequence a_n = (3n - n^2) / (n^2 + 4) as n approaches infinity. Show all steps in order: (1) identify the dominant terms or divide the numerator and denominator by n^2; (2) show that the sub-dominant terms go to 0 as n approaches infinity; (3) form the simplified ratio; (4) state the final numerical value of the limit. Label each step clearly.
+Instructions: Find the limit of the sequence a_n = (3n - n^2) / (n^2 + 4) as n approaches infinity. Show all steps.
 Points: 10
 Rubric:
   - Identifies dominant terms or correctly divides numerator and denominator by n^2: 3 pts

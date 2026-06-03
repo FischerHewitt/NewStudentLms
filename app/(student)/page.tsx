@@ -1,8 +1,15 @@
 'use client'
 
 import { ALUMOSGradientLogo } from '@/components/ALUMOSGradientLogo'
+import { createClient } from '@/lib/supabase/browser'
 
 export default function RootPage() {
+  async function signOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
   function goToTeacher() {
     localStorage.setItem('lms_active_role', 'teacher')
     window.location.href = '/dashboard'
@@ -40,6 +47,13 @@ export default function RootPage() {
           <span className="block font-semibold text-slate-800">Student</span>
         </button>
       </div>
+
+      <button
+        onClick={signOut}
+        className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+      >
+        Sign out
+      </button>
 
       <button
         onClick={goToBusinessMetrics}

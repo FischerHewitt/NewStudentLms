@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { courseHref, speedgraderHref } from '@/lib/routes'
+import { deleteCourse } from '@/app/actions/course'
 import type { TeacherCourseSummary } from '@/lib/teacher-dashboard'
 
 const LI = {
@@ -98,12 +99,23 @@ function HealthPill({ health, status }: { health: TeacherCourseSummary['health']
   )
 }
 
-function Row({ course, i }: { course: TeacherCourseSummary; i: number }) {
+function Row({ course, i, onDelete }: { course: TeacherCourseSummary; i: number; onDelete: (id: string) => void }) {
   const ACCENTS = ['#7C3AED', '#F59E0B', '#EC4899', '#10B981', '#3B82F6', '#F97316']
   const accent = ACCENTS[i % ACCENTS.length]
+  const [isPending, startTransition] = useTransition()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  function handleDelete() {
+    setMenuOpen(false)
+    if (!window.confirm(`Delete "${course.title}"? This cannot be undone.`)) return
+    startTransition(async () => {
+      await deleteCourse(course.id)
+      onDelete(course.id)
+    })
+  }
 
   return (
-    <tr className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+    <tr className={`${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'} ${isPending ? 'opacity-40' : ''}`}>
       <td className="py-3 pl-4 pr-3">
         <div className="flex items-center gap-3">
           <div className="h-8 w-1 shrink-0 rounded-full" style={{ background: accent }} />
@@ -149,13 +161,44 @@ function Row({ course, i }: { course: TeacherCourseSummary; i: number }) {
               Grade
             </Link>
           )}
+
+          {/* Three-dot menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen(o => !o)}
+              disabled={isPending}
+              aria-label="More options"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+            >
+              <span className="material-symbols-outlined text-[18px]">more_vert</span>
+            </button>
+
+            {menuOpen && (
+              <>
+                {/* Backdrop to close on outside click */}
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute bottom-full right-0 z-20 mb-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                    Delete course
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </td>
     </tr>
   )
 }
 
-export function TeacherCoursesPage({ courses }: { courses: TeacherCourseSummary[] }) {
+export function TeacherCoursesPage({ courses: initialCourses }: { courses: TeacherCourseSummary[] }) {
+  const [courses, setCourses] = useState(initialCourses)
   const [sortKey, setSortKey] = useState<SortKey>('health')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
@@ -166,6 +209,10 @@ export function TeacherCoursesPage({ courses }: { courses: TeacherCourseSummary[
       setSortKey(key)
       setSortDir('asc')
     }
+  }
+
+  function handleDelete(id: string) {
+    setCourses(prev => prev.filter(c => c.id !== id))
   }
 
   const rows = sorted(courses, sortKey, sortDir)
@@ -219,7 +266,7 @@ export function TeacherCoursesPage({ courses }: { courses: TeacherCourseSummary[
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((course, i) => <Row key={course.id} course={course} i={i} />)}
+              {rows.map((course, i) => <Row key={course.id} course={course} i={i} onDelete={handleDelete} />)}
             </tbody>
           </table>
         </div>
