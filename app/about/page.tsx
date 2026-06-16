@@ -761,7 +761,7 @@ export default function AboutPage() {
               className="inline-block rounded-full px-8 py-3.5 font-semibold bg-white hover:scale-105 transition-transform cursor-pointer shadow-xl text-sm"
               style={{ color: '#7C3AED' }}
             >
-              Get started free
+              Get started for free
             </Link>
           </div>
         </section>

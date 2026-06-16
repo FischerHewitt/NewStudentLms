@@ -159,7 +159,7 @@ export default function LandingPage() {
               className="rounded-full px-8 py-4 font-semibold text-white text-base transition-transform hover:scale-105 cursor-pointer"
               style={{ background: GRAD, boxShadow: '0 8px 30px rgba(124,58,237,0.35)' }}
             >
-              Get started free
+              Get started for free
             </Link>
             <a
               href="#how-it-works"
@@ -417,7 +417,7 @@ export default function LandingPage() {
               className="inline-block rounded-full px-10 py-4 font-semibold text-base bg-white transition-transform hover:scale-105 cursor-pointer shadow-xl"
               style={{ color: '#7C3AED' }}
             >
-              Get started free
+              Get started for free
             </Link>
           </div>
         </div>
