@@ -147,6 +147,9 @@ describe('StudentDashboard redesign', () => {
   })
 
   it('renders the weekly to-do command center with grouped work, links, points, and check-off controls', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T03:50:00Z'))
+
     const html = renderToStaticMarkup(
       <StudentDashboard courses={courses} assignments={assignments} />,
     )
@@ -160,8 +163,11 @@ describe('StudentDashboard redesign', () => {
     expect(html).toContain('20pts')
     expect(html).toContain('10pts')
     expect(html).toContain('Mark as turned in (paper / in-class)')
-    expect(html).toContain('later assignment')
-    expect(html).not.toContain('Midterm 1 - Chemistry and Cells')
+    // With only 3 open assignments (well under the 9-row cap), the checklist
+    // shows all of them individually under their date grouping — nothing is
+    // summarized below the fold.
+    expect(html).toContain('Midterm 1 - Chemistry and Cells')
+    expect(html).toContain('100pts')
   })
 
   it('places today in the second calendar column after yesterday', () => {
@@ -181,6 +187,9 @@ describe('StudentDashboard redesign', () => {
   })
 
   it('switches the Overview weekly work area to completed assignments', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T03:50:00Z'))
+
     const html = renderToStaticMarkup(
       <StudentDashboard
         courses={courses}
@@ -199,6 +208,9 @@ describe('StudentDashboard redesign', () => {
   })
 
   it('caps the smart window at 9 To-Do rows and 9 Completed rows', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-01T03:50:00Z'))
+
     const manyTodos: StudentDashboardAssignment[] = Array.from({ length: 10 }, (_, index) => ({
       id: `todo-${index + 1}`,
       courseId: 'bio-111',

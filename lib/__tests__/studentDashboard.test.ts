@@ -69,9 +69,14 @@ describe('filterOpenAssignments', () => {
     expect(filterOpenAssignments([a], null, null)).toEqual([])
   })
 
-  it('excludes assignments with null due date', () => {
+  it('includes undated assignments when no day filter is active', () => {
     const a = makeAssignment({ due: null })
-    expect(filterOpenAssignments([a], null, null)).toEqual([])
+    expect(filterOpenAssignments([a], null, null)).toEqual([a])
+  })
+
+  it('excludes undated assignments when a day filter is active', () => {
+    const a = makeAssignment({ due: null })
+    expect(filterOpenAssignments([a], null, '2026-06-01')).toEqual([])
   })
 
   it('returns empty when all assignments are checked off (triggers "All caught up!")', () => {
