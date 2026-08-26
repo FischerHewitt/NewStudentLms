@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+import { sanitizeSubmissionHtml } from '@/lib/sanitize-html'
 
 /**
  * Replace □ placeholders with a styled empty box that KaTeX can render
@@ -65,13 +66,7 @@ export function MarkdownContent({ children, className = '' }: { children: string
   const containsHtml = /<\/?[a-z][\s\S]*>/i.test(children)
 
   if (containsHtml) {
-    const safeHtml = renderMathInHtml(
-      children
-        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-        .replace(/\son\w+="[^"]*"/gi, '')
-        .replace(/\son\w+='[^']*'/gi, '')
-        .replace(/href=["']javascript:[^"']*["']/gi, 'href="#"')
-    )
+    const safeHtml = renderMathInHtml(sanitizeSubmissionHtml(children))
 
     return (
       <div
