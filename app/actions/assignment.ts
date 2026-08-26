@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { STUDENT_ID } from '@/lib/constants'
 import { canSubmit } from '@/lib/submission'
+import { sanitizeSubmissionHtml } from '@/lib/sanitize-html'
 import {
   submissionAttachmentFromRow,
   submissionAttachmentToFields,
@@ -213,12 +214,13 @@ export async function submitAssignment(
   }
 
   const fileFields = submissionAttachmentToFields(attachment)
+  const sanitizedBody = sanitizeSubmissionHtml(body)
 
   if (existing) {
     const { error } = await db
       .from('submissions')
       .update({
-        body,
+        body: sanitizedBody,
         status: 'submitted',
         submitted_at: new Date().toISOString(),
         ...fileFields,
@@ -230,7 +232,7 @@ export async function submitAssignment(
     const { error } = await db.from('submissions').insert({
       assignment_id: assignmentId,
       student_id: STUDENT_ID,
-      body,
+      body: sanitizedBody,
       status: 'submitted',
       submitted_at: new Date().toISOString(),
       ...fileFields,
