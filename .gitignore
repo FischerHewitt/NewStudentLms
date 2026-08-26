@@ -34,3 +34,10 @@ yarn-error.log*
 next-env.d.ts
 .next/
 tsconfig.tsbuildinfo
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Personal notes
+job-interview.txt
