@@ -1,4 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify'
+import sanitizeHtmlLib from 'sanitize-html'
 
 const ALLOWED_TAGS = [
   'a', 'b', 'blockquote', 'br', 'div', 'em', 'font',
@@ -9,11 +9,18 @@ const ALLOWED_TAGS = [
 const ALLOWED_ATTR = ['href', 'style', 'data-math', 'data-editor-math', 'contenteditable']
 
 /**
- * Allow-list HTML sanitizer for rich-text submission content. Safe to run
- * both server-side (before persisting) and client-side (before rendering
- * via dangerouslySetInnerHTML) — DOMPurify falls back to a jsdom-backed
- * implementation in Node.
+ * Allow-list HTML sanitizer for rich-text submission content. Pure-JS
+ * (no DOM/jsdom dependency), so it behaves identically on the server
+ * (before persisting) and on the client (before rendering via
+ * dangerouslySetInnerHTML).
  */
 export function sanitizeSubmissionHtml(html: string): string {
-  return DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR })
+  return sanitizeHtmlLib(html, {
+    allowedTags: ALLOWED_TAGS,
+    allowedAttributes: {
+      '*': ALLOWED_ATTR,
+    },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    allowProtocolRelative: false,
+  })
 }
